@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -128,24 +129,33 @@ fun PerfilScreen(navController: NavHostController?) {
 
                         Spacer(modifier = Modifier.height(32.dp))
 
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.Top
                         ) {
                             Image(
                                 painter = painterResource(id = R.drawable.instituicao),
                                 contentDescription = "Imagem Perfil",
                                 contentScale = ContentScale.Crop,
-                                modifier = Modifier.size(70.dp)
+                                modifier = Modifier
+                                    .size(70.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+
                             )
+
+                            Spacer(modifier = Modifier.width(12.dp))
 
                             Text(
                                 "Está participando da ONG há 4 meses. A organização tem como objetivo implementar o esporte nas comunidades, promovendo inclusão social, desenvolvimento pessoal e mais oportunidades para crianças e jovens.",
                                 fontSize = 14.sp,
                                 color = Color.DarkGray,
                                 lineHeight = 20.sp,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.weight(1f) // ocupa o espaço restante
                             )
                         }
+
 
                         Spacer(modifier = Modifier.height(32.dp))
 
