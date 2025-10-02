@@ -30,7 +30,6 @@ import com.example.oportunyfam_mobile_ong.R
 @Composable
 fun RegistroScreen(navController: NavHostController?) {
 
-    // Estados registro
     val nome = remember { mutableStateOf("") }
     val email = remember { mutableStateOf("") }
     val number = remember { mutableStateOf("") }
@@ -39,12 +38,6 @@ fun RegistroScreen(navController: NavHostController?) {
     val cep = remember { mutableStateOf("") }
     val senha = remember { mutableStateOf("") }
     val confirmarSenha = remember { mutableStateOf("") }
-
-    // Estado login
-    val loginEmail = remember { mutableStateOf("") }
-    val loginSenha = remember { mutableStateOf("") }
-
-    // Controle de telas
     val isRegisterSelected = remember { mutableStateOf(true) }
     val currentStep = remember { mutableStateOf(1) }
 
@@ -172,10 +165,8 @@ fun RegistroScreen(navController: NavHostController?) {
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                // Condicional de registro ou login
+                // Condicional de cadastro
                 if (isRegisterSelected.value) {
-
-                    // ---------- Registro ----------
 
                     // Passo 1
                     if (currentStep.value == 1) {
@@ -200,7 +191,7 @@ fun RegistroScreen(navController: NavHostController?) {
                                 .padding(top = 8.dp),
                             shape = RoundedCornerShape(10.dp),
                             leadingIcon = { Icon(Icons.Default.Email, contentDescription = "", tint = Color(0x9E000000)) },
-                            label = { Text("Email") }
+                            label = { Text("Email ") }
                         )
 
                         Spacer(modifier = Modifier.height(10.dp))
@@ -213,7 +204,7 @@ fun RegistroScreen(navController: NavHostController?) {
                                 .padding(top = 8.dp),
                             shape = RoundedCornerShape(10.dp),
                             leadingIcon = { Icon(Icons.Default.Call, contentDescription = "", tint = Color(0x9E000000)) },
-                            label = { Text("Contato") }
+                            label = { Text("Contato ") }
                         )
 
                         Spacer(modifier = Modifier.height(10.dp))
@@ -325,72 +316,11 @@ fun RegistroScreen(navController: NavHostController?) {
                             )
                         }
                     }
-
-                } else {
-                    // ---------- Login ----------
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        OutlinedTextField(
-                            value = loginEmail.value,
-                            onValueChange = { loginEmail.value = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 8.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            leadingIcon = { Icon(Icons.Default.Email, contentDescription = "", tint = Color(0x9E000000)) },
-                            label = { Text("Email") }
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        OutlinedTextField(
-                            value = loginSenha.value,
-                            onValueChange = { loginSenha.value = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 8.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            visualTransformation = PasswordVisualTransformation(),
-                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "", tint = Color(0x9E000000)) },
-                            label = { Text("Senha") }
-                        )
-
-                        Spacer(modifier = Modifier.height(15.dp))
-
-                        Button(
-                            onClick = {
-                                // Lógica de login
-                                // Ex: navController?.navigate("Home")
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFA500))
-                        ) {
-                            Text(
-                                "Entrar",
-                                color = Color.White,
-                                fontSize = 16.sp
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Text(
-                            text = "Esqueceu a senha?",
-                            color = Color.Gray,
-                            modifier = Modifier
-                                .clickable { /* Recuperação de senha */ }
-                                .padding(top = 8.dp)
-                        )
-                    }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Divider "Ou entre com"
+                // Divider "Or login with"
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
@@ -447,3 +377,4 @@ fun RegistroScreen(navController: NavHostController?) {
 fun RegistroScreenPreview() {
     RegistroScreen(navController = null)
 }
+
