@@ -1,13 +1,13 @@
-package br.senai.sp.jandira.clienteapp.service
+package com.example.service
 
 import com.example.Service.UsuarioService
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.create
 
 class RetrofitFactory {
 
-    private  val BASE_URL = "http://localhost:8080/v1/oportunyfam/"
+    // Se estiver testando em dispositivo físico, use o IP da sua máquina na rede local
+    private val BASE_URL = "http://localhost:8080/v1/oportunyfam/"
 
     private val retrofitFactory =
         Retrofit
