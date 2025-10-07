@@ -9,7 +9,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.example.screens.InstituicaoRegistroScreen
+import com.example.screens.RegistroScreen
 import com.example.theme.OportunyFamMobileONGTheme
 
 class MainActivity : ComponentActivity() {
@@ -20,7 +20,7 @@ class MainActivity : ComponentActivity() {
             OportunyFamMobileONGTheme {
                 // Surface preenche toda a tela
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    InstituicaoRegistroScreen(navController = null) // Aqui chamamos sua tela
+                    RegistroScreen(navController = null) // Aqui chamamos sua tela
                 }
             }
         }
@@ -31,6 +31,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainActivityPreview() {
     OportunyFamMobileONGTheme {
-        InstituicaoRegistroScreen(navController = null)
+        RegistroScreen(navController = null)
     }
 }

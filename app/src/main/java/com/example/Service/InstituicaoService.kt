@@ -2,14 +2,19 @@ package com.example.oportunyfam.Service
 
 import com.example.model.InstituicaoRequest
 import com.example.oportunyfam.model.Instituicao
+import com.example.oportunyfam.model.LoginRequest
 import retrofit2.Call
+import retrofit2.Response
 import retrofit2.http.*
 
 interface InstituicaoService {
 
     // POST - Criar nova instituição
     @POST("instituicoes")
-    fun criar(@Body instituicao: InstituicaoRequest): Call<Instituicao>
+    suspend fun criar(@Body request: InstituicaoRequest): Response<Instituicao>
+
+    @PUT("instituicoes/login")
+    suspend fun loginInstituicao(@Body request: LoginRequest): Response<Instituicao>
 
     // GET - Listar todas as instituições
     // Esta rota é a mesma usada para a busca/filtro
@@ -32,6 +37,7 @@ interface InstituicaoService {
 
     // GET - Busca com filtros e paginação (usando a Stored Procedure)
     // Ex: GET /v1/instituicoes?busca=escola&pagina=1
+
     @GET("instituicoes")
     fun buscarComFiltro(
         @Query("busca") termo: String?,
