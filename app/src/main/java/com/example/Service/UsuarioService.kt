@@ -1,17 +1,35 @@
-package com.example.Service
+package com.example.oportunyfam.Service
 
-import com.example.model.LoginRequest
-import com.example.model.LoginResponse
-import com.example.model.RegistroRequest
-import com.example.model.RegistroResponse
-import retrofit2.Response
-import retrofit2.http.Body
-import retrofit2.http.POST
+import com.example.oportunyfam.model.LoginRequest
+import com.example.oportunyfam.model.LoginResponse
+import com.example.oportunyfam.model.UsuarioRequest
+import com.example.oportunyfam.model.UsuarioResponse
+import retrofit2.Call
+import retrofit2.http.*
 
 interface UsuarioService {
-    @POST("usuario")
-    suspend fun registrar(@Body request: RegistroRequest): Response<RegistroResponse>
 
+    // POST /v1/usuario - Envia o Request, retorna o Response
+    @POST("usuario")
+    fun criar(@Body usuario: UsuarioRequest): Call<UsuarioResponse>
+
+    // PUT /v1/usuario/:id - Envia o Request, retorna o Response
+    @PUT("usuario/{id}")
+    fun atualizar(@Path("id") id: Int, @Body usuario: UsuarioRequest): Call<UsuarioResponse>
+
+    // GET /v1/usuario - Retorna Lista de Responses
+    @GET("usuario")
+    fun listarTodos(): Call<List<UsuarioResponse>>
+
+    // GET /v1/usuario/:id - Retorna um Response
+    @GET("usuario/{id}")
+    fun buscarPorId(@Path("id") id: Int): Call<UsuarioResponse>
+
+    // POST /v1/usuario/login - Usa LoginRequest, retorna LoginResponse
     @POST("usuario/login")
-    suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
+    fun loginUsuario(@Body request: LoginRequest): Call<LoginResponse>
+
+    // DELETE /v1/usuario/:id - Sem mudança
+    @DELETE("usuario/{id}")
+    fun deletar(@Path("id") id: Int): Call<Unit>
 }
