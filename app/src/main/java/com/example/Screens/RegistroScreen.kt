@@ -1,541 +1,495 @@
 package com.example.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.input.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import com.example.oportunyfam_mobile_ong.R
-import com.example.service.RetrofitFactory
-import com.example.model.LoginRequest
-import com.example.model.RegistroRequest
+import com.example.oportunyfam_mobile_ong.R // Ajuste seu import R
+import com.example.model.InstituicaoRequest
+import com.example.model.TipoInstituicao
+import com.example.Components.* // Importa os componentes ViaCEP, CNPJ, MultiSelect
+import com.example.oportunyfam.Service.RetrofitFactory
 import kotlinx.coroutines.launch
 
+// ==============================================================================
+// ⚠️ ATENÇÃO: Verifique e ajuste a localização da sua classe InstituicaoViewModel
+// e crie o arquivo se não tiver feito na resposta anterior.
+// ==============================================================================
+class InstituicaoViewModel : androidx.lifecycle.ViewModel() {
+    var nome by mutableStateOf("")
+    var email by mutableStateOf("")
+    var senha by mutableStateOf("")
+    var cnpj by mutableStateOf("") // CNPJ é tratado no componente CnpjTextField
+    var telefone by mutableStateOf("")
+    var descricao by mutableStateOf("")
+    var confirmarSenha by mutableStateOf("")
+
+    // Dados de endereço (preenchidos pelo ViaCEP)
+    var cep by mutableStateOf("")
+    var logradouro by mutableStateOf("")
+    var numero by mutableStateOf("")
+    var complemento by mutableStateOf("")
+    var bairro by mutableStateOf("")
+    var cidade by mutableStateOf("")
+    var estado by mutableStateOf("")
+
+    // Lista de IDs de Tipos de Instituição selecionados
+    var selectedTipoIds by mutableStateOf(emptyList<Int>())
+
+    // Estado para a lista de tipos disponíveis
+    var tiposInstituicao by mutableStateOf(emptyList<TipoInstituicao>())
+    var isLoadingTipos by mutableStateOf(false)
+}
+// ==============================================================================
+
+
+// ==============================================================================
+// CONSTANTES DE LIMITAÇÃO DE ENTRADA
+// ==============================================================================
+private const val MAX_LENGTH_NOME = 100
+private const val MAX_LENGTH_SENHA = 50
+private const val MAX_LENGTH_TELEFONE = 15 // Suficiente para máscaras (DD) 9XXXX-XXXX
+private const val MAX_LENGTH_ENDERECO = 100
+private const val MAX_LENGTH_NUMERO = 10
+private const val MAX_LENGTH_UF = 2
+private const val MAX_LENGTH_DESCRICAO = 500
+
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RegistroScreen(navController: NavHostController?) {
+fun InstituicaoRegistroScreen(
+    navController: NavHostController?,
+    viewModel: InstituicaoViewModel = viewModel()
+) {
+    val context = LocalContext.current
+    val scrollState = rememberScrollState()
 
-    val nome = remember { mutableStateOf("") }
-    val email = remember { mutableStateOf("") }
-    val number = remember { mutableStateOf("") }
-    val tipoInstituicao = remember { mutableStateOf("") }
-    val cpf = remember { mutableStateOf("") }
-    val cep = remember { mutableStateOf("") }
-    val senha = remember { mutableStateOf("") }
-    val confirmarSenha = remember { mutableStateOf("") }
-    val isRegisterSelected = remember { mutableStateOf(true) }
-    val currentStep = remember { mutableStateOf(1) }
-
-    val isLoading = remember { mutableStateOf(false) }
+    var isSaving by remember { mutableStateOf(false) }
     val errorMessage = remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
-    val usuarioService = remember { RetrofitFactory().getUsuarioService() }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Imagem topo
-        Image(
-            painter = painterResource(id = R.drawable.imglogin),
-            contentDescription = "",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(350.dp)
-                .align(Alignment.TopCenter)
-        )
-
-        // Card sobre a imagem
-        Card(
-            modifier = Modifier
-                .fillMaxWidth(0.8f)
-                .height(120.dp)
-                .offset(y = 140.dp),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0x8CFFA500))
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = if (isRegisterSelected.value) "Crie sua conta e junte-se a nós!" else "Seja bem-vindo novamente",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = if (isRegisterSelected.value) "Estamos felizes em ter você por aqui!" else "Entre em sua conta para usar os nossos serviços",
-                    fontSize = 14.sp,
-                    color = Color.Black
-                )
+    // -----------------------------------------------------
+    // EFEITO: CARREGAR TIPOS DE INSTITUIÇÃO
+    // -----------------------------------------------------
+    LaunchedEffect(Unit) {
+        viewModel.isLoadingTipos = true
+        try {
+            val service = RetrofitFactory().getTipoInstituicaoService()
+            val response = service.listarTodos().execute()
+            if (response.isSuccessful) {
+                viewModel.tiposInstituicao = response.body() ?: emptyList()
+            } else {
+                Toast.makeText(context, "Erro ao carregar tipos de instituição.", Toast.LENGTH_SHORT).show()
             }
+        } catch (e: Exception) {
+            Toast.makeText(context, "Falha de rede ao carregar tipos.", Toast.LENGTH_SHORT).show()
+        }
+        viewModel.isLoadingTipos = false
+    }
+
+    // -----------------------------------------------------
+    // FUNÇÃO: SUBMISSÃO DO REGISTRO
+    // -----------------------------------------------------
+    val handleRegister: () -> Unit = Button@{
+        errorMessage.value = null
+
+        // --- Validações de Pré-Envio (melhoradas) ---
+        if (viewModel.nome.isBlank() || viewModel.email.isBlank() || viewModel.senha.isBlank() ||
+            viewModel.cnpj.isBlank() || viewModel.cep.isBlank() || viewModel.logradouro.isBlank() ||
+            viewModel.bairro.isBlank() || viewModel.cidade.isBlank() || viewModel.estado.isBlank()) {
+            errorMessage.value = "Preencha todos os campos obrigatórios (incluindo o endereço via CEP)."
+            return@Button
+        }
+        if (viewModel.senha != viewModel.confirmarSenha) {
+            errorMessage.value = "As senhas não coincidem."
+            return@Button
+        }
+        if (viewModel.senha.length < 8) {
+            errorMessage.value = "A senha deve ter no mínimo 8 caracteres."
+            return@Button
+        }
+        if (viewModel.selectedTipoIds.isEmpty()) {
+            errorMessage.value = "Selecione pelo menos um Tipo de Instituição."
+            return@Button
+        }
+        if (viewModel.estado.length != MAX_LENGTH_UF) {
+            errorMessage.value = "O campo UF deve ter 2 letras."
+            return@Button
         }
 
-        // Card principal
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.68f)
-                .align(Alignment.BottomCenter),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Top
-            ) {
 
-                // Botões Login / Registro
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp)
-                        .background(
-                            Color(0xFFE0E0E0),
-                            shape = RoundedCornerShape(25.dp)
-                        )
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Botão Login
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(25.dp))
-                            .background(
-                                if (!isRegisterSelected.value) Color.White else Color(0xFFE0E0E0)
-                            )
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = LocalIndication.current
-                            ) {
-                                isRegisterSelected.value = false
-                                errorMessage.value = null
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Login",
-                            fontSize = 16.sp,
-                            color = Color.Gray,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+        isSaving = true
 
-                    // Botão Registro
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(25.dp))
-                            .background(
-                                if (isRegisterSelected.value) Color.White else Color(0xFFE0E0E0)
-                            )
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = LocalIndication.current
-                            ) {
-                                isRegisterSelected.value = true
-                                errorMessage.value = null
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Registre-se",
-                            fontSize = 16.sp,
-                            color = Color.Black,
-                            fontWeight = FontWeight.Bold
-                        )
+        scope.launch {
+            try {
+                // Remove espaços em branco antes de enviar
+                val requestBody = InstituicaoRequest(
+                    nome = viewModel.nome.trim(),
+                    cnpj = viewModel.cnpj.filter { it.isDigit() },
+                    email = viewModel.email.trim(),
+                    senha = viewModel.senha,
+                    descricao = viewModel.descricao.trim().ifBlank { null },
+                    telefone = viewModel.telefone.filter { it.isDigit() }.ifBlank { null },
+                    tipos_instituicao = viewModel.selectedTipoIds,
+
+                    // Endereço
+                    cep = viewModel.cep.filter { it.isDigit() }, // Garante o formato limpo
+                    logradouro = viewModel.logradouro.trim(),
+                    numero = viewModel.numero.trim().ifBlank { null },
+                    complemento = viewModel.complemento.trim().ifBlank { null },
+                    bairro = viewModel.bairro.trim(),
+                    cidade = viewModel.cidade.trim(),
+                    estado = viewModel.estado.trim(),
+                    // Lat/Lng NÃO estão na request, pois são calculadas no backend via logradouro ou Viacep
+                )
+
+                val service = RetrofitFactory().getInstituicaoService() // Certifique-se que você tem o getInstituicaoService() no seu Factory
+                val response = service.criar(requestBody).execute()
+
+                if (response.isSuccessful) {
+                    Toast.makeText(context, "Cadastro de Instituição realizado com sucesso!", Toast.LENGTH_LONG).show()
+                    navController?.navigate("loginInstituicao") {
+                        popUpTo("registroInstituicao") { inclusive = true }
                     }
+                } else {
+                    val errorBody = response.errorBody()?.string() ?: "Erro desconhecido"
+                    errorMessage.value = "Falha no cadastro: $errorBody"
                 }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                errorMessage.value?.let { error ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            text = error,
-                            color = Color(0xFFD32F2F),
-                            fontSize = 14.sp,
-                            modifier = Modifier.padding(12.dp)
-                        )
-                    }
-                }
-
-                // ================== LOGIN ==================
-                if (!isRegisterSelected.value) {
-                    OutlinedTextField(
-                        value = email.value,
-                        onValueChange = { email.value = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
-                        leadingIcon = { Icon(Icons.Default.Email, contentDescription = "", tint = Color(0x9E000000)) },
-                        label = { Text("Email") },
-                        enabled = !isLoading.value
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    OutlinedTextField(
-                        value = senha.value,
-                        onValueChange = { senha.value = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
-                        visualTransformation = PasswordVisualTransformation(),
-                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "", tint = Color(0x9E000000)) },
-                        label = { Text("Senha") },
-                        enabled = !isLoading.value
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Lembrar-me + Esqueceu senha
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(
-                                checked = false,
-                                onCheckedChange = { /* lembrar-me */ },
-                                colors = CheckboxDefaults.colors(checkedColor = Color(0xFFFFA500))
-                            )
-                            Text("Lembrar-me", color = Color.Gray, fontSize = 14.sp)
-                        }
-                        TextButton(onClick = { /* esqueceu senha */ }) {
-                            Text("Esqueceu sua senha?", color = Color(0xFFFFA500), fontSize = 14.sp)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Button(
-                        onClick = {
-                            errorMessage.value = null
-
-                            // Validações
-                            if (email.value.isBlank() || senha.value.isBlank()) {
-                                errorMessage.value = "Preencha todos os campos"
-                                return@Button
-                            }
-
-                            isLoading.value = true
-
-                            scope.launch {
-                                try {
-                                    val request = LoginRequest(
-                                        email = email.value,
-                                        senha = senha.value
-                                    )
-
-                                    val response = usuarioService.login(request)
-
-                                    if (response.isSuccessful && response.body() != null) {
-                                        val loginResponse = response.body()!!
-                                        // Login bem-sucedido - navegar para tela principal
-                                        navController?.navigate("perfil")
-                                    } else {
-                                        errorMessage.value = "Email ou senha incorretos"
-                                    }
-                                } catch (e: Exception) {
-                                    errorMessage.value = "Erro ao conectar com o servidor: ${e.message}"
-                                } finally {
-                                    isLoading.value = false
-                                }
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFA500)),
-                        shape = RoundedCornerShape(25.dp),
-                        enabled = !isLoading.value
-                    ) {
-                        if (isLoading.value) {
-                            CircularProgressIndicator(
-                                color = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        } else {
-                            Text("Login", color = Color.White, fontSize = 16.sp)
-                        }
-                    }
-                }
-
-                // ================== REGISTRO ==================
-                if (isRegisterSelected.value) {
-                    // Passo 1
-                    if (currentStep.value == 1) {
-                        OutlinedTextField(
-                            value = nome.value,
-                            onValueChange = { nome.value = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp),
-                            leadingIcon = { Icon(Icons.Default.AccountCircle, contentDescription = "", tint = Color(0x9E000000)) },
-                            label = { Text("Nome") },
-                            enabled = !isLoading.value
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        OutlinedTextField(
-                            value = email.value,
-                            onValueChange = { email.value = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp),
-                            leadingIcon = { Icon(Icons.Default.Email, contentDescription = "", tint = Color(0x9E000000)) },
-                            label = { Text("Email") },
-                            enabled = !isLoading.value
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        OutlinedTextField(
-                            value = number.value,
-                            onValueChange = { number.value = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp),
-                            leadingIcon = { Icon(Icons.Default.Call, contentDescription = "", tint = Color(0x9E000000)) },
-                            label = { Text("Contato") },
-                            enabled = !isLoading.value
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        OutlinedTextField(
-                            value = tipoInstituicao.value,
-                            onValueChange = { tipoInstituicao.value = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp),
-                            leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = "", tint = Color(0x9E000000)) },
-                            label = { Text("Tipo de Instituição") },
-                            enabled = !isLoading.value
-                        )
-
-                        Spacer(modifier = Modifier.height(15.dp))
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    if (nome.value.isBlank() || email.value.isBlank() ||
-                                        number.value.isBlank() || tipoInstituicao.value.isBlank()) {
-                                        errorMessage.value = "Preencha todos os campos antes de prosseguir"
-                                    } else {
-                                        errorMessage.value = null
-                                        currentStep.value = 2
-                                    }
-                                },
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Prosseguir",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFFFA500)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Icon(Icons.Default.ArrowForward, contentDescription = "", tint = Color(0xFFFFA500))
-                        }
-                    }
-
-                    // Passo 2
-                    if (currentStep.value == 2) {
-                        OutlinedTextField(
-                            value = cpf.value,
-                            onValueChange = { cpf.value = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp),
-                            leadingIcon = { Icon(Icons.Default.Check, contentDescription = "", tint = Color(0x9E000000)) },
-                            label = { Text("CNPJ") },
-                            enabled = !isLoading.value
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        OutlinedTextField(
-                            value = cep.value,
-                            onValueChange = { cep.value = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp),
-                            leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = "", tint = Color(0x9E000000)) },
-                            label = { Text("CEP") },
-                            enabled = !isLoading.value
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        OutlinedTextField(
-                            value = senha.value,
-                            onValueChange = { senha.value = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp),
-                            visualTransformation = PasswordVisualTransformation(),
-                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "", tint = Color(0x9E000000)) },
-                            label = { Text("Digite sua senha") },
-                            enabled = !isLoading.value
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        OutlinedTextField(
-                            value = confirmarSenha.value,
-                            onValueChange = { confirmarSenha.value = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp),
-                            visualTransformation = PasswordVisualTransformation(),
-                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "", tint = Color(0x9E000000)) },
-                            label = { Text("Confirme sua senha") },
-                            enabled = !isLoading.value
-                        )
-
-                        Spacer(modifier = Modifier.height(15.dp))
-
-                        Button(
-                            onClick = {
-                                errorMessage.value = null
-
-                                // Validações
-                                if (cpf.value.isBlank() || cep.value.isBlank() ||
-                                    senha.value.isBlank() || confirmarSenha.value.isBlank()) {
-                                    errorMessage.value = "Preencha todos os campos"
-                                    return@Button
-                                }
-
-                                if (senha.value != confirmarSenha.value) {
-                                    errorMessage.value = "As senhas não coincidem"
-                                    return@Button
-                                }
-
-                                if (senha.value.length < 6) {
-                                    errorMessage.value = "A senha deve ter no mínimo 6 caracteres"
-                                    return@Button
-                                }
-
-                                isLoading.value = true
-
-                                scope.launch {
-                                    try {
-                                        val request = RegistroRequest(
-                                            nome = nome.value,
-                                            email = email.value,
-                                            telefone = number.value,
-                                            tipoInstituicao = tipoInstituicao.value,
-                                            cnpj = cpf.value,
-                                            cep = cep.value,
-                                            senha = senha.value
-                                        )
-
-                                        val response = usuarioService.registrar(request)
-
-                                        if (response.isSuccessful && response.body() != null) {
-                                            val registroResponse = response.body()!!
-                                            // Registro bem-sucedido - navegar para tela principal
-                                            navController?.navigate("perfil")
-                                        } else {
-                                            errorMessage.value = "Erro ao cadastrar: ${response.message()}"
-                                        }
-                                    } catch (e: Exception) {
-                                        errorMessage.value = "Erro ao conectar com o servidor: ${e.message}"
-                                    } finally {
-                                        isLoading.value = false
-                                    }
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFA500)),
-                            shape = RoundedCornerShape(25.dp),
-                            enabled = !isLoading.value
-                        ) {
-                            if (isLoading.value) {
-                                CircularProgressIndicator(
-                                    color = Color.White,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            } else {
-                                Text("Cadastrar", color = Color.White, fontSize = 16.sp)
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(15.dp))
-
-                // Divider "Ou entre com"
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Divider(color = Color.LightGray, thickness = 1.dp, modifier = Modifier.weight(1f))
-                    Text("Ou entre com", color = Color.Gray, modifier = Modifier.padding(horizontal = 8.dp))
-                    Divider(color = Color.LightGray, thickness = 1.dp, modifier = Modifier.weight(1f))
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Botão Google
-                Box(
-                    modifier = Modifier
-                        .background(Color.White, shape = RoundedCornerShape(25.dp))
-                        .fillMaxWidth()
-                        .height(50.dp)
-                        .clickable { /* ação Google */ },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Image(
-                            painter = painterResource(id = R.drawable.google),
-                            contentDescription = "",
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Google", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                    }
-                }
+            } catch (e: Exception) {
+                errorMessage.value = "Erro ao conectar com o servidor: ${e.message}"
+            } finally {
+                isSaving = false
             }
         }
     }
-}
 
-@Preview(showSystemUi = true)
-@Composable
-fun RegistroScreenPreview() {
-    RegistroScreen(navController = null)
+    // -----------------------------------------------------
+    // FUNÇÃO: TRATAMENTO DE SUCESSO DO ViaCEP
+    // -----------------------------------------------------
+    val onCepSuccess: (data: ViaCepData) -> Unit = { data ->
+        viewModel.cep = data.cep.replace("-", "")
+        viewModel.logradouro = data.logradouro
+        viewModel.bairro = data.bairro
+        viewModel.cidade = data.localidade
+        viewModel.estado = data.uf
+    }
+
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Registro de Instituição") },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0x8CFFA500)),
+                navigationIcon = {
+                    IconButton(onClick = { navController?.popBackStack() }) {
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Voltar")
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .verticalScroll(scrollState)
+                .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(modifier = Modifier.height(24.dp))
+            Text("Detalhes da Instituição", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Exibição de Erros
+            errorMessage.value?.let { error ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = error,
+                        color = Color(0xFFD32F2F),
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+            }
+
+            // 1. Nome da Instituição
+            OutlinedTextField(
+                value = viewModel.nome,
+                onValueChange = {
+                    // Permite APENAS letras e espaços, e limita o tamanho
+                    val filteredText = it.filter { char -> char.isLetter() || char.isWhitespace() } // FIX APLICADO AQUI
+                    if (filteredText.length <= MAX_LENGTH_NOME) {
+                        viewModel.nome = filteredText
+                    }
+                },
+                label = { Text("Nome da Instituição *") },
+                leadingIcon = { Icon(Icons.Default.Home, contentDescription = "Nome") },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                modifier = Modifier.fillMaxWidth(),
+                supportingText = { Text("Máx. $MAX_LENGTH_NOME caracteres. (Apenas letras e espaços)") },
+                enabled = !isSaving
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // 2. CNPJ Componente (Validação e máscara embutidas)
+            CnpjTextField(
+                modifier = Modifier.fillMaxWidth(),
+                onValidationSuccess = { viewModel.cnpj = it } // Salva o CNPJ limpo
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // 3. Telefone
+            OutlinedTextField(
+                value = viewModel.telefone,
+                onValueChange = {
+                    // Permite apenas dígitos e limita o tamanho
+                    val filteredText = it.filter { char -> char.isDigit() }
+                    if (filteredText.length <= MAX_LENGTH_TELEFONE) {
+                        viewModel.telefone = filteredText
+                    }
+                },
+                label = { Text("Telefone (Opcional)") },
+                leadingIcon = { Icon(Icons.Default.Phone, contentDescription = "Telefone") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                modifier = Modifier.fillMaxWidth(),
+                supportingText = { Text("Máx. $MAX_LENGTH_TELEFONE dígitos.") },
+                enabled = !isSaving
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // 4. Email
+            OutlinedTextField(
+                value = viewModel.email,
+                onValueChange = { viewModel.email = it.take(MAX_LENGTH_NOME) }, // Limita o tamanho
+                label = { Text("Email (Será seu Login) *") },
+                leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next), // Teclado otimizado para email
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isSaving
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // 5. Senha e Confirmação
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = viewModel.senha,
+                    onValueChange = {
+                        if (it.length <= MAX_LENGTH_SENHA) viewModel.senha = it
+                    },
+                    label = { Text("Senha *") },
+                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Senha") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+                    visualTransformation = PasswordVisualTransformation(),
+                    supportingText = { Text("Mín. 8, Máx. $MAX_LENGTH_SENHA caracteres.") },
+                    modifier = Modifier.weight(1f),
+                    enabled = !isSaving
+                )
+                OutlinedTextField(
+                    value = viewModel.confirmarSenha,
+                    onValueChange = {
+                        if (it.length <= MAX_LENGTH_SENHA) viewModel.confirmarSenha = it
+                    },
+                    label = { Text("Confirmar *") },
+                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Confirmar Senha") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.weight(1f),
+                    enabled = !isSaving
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            Divider()
+            Spacer(modifier = Modifier.height(24.dp))
+            Text("Endereço (ViaCEP)", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 6. ViaCEP Componente
+            CepTextField(
+                modifier = Modifier.fillMaxWidth(),
+                onValidationSuccess = onCepSuccess // Preenche os campos do ViewModel
+            )
+
+            // Campos de endereço detalhados (aparecem após o sucesso do CEP)
+            if (viewModel.logradouro.isNotBlank()) {
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Logradouro (Preenchido pelo CEP, mas editável)
+                OutlinedTextField(
+                    value = viewModel.logradouro,
+                    onValueChange = {
+                        if (it.length <= MAX_LENGTH_ENDERECO) viewModel.logradouro = it
+                    },
+                    label = { Text("Logradouro (Rua) *") },
+                    leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = "Rua") },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    modifier = Modifier.fillMaxWidth(),
+                    supportingText = { Text("Máx. $MAX_LENGTH_ENDERECO caracteres.") },
+                    enabled = !isSaving
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Número (Input manual)
+                    OutlinedTextField(
+                        value = viewModel.numero,
+                        onValueChange = {
+                            // Permite apenas dígitos e limita o tamanho
+                            val filteredText = it.filter { char -> char.isDigit() }
+                            if (filteredText.length <= MAX_LENGTH_NUMERO) {
+                                viewModel.numero = filteredText
+                            }
+                        },
+                        label = { Text("Nº *") },
+                        leadingIcon = { Icon(Icons.Default.Numbers, contentDescription = "Número") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                        modifier = Modifier.weight(1f),
+                        enabled = !isSaving
+                    )
+                    // Complemento (Input manual)
+                    OutlinedTextField(
+                        value = viewModel.complemento,
+                        onValueChange = {
+                            if (it.length <= MAX_LENGTH_ENDERECO) viewModel.complemento = it
+                        },
+                        label = { Text("Comp. (Opcional)") },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                        modifier = Modifier.weight(2f),
+                        enabled = !isSaving
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Bairro, Cidade, Estado (Preenchidos e editáveis)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = viewModel.bairro,
+                        onValueChange = {
+                            if (it.length <= MAX_LENGTH_ENDERECO) viewModel.bairro = it
+                        },
+                        label = { Text("Bairro *") },
+                        modifier = Modifier.weight(1f),
+                        enabled = !isSaving
+                    )
+                    OutlinedTextField(
+                        value = viewModel.cidade,
+                        onValueChange = {
+                            if (it.length <= MAX_LENGTH_ENDERECO) viewModel.cidade = it
+                        },
+                        label = { Text("Cidade *") },
+                        modifier = Modifier.weight(1f),
+                        enabled = !isSaving
+                    )
+                    OutlinedTextField(
+                        value = viewModel.estado,
+                        onValueChange = {
+                            // Permite apenas letras e limita o tamanho a 2
+                            val filteredText = it.filter { char -> char.isLetter() }.uppercase()
+                            if (filteredText.length <= MAX_LENGTH_UF) {
+                                viewModel.estado = filteredText
+                            }
+                        },
+                        label = { Text("UF *") },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                        modifier = Modifier.width(60.dp),
+                        supportingText = { Text("2 letras") },
+                        enabled = !isSaving
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            Divider()
+            Spacer(modifier = Modifier.height(24.dp))
+            Text("Tipos de Serviço e Descrição", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold))
+            Text("(*) Campos obrigatórios", style = MaterialTheme.typography.labelSmall)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 7. Seleção Múltipla de Tipos de Instituição
+            Text("Selecione os tipos de atuação da sua Instituição: *", style = MaterialTheme.typography.titleSmall, modifier = Modifier.fillMaxWidth())
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (viewModel.isLoadingTipos) {
+                CircularProgressIndicator()
+            } else if (viewModel.tiposInstituicao.isNotEmpty()) {
+                TipoInstituicaoMultiSelect(
+                    tipos = viewModel.tiposInstituicao,
+                    onSelectionChanged = { viewModel.selectedTipoIds = it }
+                )
+            } else {
+                Text("Não foi possível carregar os tipos. Verifique a conexão.", color = MaterialTheme.colorScheme.error)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 8. Descrição
+            OutlinedTextField(
+                value = viewModel.descricao,
+                onValueChange = {
+                    if (it.length <= MAX_LENGTH_DESCRICAO) viewModel.descricao = it
+                },
+                label = { Text("Descrição e Missão (Opcional)") },
+                minLines = 3,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                supportingText = { Text("Máx. $MAX_LENGTH_DESCRICAO caracteres.") },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isSaving
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // 9. Botão de Registro
+            Button(
+                onClick = handleRegister,
+                enabled = !isSaving,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFA500)),
+                shape = RoundedCornerShape(25.dp)
+            ) {
+                if (isSaving) {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                } else {
+                    Text("REGISTRAR INSTITUIÇÃO", color = Color.White, fontSize = 16.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Link para Login
+            TextButton(onClick = { navController?.navigate("loginInstituicao") }) {
+                Text(
+                    text = "Já tem conta? Faça login aqui.",
+                    color = Color(0xFFFFA500)
+                )
+            }
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
 }

@@ -1,5 +1,6 @@
-package br.senai.sp.jandira.oportunyfam.service
+package com.example.oportunyfam.Service
 
+import com.example.Service.TipoInstituicaoService
 import com.example.oportunyfam.Service.AtividadeService
 import com.example.oportunyfam.Service.AuthService
 import com.example.oportunyfam.Service.EnderecoService
@@ -12,7 +13,7 @@ class RetrofitFactory {
     // URL Base da sua API local.
     // OBS: Em emuladores Android, 'localhost' do PC é acessado via 10.0.2.2.
     // Usaremos http://localhost:8080/v1/ conforme solicitado.
-    private val BASE_URL = "http://localhost:8080/v1/"
+    private val BASE_URL = "http://192.168.56.1:8080/v1/"
 
     private val retrofitFactory = Retrofit
         .Builder()
@@ -37,5 +38,9 @@ class RetrofitFactory {
     }
     fun getAtividadeService(): AtividadeService {
         return retrofitFactory.create(AtividadeService::class.java)
+    }
+
+    fun getTipoInstituicaoService(): TipoInstituicaoService {
+        return retrofitFactory.create(TipoInstituicaoService::class.java)
     }
 }

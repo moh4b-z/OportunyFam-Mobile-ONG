@@ -1,5 +1,6 @@
 package com.example.oportunyfam.Service
 
+import com.example.model.InstituicaoRequest
 import com.example.oportunyfam.model.Instituicao
 import retrofit2.Call
 import retrofit2.http.*
@@ -8,7 +9,7 @@ interface InstituicaoService {
 
     // POST - Criar nova instituição
     @POST("instituicoes")
-    fun criar(@Body instituicao: Instituicao): Call<Instituicao>
+    fun criar(@Body instituicao: InstituicaoRequest): Call<Instituicao>
 
     // GET - Listar todas as instituições
     // Esta rota é a mesma usada para a busca/filtro
