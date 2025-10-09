@@ -4,6 +4,8 @@ import android.content.Context
 import com.example.oportunyfam.model.Instituicao
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext // ✨ NOVO IMPORT
 
 /**
  * Utilitário para salvar e carregar dados da instituição logada usando SharedPreferences.
@@ -25,6 +27,7 @@ class AuthDataStore(context: Context) {
      * @param instituicao O objeto Instituicao a ser salvo.
      */
     fun saveInstituicao(instituicao: Instituicao) {
+        // SharedPreferences apply() já é assíncrono, mas é bom marcar a função load como suspend
         val json = gson.toJson(instituicao)
         sharedPreferences.edit()
             .putString(KEY_INSTITUICAO_JSON, json)
@@ -32,12 +35,13 @@ class AuthDataStore(context: Context) {
     }
 
     /**
-     * Carrega o objeto Instituicao do SharedPreferences.
+     * Carrega o objeto Instituicao do SharedPreferences de forma segura.
+     * Deve ser chamado dentro de uma Coroutine.
      * @return O objeto Instituicao se encontrado, ou null se não houver dados salvos.
      */
-    fun loadInstituicao(): Instituicao? {
-        val json = sharedPreferences.getString(KEY_INSTITUICAO_JSON, null) ?: return null
-        return try {
+    suspend fun loadInstituicao(): Instituicao? = withContext(Dispatchers.IO) { // ✨ ALTERADO PARA SUSPEND
+        val json = sharedPreferences.getString(KEY_INSTITUICAO_JSON, null) ?: return@withContext null
+        return@withContext try {
             gson.fromJson(json, Instituicao::class.java)
         } catch (e: JsonSyntaxException) {
             e.printStackTrace()

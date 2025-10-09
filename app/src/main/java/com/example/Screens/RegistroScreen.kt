@@ -25,17 +25,26 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.example.data.AuthDataStore // Importação do AuthDataStore
+import com.example.data.AuthDataStore
 import com.example.oportunyfam.Service.RetrofitFactory
 import com.example.oportunyfam_mobile_ong.R
 import androidx.compose.ui.text.input.VisualTransformation
-import com.example.screens.components.LoginContent
-import com.example.screens.components.RegistroContent
-
+import com.example.Components.LoginContent
+import com.example.Components.RegistroContent
+import com.example.oportunyfam.model.Instituicao // Importação necessária
+import kotlinx.coroutines.launch // Importação necessária para o escopo
 
 // Definição de cores
 val PrimaryColor = Color(0xFFFFA500)
 val BackgroundGray = Color(0xFFE0E0E0)
+
+// ✨ Constantes de Rota (Assumindo que estão em algum lugar)
+// Se não existir, crie um objeto para as rotas ou ajuste a navegação
+object NavRoutes {
+    const val REGISTRO = "tela_registro"
+    const val PERFIL = "tela_perfil"
+    // Adicione outras rotas conforme necessário
+}
 
 @Composable
 fun RegistroScreen(navController: NavHostController?) {
@@ -75,6 +84,22 @@ fun RegistroScreen(navController: NavHostController?) {
 
     val instituicaoService = remember { RetrofitFactory().getInstituicaoService() }
     // =========================================================================
+
+    // ✨ IMPLEMENTAÇÃO DO CALLBACK DE SUCESSO DE AUTENTICAÇÃO/CADASTRO
+    val onAuthSuccess: (Instituicao) -> Unit = { instituicaoLogada ->
+        scope.launch {
+            // 1. SALVAR DADOS NO SHAREDPREFERENCES
+            authDataStore.saveInstituicao(instituicaoLogada)
+            // 2. NAVEGAR PARA O PERFIL E LIMPAR O BACK STACK
+            navController?.navigate(NavRoutes.PERFIL) {
+                // Isso garante que a tela de registro/login seja removida da pilha
+                popUpTo(NavRoutes.REGISTRO) { inclusive = true }
+            }
+            // 3. Resetar o estado de loading (após a navegação ser acionada)
+            isLoading.value = false
+        }
+    }
+
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Imagem topo
@@ -222,7 +247,8 @@ fun RegistroScreen(navController: NavHostController?) {
                         errorMessage = errorMessage,
                         instituicaoService = instituicaoService,
                         scope = scope,
-                        authDataStore = authDataStore // NOVO: Passando o AuthDataStore
+                        onAuthSuccess = onAuthSuccess // ✨ NOVO: Passando o callback
+                        // REMOVIDO: authDataStore = authDataStore
                     )
                 } else {
                     RegistroContent(
@@ -251,7 +277,8 @@ fun RegistroScreen(navController: NavHostController?) {
                         errorMessage = errorMessage,
                         instituicaoService = instituicaoService,
                         scope = scope,
-                        authDataStore = authDataStore // NOVO: Passando o AuthDataStore
+                        onAuthSuccess = onAuthSuccess // ✨ NOVO: Passando o callback
+                        // REMOVIDO: authDataStore = authDataStore
                     )
                 }
             }

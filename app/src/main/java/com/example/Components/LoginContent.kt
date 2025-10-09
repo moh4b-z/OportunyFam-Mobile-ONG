@@ -1,4 +1,4 @@
-package com.example.screens.components
+package com.example.Components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
@@ -22,10 +22,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.example.NavRoutes // Importa as rotas definidas na MainActivity
-import com.example.data.AuthDataStore
 import com.example.oportunyfam.Service.InstituicaoService
-import com.example.oportunyfam.model.Instituicao // Assumindo que este é o modelo correto
+import com.example.oportunyfam.model.Instituicao
 import com.example.oportunyfam.model.LoginRequest
 import com.example.oportunyfam_mobile_ong.R
 import com.example.screens.PrimaryColor
@@ -43,7 +41,9 @@ fun LoginContent(
     errorMessage: MutableState<String?>,
     instituicaoService: InstituicaoService,
     scope: CoroutineScope,
-    authDataStore: AuthDataStore // Recebendo o AuthDataStore
+    // REMOVIDO: authDataStore: AuthDataStore
+    // Adicionado o callback que a tela principal irá usar para salvar e navegar
+    onAuthSuccess: (Instituicao) -> Unit
 ) {
     // Email
     RegistroOutlinedTextField(
@@ -121,22 +121,22 @@ fun LoginContent(
                     if (response.isSuccessful && response.body() != null) {
                         val instituicaoLogada = response.body()!!
 
-                        // 1. SALVAR DADOS NO SHAREDPREFERENCES
-                        authDataStore.saveInstituicao(instituicaoLogada)
+                        // ✨ CHAMADA AO CALLBACK CENTRALIZADO
+                        // A responsabilidade de salvar e navegar está agora em RegistroScreen.kt
+                        onAuthSuccess(instituicaoLogada)
 
-                        // 2. NAVEGAR PARA O PERFIL E LIMPAR O BACK STACK
-                        navController?.navigate(NavRoutes.PERFIL) {
-                            popUpTo(NavRoutes.REGISTRO) { inclusive = true }
-                        }
                     } else {
                         val errorBody = response.errorBody()?.string() ?: response.message()
                         errorMessage.value = "Falha no Login. Verifique suas credenciais. Erro: $errorBody"
+                        isLoading.value = false // Para o loading em caso de erro
                     }
                 } catch (e: Exception) {
                     errorMessage.value = "Erro ao conectar com o servidor: ${e.message}"
-                } finally {
-                    isLoading.value = false
+                    isLoading.value = false // Para o loading em caso de exceção
                 }
+                // O bloco finally foi removido ou modificado, pois o onAuthSuccess
+                // irá resetar o isLoading em caso de sucesso no RegistroScreen.kt.
+                // Mantemos o reset do isLoading nos blocos 'else' e 'catch'.
             }
         },
         modifier = Modifier
@@ -159,6 +159,7 @@ fun LoginContent(
     Spacer(modifier = Modifier.height(15.dp))
 
     // Divider "Ou entre com"
+    HorizontalDivider(thickness = 1.dp, color = Color.LightGray) // Usando HorizontalDivider diretamente
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth()

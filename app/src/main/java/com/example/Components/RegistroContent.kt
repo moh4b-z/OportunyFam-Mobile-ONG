@@ -1,4 +1,4 @@
-package com.example.screens.components
+package com.example.Components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,7 +20,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.example.NavRoutes // Importa as rotas para navegação
 import com.example.model.InstituicaoRequest
 import com.example.oportunyfam.Service.InstituicaoService
 import com.example.oportunyfam.model.Instituicao
@@ -30,15 +29,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import retrofit2.Response
 import com.example.oportunyfam_mobile_ong.R
-import com.example.Components.CnpjTextField
-import com.example.Components.CepTextField
-import com.example.Components.TipoInstituicaoSelector
-import com.example.Components.ViaCepData
-import com.example.data.AuthDataStore
 
-// =================================================================
-// FUNÇÕES DE VALIDAÇÃO (Mantidas)
-// =================================================================
+// REMOVIDO: import com.example.data.AuthDataStore
 
 /**
  * Verifica se todos os campos obrigatórios do Passo 1 estão preenchidos.
@@ -92,7 +84,9 @@ fun RegistroContent(
     errorMessage: MutableState<String?>,
     instituicaoService: InstituicaoService,
     scope: CoroutineScope,
-    authDataStore: AuthDataStore
+    // REMOVIDO: authDataStore: AuthDataStore
+    // ✨ NOVO: Adicionado o callback que a tela principal irá usar para salvar e navegar
+    onAuthSuccess: (Instituicao) -> Unit
 ) {
     val context = LocalContext.current
     LazyColumn(
@@ -100,7 +94,7 @@ fun RegistroContent(
         contentPadding = PaddingValues(vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // ... (ITENS DO PASSO 1 - Sem alteração)
+        // ... (ITENS DO PASSO 1 - Mantidos)
         if (currentStep.value == 1) {
             item {
                 // Nome
@@ -202,7 +196,7 @@ fun RegistroContent(
         }
 
         // =================================================================
-        // ITENS DO PASSO 2
+        // ITENS DO PASSO 2 (Mantidos)
         // =================================================================
         if (currentStep.value == 2) {
             item {
@@ -370,7 +364,7 @@ fun RegistroContent(
                         )
                     }
 
-                    // --- CÁLCULO DE VALIDAÇÃO REVISADO ---
+                    // --- CÁLCULO DE VALIDAÇÃO REVISADO (Mantido) ---
                     val isAddressValid = logradouro.value.isNotBlank() && bairro.value.isNotBlank() && cidade.value.isNotBlank() && estado.value.isNotBlank()
                     val isPasswordMatch = senha.value.isNotBlank() && confirmarSenha.value.isNotBlank() && senha.value == confirmarSenha.value
                     val isTermsAccepted = concordaTermos.value
@@ -428,22 +422,18 @@ fun RegistroContent(
                                         if (response.isSuccessful && response.body() != null) {
                                             val instituicaoCriada = response.body()!!
 
-                                            // 1. SALVAR DADOS NO SHAREDPREFERENCES
-                                            authDataStore.saveInstituicao(instituicaoCriada)
-
-                                            // 2. NAVEGAR PARA O PERFIL E LIMPAR O BACK STACK
-                                            navController?.navigate(NavRoutes.PERFIL) {
-                                                popUpTo(NavRoutes.REGISTRO) { inclusive = true }
-                                            }
+                                            // ✨ CHAMADA AO CALLBACK CENTRALIZADO
+                                            // A responsabilidade de salvar e navegar está agora em RegistroScreen.kt
+                                            onAuthSuccess(instituicaoCriada)
 
                                         } else {
                                             val errorBody = response.errorBody()?.string() ?: response.message()
                                             errorMessage.value = context.getString(R.string.error_registration_failed) + errorBody
+                                            isLoading.value = false // Para o loading em caso de erro
                                         }
                                     } catch (e: Exception) {
                                         errorMessage.value = context.getString(R.string.error_connection_failed) + e.message
-                                    } finally {
-                                        isLoading.value = false
+                                        isLoading.value = false // Para o loading em caso de exceção
                                     }
                                 }
                             },
