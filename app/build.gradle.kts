@@ -75,7 +75,6 @@ dependencies {
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
 
-    implementation("com.google.firebase:firebase-messaging:24.0.0")//Notificações
 
     //mapa
     implementation("com.google.android.gms:play-services-maps:19.0.0")
