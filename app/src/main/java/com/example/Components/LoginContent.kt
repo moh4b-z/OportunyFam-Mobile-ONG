@@ -1,10 +1,10 @@
 package com.example.screens.components
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.BorderStroke // Importação adicionada/confirmada para BorderStroke
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
@@ -15,7 +15,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -23,12 +25,11 @@ import androidx.navigation.NavHostController
 import com.example.oportunyfam.Service.InstituicaoService
 import com.example.oportunyfam.model.Instituicao
 import com.example.oportunyfam_mobile_ong.R
-import com.example.oportunyfam.model.LoginRequest
 import com.example.screens.PrimaryColor
 import com.example.screens.RegistroOutlinedTextField
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import retrofit2.Response // Importação essencial para isSuccessful e body()
+import retrofit2.Response
 
 @Composable
 fun LoginContent(
@@ -44,9 +45,10 @@ fun LoginContent(
     RegistroOutlinedTextField(
         value = email.value,
         onValueChange = { email.value = it },
-        label = "Email",
-        leadingIcon = { Icon(Icons.Default.Email, contentDescription = "", tint = Color(0x9E000000)) },
-        enabled = !isLoading.value
+        label = stringResource(R.string.label_email),
+        leadingIcon = { Icon(Icons.Default.Email, contentDescription = stringResource(R.string.desc_icon_email), tint = Color(0x9E000000)) },
+        readOnly = isLoading.value, // CORREÇÃO: Usando readOnly
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email) // CORREÇÃO: Adicionando keyboardOptions
     )
 
     Spacer(modifier = Modifier.height(10.dp))
@@ -55,10 +57,11 @@ fun LoginContent(
     RegistroOutlinedTextField(
         value = senha.value,
         onValueChange = { senha.value = it },
-        label = "Senha",
+        label = stringResource(R.string.label_password),
+        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = stringResource(R.string.desc_icon_lock), tint = Color(0x9E000000)) },
         visualTransformation = PasswordVisualTransformation(),
-        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "", tint = Color(0x9E000000)) },
-        enabled = !isLoading.value
+        readOnly = isLoading.value, // CORREÇÃO: Usando readOnly
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password) // CORREÇÃO: Adicionando keyboardOptions
     )
 
     Spacer(modifier = Modifier.height(10.dp))
@@ -73,12 +76,16 @@ fun LoginContent(
             Checkbox(
                 checked = false,
                 onCheckedChange = { /* lembrar-me */ },
-                colors = CheckboxDefaults.colors(checkedColor = PrimaryColor)
+                colors = CheckboxDefaults.colors(checkedColor = PrimaryColor),
+                enabled = !isLoading.value // Desabilita durante o carregamento
             )
-            Text("Lembrar-me", color = Color.Gray, fontSize = 14.sp)
+            Text(stringResource(R.string.label_remember_me), color = Color.Gray, fontSize = 14.sp)
         }
-        TextButton(onClick = { /* esqueceu senha */ }) {
-            Text("Esqueceu sua senha?", color = PrimaryColor, fontSize = 14.sp)
+        TextButton(
+            onClick = { /* esqueceu senha */ },
+            enabled = !isLoading.value // Desabilita durante o carregamento
+        ) {
+            Text(stringResource(R.string.button_forgot_password), color = PrimaryColor, fontSize = 14.sp)
         }
     }
 
@@ -90,7 +97,7 @@ fun LoginContent(
             errorMessage.value = null
 
             if (email.value.isBlank() || senha.value.isBlank()) {
-                errorMessage.value = "Preencha todos os campos"
+                errorMessage.value = "Preencha todos os campos" // Considerar stringResource
                 return@Button
             }
 
@@ -111,10 +118,10 @@ fun LoginContent(
                         navController?.navigate("perfil")
                     } else {
                         val errorBody = response.errorBody()?.string() ?: response.message()
-                        errorMessage.value = "Falha no Login. Verifique suas credenciais. Erro: $errorBody"
+                        errorMessage.value = "Falha no Login. Verifique suas credenciais. Erro: $errorBody" // Considerar stringResource
                     }
                 } catch (e: Exception) {
-                    errorMessage.value = "Erro ao conectar com o servidor: ${e.message}"
+                    errorMessage.value = "Erro ao conectar com o servidor: ${e.message}" // Considerar stringResource
                 } finally {
                     isLoading.value = false
                 }
@@ -133,7 +140,7 @@ fun LoginContent(
                 modifier = Modifier.size(24.dp)
             )
         } else {
-            Text("Login", color = Color.White, fontSize = 16.sp)
+            Text(stringResource(R.string.button_login), color = Color.White, fontSize = 16.sp)
         }
     }
 
@@ -144,9 +151,9 @@ fun LoginContent(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Divider(color = Color.LightGray, thickness = 1.dp, modifier = Modifier.weight(1f))
-        Text("Ou entre com", color = Color.Gray, modifier = Modifier.padding(horizontal = 8.dp))
-        Divider(color = Color.LightGray, thickness = 1.dp, modifier = Modifier.weight(1f))
+        HorizontalDivider(modifier = Modifier.weight(1f), thickness = 1.dp, color = Color.LightGray)
+        Text(stringResource(R.string.text_or_login_with), color = Color.Gray, modifier = Modifier.padding(horizontal = 8.dp))
+        HorizontalDivider(modifier = Modifier.weight(1f), thickness = 1.dp, color = Color.LightGray)
     }
 
     Spacer(modifier = Modifier.height(10.dp))
@@ -158,15 +165,16 @@ fun LoginContent(
             .fillMaxWidth()
             .height(50.dp),
         shape = RoundedCornerShape(25.dp),
-        border = BorderStroke(1.dp, Color.LightGray), // BorderStroke agora funciona
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black, containerColor = Color.White)
+        border = BorderStroke(1.dp, Color.LightGray),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black, containerColor = Color.White),
+        enabled = !isLoading.value // Desabilita durante o carregamento
     ) {
         Image(
             painter = painterResource(id = R.drawable.google),
-            contentDescription = "Logo Google",
+            contentDescription = stringResource(R.string.desc_icon_google),
             modifier = Modifier.size(24.dp)
         )
         Spacer(modifier = Modifier.width(8.dp))
-        Text("Google", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.label_google), fontSize = 16.sp, fontWeight = FontWeight.Bold)
     }
 }

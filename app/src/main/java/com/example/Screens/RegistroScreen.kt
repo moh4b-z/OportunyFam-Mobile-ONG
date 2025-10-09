@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions // Importação necessária
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -17,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -24,8 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.oportunyfam.Service.RetrofitFactory
 import com.example.oportunyfam_mobile_ong.R // Substitua pelo seu R real
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.foundation.BorderStroke // CORREÇÃO: Importação para BorderStroke
+import androidx.compose.ui.text.input.VisualTransformation
 import com.example.screens.components.LoginContent
 import com.example.screens.components.RegistroContent
 
@@ -43,7 +44,9 @@ fun RegistroScreen(navController: NavHostController?) {
     val nome = remember { mutableStateOf("") }
     val email = remember { mutableStateOf("") }
     val phone = remember { mutableStateOf("") }
-    val tipoInstituicaoId = remember { mutableStateOf("") }
+    // CORREÇÃO DE ESTADO 1: Usar lista de Ints para IDs e String para Nomes formatados
+    val selectedTypeIds = remember { mutableStateOf(emptyList<Int>()) }
+    val selectedTypeNames = remember { mutableStateOf("") }
     val cnpj = remember { mutableStateOf("") }
 
     // Passo 2
@@ -72,7 +75,7 @@ fun RegistroScreen(navController: NavHostController?) {
         // Imagem topo
         Image(
             painter = painterResource(id = R.drawable.imglogin),
-            contentDescription = "Crianças felizes",
+            contentDescription = stringResource(R.string.desc_icon_name), // Usando stringResource
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxWidth()
@@ -93,13 +96,13 @@ fun RegistroScreen(navController: NavHostController?) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = if (isRegisterSelected.value) "Crie sua conta e\njunte-se a nós!" else "Bem-vindo de volta!",
+                    text = if (isRegisterSelected.value) stringResource(R.string.title_register) else stringResource(R.string.title_welcome_back),
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
                 Text(
-                    text = if (isRegisterSelected.value) "Estamos felizes em ter você por aqui!" else "Faça login para continuar.",
+                    text = if (isRegisterSelected.value) stringResource(R.string.subtitle_register) else stringResource(R.string.subtitle_login),
                     fontSize = 14.sp,
                     color = Color.White
                 )
@@ -153,7 +156,7 @@ fun RegistroScreen(navController: NavHostController?) {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Login",
+                            text = stringResource(R.string.button_login),
                             fontSize = 16.sp,
                             color = if (!isRegisterSelected.value) PrimaryColor else Color.Gray,
                             fontWeight = FontWeight.Bold
@@ -177,7 +180,7 @@ fun RegistroScreen(navController: NavHostController?) {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Registre-se",
+                            text = stringResource(R.string.button_register),
                             fontSize = 16.sp,
                             color = if (isRegisterSelected.value) PrimaryColor else Color.Gray,
                             fontWeight = FontWeight.Bold
@@ -222,7 +225,8 @@ fun RegistroScreen(navController: NavHostController?) {
                         nome = nome,
                         email = email,
                         phone = phone,
-                        tipoInstituicaoId = tipoInstituicaoId,
+                        selectedTypeIds = selectedTypeIds, // CORREÇÃO: Novo estado de IDs
+                        selectedTypeNames = selectedTypeNames, // CORREÇÃO: Novo estado de Nomes
                         cnpj = cnpj,
                         // Passo 2
                         cep = cep,
@@ -254,23 +258,26 @@ fun RegistroOutlinedTextField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
-    leadingIcon: @Composable () -> Unit = {}, // CORREÇÃO: Tipo de retorno Unit (não Unit?) e valor padrão {} (função vazia)
-    visualTransformation: androidx.compose.ui.text.input.VisualTransformation = androidx.compose.ui.text.input.VisualTransformation.None,
-    trailingIcon: @Composable (() -> Unit)? = null,
-    enabled: Boolean,
-    modifier: Modifier = Modifier.fillMaxWidth()
+    leadingIcon: @Composable () -> Unit = {},
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    trailingIcon: @Composable() (() -> Unit)? = null,
+    modifier: Modifier = Modifier.fillMaxWidth(),
+    readOnly: Boolean,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default // CORREÇÃO: Adicionando keyboardOptions com Default
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier,
         shape = RoundedCornerShape(10.dp),
-        // Se trailingIcon for nulo, precisamos usar um if para não passar null para o composable
         leadingIcon = leadingIcon.takeIf { it != {} },
         trailingIcon = trailingIcon,
         label = { Text(label, color = Color.Gray) },
         visualTransformation = visualTransformation,
-        enabled = enabled,
+        readOnly = readOnly, // Usando o parâmetro obrigatório
+        keyboardOptions = keyboardOptions, // Usando o novo parâmetro
+        // CORREÇÃO: Para simular o `enabled` baseado no `readOnly`, passamos o oposto
+        enabled = !readOnly,
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = PrimaryColor,
             unfocusedBorderColor = Color.LightGray,

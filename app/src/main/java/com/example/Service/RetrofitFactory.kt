@@ -6,21 +6,37 @@ import com.example.oportunyfam.Service.AuthService
 import com.example.oportunyfam.Service.EnderecoService
 import com.example.oportunyfam.Service.InstituicaoService
 import com.example.oportunyfam.Service.UsuarioService
+import com.google.gson.GsonBuilder
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 class RetrofitFactory {
-    // URL Base da sua API local.
-    // OBS: Em emuladores Android, 'localhost' do PC é acessado via 10.0.2.2.
-    // Usaremos http://localhost:8080/v1/ conforme solicitado.
-    private val BASE_URL = "http://192.168.56.1:8080/v1/"
+    private val BASE_URL = "http://192.168.15.9:8080/v1/oportunyfam/"
+
+    // Cria o objeto Gson com setLenient para melhor flexibilidade na desserialização
+    private val gson = GsonBuilder().setLenient().create()
+
+    // 1. Cria o interceptor de logging
+    private val loggingInterceptor = HttpLoggingInterceptor().apply {
+        // Define o nível de detalhe (Headers e Body serão logados no Logcat)
+        level = HttpLoggingInterceptor.Level.BODY
+    }
+
+    // 2. Adiciona o interceptor ao cliente OkHttp
+    private val client = OkHttpClient.Builder()
+        .addInterceptor(loggingInterceptor) // Adiciona o interceptor
+        .build()
 
     private val retrofitFactory = Retrofit
         .Builder()
         .baseUrl(BASE_URL)
-        .addConverterFactory(GsonConverterFactory.create())
+        // CORREÇÃO 1: Devemos passar o nosso objeto 'gson' configurado
+        .addConverterFactory(GsonConverterFactory.create(gson))
+        // CORREÇÃO 2 (CRÍTICA): Devemos conectar o cliente que contém o interceptor
+        .client(client)
         .build()
-
 
     fun getInstituicaoService(): InstituicaoService {
         return retrofitFactory.create(InstituicaoService::class.java)
