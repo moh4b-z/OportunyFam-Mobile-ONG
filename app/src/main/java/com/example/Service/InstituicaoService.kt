@@ -10,10 +10,12 @@ import retrofit2.http.*
 interface InstituicaoService {
 
     // POST - Criar nova instituição
+    @Headers("Content-Type: application/json")
     @POST("instituicoes")
     suspend fun criar(@Body request: InstituicaoRequest): Response<Instituicao>
 
-    @PUT("instituicoes/login")
+    @Headers("Content-Type: application/json")
+    @POST("instituicoes/login")
     suspend fun loginInstituicao(@Body request: LoginRequest): Response<Instituicao>
 
     // GET - Listar todas as instituições

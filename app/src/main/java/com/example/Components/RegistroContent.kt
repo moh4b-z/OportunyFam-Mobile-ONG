@@ -3,7 +3,7 @@ package com.example.screens.components
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.text.KeyboardOptions // Importação necessária
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -20,6 +20,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.example.NavRoutes // Importa as rotas para navegação
 import com.example.model.InstituicaoRequest
 import com.example.oportunyfam.Service.InstituicaoService
 import com.example.oportunyfam.model.Instituicao
@@ -29,24 +30,27 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import retrofit2.Response
 import com.example.oportunyfam_mobile_ong.R
-import com.example.Components.CnpjTextField // Importação do componente de CNPJ
-import com.example.Components.CepTextField // Importação do componente de CEP
+import com.example.Components.CnpjTextField
+import com.example.Components.CepTextField
 import com.example.Components.TipoInstituicaoSelector
-import com.example.Components.ViaCepData // Importação da classe de dados do ViaCEP
+import com.example.Components.ViaCepData
+import com.example.data.AuthDataStore
 
 // =================================================================
-// FUNÇÕES DE VALIDAÇÃO
+// FUNÇÕES DE VALIDAÇÃO (Mantidas)
 // =================================================================
 
 /**
  * Verifica se todos os campos obrigatórios do Passo 1 estão preenchidos.
  */
 fun isStep1Valid(nome: String, email: String, phone: String, selectedTypes: List<Int>, cnpj: String): Boolean {
+    // Note: cnpj.length == 14 já é feito na validação do componente CNPJ
     return nome.isNotBlank() && email.isNotBlank() && phone.isNotBlank() && selectedTypes.isNotEmpty() && cnpj.length == 14
 }
 
 /**
  * Verifica se todos os campos obrigatórios (Endereço, Senhas e Termos) do Passo 2 estão válidos.
+ * Esta função agora é apenas para referência externa, o cálculo principal será feito internamente no Composable.
  */
 fun isStep2Valid(
     logradouro: String, bairro: String, cidade: String, estado: String,
@@ -68,8 +72,8 @@ fun RegistroContent(
     nome: MutableState<String>,
     email: MutableState<String>,
     phone: MutableState<String>,
-    selectedTypeIds: MutableState<List<Int>>, // CORREÇÃO: Novo nome
-    selectedTypeNames: MutableState<String>, // CORREÇÃO: Novo nome
+    selectedTypeIds: MutableState<List<Int>>,
+    selectedTypeNames: MutableState<String>,
     cnpj: MutableState<String>,
     // Passo 2
     cep: MutableState<String>,
@@ -87,7 +91,8 @@ fun RegistroContent(
     isLoading: MutableState<Boolean>,
     errorMessage: MutableState<String?>,
     instituicaoService: InstituicaoService,
-    scope: CoroutineScope
+    scope: CoroutineScope,
+    authDataStore: AuthDataStore
 ) {
     val context = LocalContext.current
     LazyColumn(
@@ -95,9 +100,7 @@ fun RegistroContent(
         contentPadding = PaddingValues(vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // =================================================================
-        // ITENS DO PASSO 1
-        // =================================================================
+        // ... (ITENS DO PASSO 1 - Sem alteração)
         if (currentStep.value == 1) {
             item {
                 // Nome
@@ -110,8 +113,8 @@ fun RegistroContent(
                             Icons.Default.AccountCircle,
                             contentDescription = stringResource(R.string.desc_icon_name),
                             tint = Color(0x9E000000))
-                                  },
-                    readOnly = isLoading.value // CORREÇÃO: Usando readOnly
+                    },
+                    readOnly = isLoading.value
                 )
             }
             item {
@@ -121,8 +124,8 @@ fun RegistroContent(
                     onValueChange = { email.value = it },
                     label = stringResource(R.string.label_email),
                     leadingIcon = { Icon(Icons.Default.Email, contentDescription = stringResource(R.string.desc_icon_email), tint = Color(0x9E000000)) },
-                    readOnly = isLoading.value, // CORREÇÃO: Usando readOnly
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email) // CORREÇÃO: Usando KeyboardOptions
+                    readOnly = isLoading.value,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
                 )
             }
             item {
@@ -132,8 +135,8 @@ fun RegistroContent(
                     onValueChange = { phone.value = it },
                     label = stringResource(R.string.label_phone),
                     leadingIcon = { Icon(Icons.Default.Call, contentDescription = stringResource(R.string.desc_icon_phone), tint = Color(0x9E000000)) },
-                    readOnly = isLoading.value, // CORREÇÃO: Usando readOnly
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone) // CORREÇÃO: Usando KeyboardOptions
+                    readOnly = isLoading.value,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
                 )
             }
             item {
@@ -146,7 +149,6 @@ fun RegistroContent(
             }
             item {
                 // CNPJ (COMPONENTE CUSTOMIZADO)
-                // O componente CnpjTextField deve gerenciar seu próprio estado de loading/readOnly.
                 CnpjTextField(
                     modifier = Modifier.fillMaxWidth(),
                     onValidationSuccess = { cleanCnpj ->
@@ -205,7 +207,6 @@ fun RegistroContent(
         if (currentStep.value == 2) {
             item {
                 // 1. CEP (COMPONENTE CUSTOMIZADO)
-                // O componente CepTextField deve gerenciar seu próprio estado de loading/readOnly.
                 CepTextField(
                     modifier = Modifier.fillMaxWidth(),
                     onValidationSuccess = { data: ViaCepData ->
@@ -231,7 +232,7 @@ fun RegistroContent(
                         onValueChange = { logradouro.value = it },
                         label = stringResource(R.string.label_street),
                         leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = stringResource(R.string.label_street), tint = Color(0x9E000000)) },
-                        readOnly = isLoading.value // CORREÇÃO: Usando readOnly
+                        readOnly = isLoading.value
                     )
                 }
 
@@ -246,15 +247,15 @@ fun RegistroContent(
                             onValueChange = { numero.value = it },
                             label = stringResource(R.string.label_number_optional),
                             modifier = Modifier.weight(1f),
-                            readOnly = isLoading.value, // CORREÇÃO: Usando readOnly
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number) // CORREÇÃO: Usando KeyboardOptions
+                            readOnly = isLoading.value,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                         )
                         RegistroOutlinedTextField(
                             value = complemento.value,
                             onValueChange = { complemento.value = it },
                             label = stringResource(R.string.label_complement_optional),
                             modifier = Modifier.weight(1f),
-                            readOnly = isLoading.value // CORREÇÃO: Usando readOnly
+                            readOnly = isLoading.value
                         )
                     }
                 }
@@ -266,7 +267,7 @@ fun RegistroContent(
                         onValueChange = { bairro.value = it },
                         label = stringResource(R.string.label_neighborhood),
                         leadingIcon = { Icon(Icons.Default.LocationCity, contentDescription = stringResource(R.string.label_neighborhood), tint = Color(0x9E000000)) },
-                        readOnly = isLoading.value // CORREÇÃO: Usando readOnly
+                        readOnly = isLoading.value
                     )
                 }
 
@@ -281,14 +282,14 @@ fun RegistroContent(
                             onValueChange = { cidade.value = it },
                             label = stringResource(R.string.label_city),
                             modifier = Modifier.weight(1f),
-                            readOnly = isLoading.value // CORREÇÃO: Usando readOnly
+                            readOnly = isLoading.value
                         )
                         RegistroOutlinedTextField(
                             value = estado.value,
                             onValueChange = { estado.value = it },
                             label = stringResource(R.string.label_state_uf),
                             modifier = Modifier.weight(1f),
-                            readOnly = isLoading.value // CORREÇÃO: Usando readOnly
+                            readOnly = isLoading.value
                         )
                     }
                 }
@@ -302,7 +303,7 @@ fun RegistroContent(
                     label = stringResource(R.string.label_password),
                     leadingIcon = { Icon(Icons.Default.Lock, contentDescription = stringResource(R.string.desc_icon_lock), tint = Color(0x9E000000)) },
                     visualTransformation = PasswordVisualTransformation(),
-                    readOnly = isLoading.value // CORREÇÃO: Usando readOnly
+                    readOnly = isLoading.value
                 )
             }
             item {
@@ -312,7 +313,7 @@ fun RegistroContent(
                     label = stringResource(R.string.label_confirm_password),
                     leadingIcon = { Icon(Icons.Default.Lock, contentDescription = stringResource(R.string.desc_icon_lock), tint = Color(0x9E000000)) },
                     visualTransformation = PasswordVisualTransformation(),
-                    readOnly = isLoading.value // CORREÇÃO: Usando readOnly
+                    readOnly = isLoading.value
                 )
             }
 
@@ -343,7 +344,7 @@ fun RegistroContent(
                         modifier = Modifier.clickable(enabled = !isLoading.value) { /* Ação para ver termos */ }
                     )
                 }
-                Spacer(modifier = Modifier.height(15.dp))
+                Spacer(modifier = Modifier.height(10.dp))
             }
 
             // 5. Controles de Navegação do Passo 2 (Cadastrar)
@@ -369,10 +370,15 @@ fun RegistroContent(
                         )
                     }
 
-                    val isSubmitEnabled = !isLoading.value && isAddressInputVisible && isStep2Valid(
-                        logradouro.value, bairro.value, cidade.value, estado.value,
-                        senha.value, confirmarSenha.value, concordaTermos.value
-                    )
+                    // --- CÁLCULO DE VALIDAÇÃO REVISADO ---
+                    val isAddressValid = logradouro.value.isNotBlank() && bairro.value.isNotBlank() && cidade.value.isNotBlank() && estado.value.isNotBlank()
+                    val isPasswordMatch = senha.value.isNotBlank() && confirmarSenha.value.isNotBlank() && senha.value == confirmarSenha.value
+                    val isTermsAccepted = concordaTermos.value
+
+                    val isStep2FormValid = isAddressValid && isPasswordMatch && isTermsAccepted
+
+                    val isSubmitEnabled = !isLoading.value && isAddressInputVisible && isStep2FormValid
+                    // ------------------------------------
 
                     // Botão Cadastrar
                     Row(
@@ -383,8 +389,9 @@ fun RegistroContent(
                                 if (!isSubmitEnabled) {
                                     when {
                                         !isAddressInputVisible -> errorMessage.value = context.getString(R.string.error_fill_all_step_2)
-                                        senha.value != confirmarSenha.value -> errorMessage.value = context.getString(R.string.error_password_mismatch)
-                                        !concordaTermos.value -> errorMessage.value = context.getString(R.string.error_accept_terms)
+                                        !isAddressValid -> errorMessage.value = "Preencha o endereço (Logradouro/Bairro/Cidade/Estado)."
+                                        !isPasswordMatch -> errorMessage.value = context.getString(R.string.error_password_mismatch)
+                                        !isTermsAccepted -> errorMessage.value = context.getString(R.string.error_accept_terms)
                                         else -> errorMessage.value = context.getString(R.string.error_fill_all_step_2)
                                     }
                                     return@clickable
@@ -418,8 +425,17 @@ fun RegistroContent(
 
                                         val response: Response<Instituicao> = instituicaoService.criar(request)
 
-                                        if (response.isSuccessful) {
-                                            navController?.navigate("perfil")
+                                        if (response.isSuccessful && response.body() != null) {
+                                            val instituicaoCriada = response.body()!!
+
+                                            // 1. SALVAR DADOS NO SHAREDPREFERENCES
+                                            authDataStore.saveInstituicao(instituicaoCriada)
+
+                                            // 2. NAVEGAR PARA O PERFIL E LIMPAR O BACK STACK
+                                            navController?.navigate(NavRoutes.PERFIL) {
+                                                popUpTo(NavRoutes.REGISTRO) { inclusive = true }
+                                            }
+
                                         } else {
                                             val errorBody = response.errorBody()?.string() ?: response.message()
                                             errorMessage.value = context.getString(R.string.error_registration_failed) + errorBody

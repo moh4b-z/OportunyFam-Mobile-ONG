@@ -22,8 +22,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.example.NavRoutes // Importa as rotas definidas na MainActivity
+import com.example.data.AuthDataStore
 import com.example.oportunyfam.Service.InstituicaoService
-import com.example.oportunyfam.model.Instituicao
+import com.example.oportunyfam.model.Instituicao // Assumindo que este é o modelo correto
+import com.example.oportunyfam.model.LoginRequest
 import com.example.oportunyfam_mobile_ong.R
 import com.example.screens.PrimaryColor
 import com.example.screens.RegistroOutlinedTextField
@@ -39,7 +42,8 @@ fun LoginContent(
     isLoading: MutableState<Boolean>,
     errorMessage: MutableState<String?>,
     instituicaoService: InstituicaoService,
-    scope: CoroutineScope
+    scope: CoroutineScope,
+    authDataStore: AuthDataStore // Recebendo o AuthDataStore
 ) {
     // Email
     RegistroOutlinedTextField(
@@ -47,8 +51,8 @@ fun LoginContent(
         onValueChange = { email.value = it },
         label = stringResource(R.string.label_email),
         leadingIcon = { Icon(Icons.Default.Email, contentDescription = stringResource(R.string.desc_icon_email), tint = Color(0x9E000000)) },
-        readOnly = isLoading.value, // CORREÇÃO: Usando readOnly
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email) // CORREÇÃO: Adicionando keyboardOptions
+        readOnly = isLoading.value,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
     )
 
     Spacer(modifier = Modifier.height(10.dp))
@@ -60,8 +64,8 @@ fun LoginContent(
         label = stringResource(R.string.label_password),
         leadingIcon = { Icon(Icons.Default.Lock, contentDescription = stringResource(R.string.desc_icon_lock), tint = Color(0x9E000000)) },
         visualTransformation = PasswordVisualTransformation(),
-        readOnly = isLoading.value, // CORREÇÃO: Usando readOnly
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password) // CORREÇÃO: Adicionando keyboardOptions
+        readOnly = isLoading.value,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
     )
 
     Spacer(modifier = Modifier.height(10.dp))
@@ -77,13 +81,13 @@ fun LoginContent(
                 checked = false,
                 onCheckedChange = { /* lembrar-me */ },
                 colors = CheckboxDefaults.colors(checkedColor = PrimaryColor),
-                enabled = !isLoading.value // Desabilita durante o carregamento
+                enabled = !isLoading.value
             )
             Text(stringResource(R.string.label_remember_me), color = Color.Gray, fontSize = 14.sp)
         }
         TextButton(
             onClick = { /* esqueceu senha */ },
-            enabled = !isLoading.value // Desabilita durante o carregamento
+            enabled = !isLoading.value
         ) {
             Text(stringResource(R.string.button_forgot_password), color = PrimaryColor, fontSize = 14.sp)
         }
@@ -97,7 +101,7 @@ fun LoginContent(
             errorMessage.value = null
 
             if (email.value.isBlank() || senha.value.isBlank()) {
-                errorMessage.value = "Preencha todos os campos" // Considerar stringResource
+                errorMessage.value = "Preencha todos os campos"
                 return@Button
             }
 
@@ -105,7 +109,7 @@ fun LoginContent(
 
             scope.launch {
                 try {
-                    val request = com.example.oportunyfam.model.LoginRequest(
+                    val request = LoginRequest(
                         email = email.value,
                         senha = senha.value
                     )
@@ -115,13 +119,21 @@ fun LoginContent(
 
                     // Acessando propriedades da Response
                     if (response.isSuccessful && response.body() != null) {
-                        navController?.navigate("perfil")
+                        val instituicaoLogada = response.body()!!
+
+                        // 1. SALVAR DADOS NO SHAREDPREFERENCES
+                        authDataStore.saveInstituicao(instituicaoLogada)
+
+                        // 2. NAVEGAR PARA O PERFIL E LIMPAR O BACK STACK
+                        navController?.navigate(NavRoutes.PERFIL) {
+                            popUpTo(NavRoutes.REGISTRO) { inclusive = true }
+                        }
                     } else {
                         val errorBody = response.errorBody()?.string() ?: response.message()
-                        errorMessage.value = "Falha no Login. Verifique suas credenciais. Erro: $errorBody" // Considerar stringResource
+                        errorMessage.value = "Falha no Login. Verifique suas credenciais. Erro: $errorBody"
                     }
                 } catch (e: Exception) {
-                    errorMessage.value = "Erro ao conectar com o servidor: ${e.message}" // Considerar stringResource
+                    errorMessage.value = "Erro ao conectar com o servidor: ${e.message}"
                 } finally {
                     isLoading.value = false
                 }
@@ -167,7 +179,7 @@ fun LoginContent(
         shape = RoundedCornerShape(25.dp),
         border = BorderStroke(1.dp, Color.LightGray),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black, containerColor = Color.White),
-        enabled = !isLoading.value // Desabilita durante o carregamento
+        enabled = !isLoading.value
     ) {
         Image(
             painter = painterResource(id = R.drawable.google),

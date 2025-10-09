@@ -6,7 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions // Importação necessária
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -24,8 +25,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.example.data.AuthDataStore // Importação do AuthDataStore
 import com.example.oportunyfam.Service.RetrofitFactory
-import com.example.oportunyfam_mobile_ong.R // Substitua pelo seu R real
+import com.example.oportunyfam_mobile_ong.R
 import androidx.compose.ui.text.input.VisualTransformation
 import com.example.screens.components.LoginContent
 import com.example.screens.components.RegistroContent
@@ -38,13 +40,16 @@ val BackgroundGray = Color(0xFFE0E0E0)
 @Composable
 fun RegistroScreen(navController: NavHostController?) {
 
+    // Inicializa o AuthDataStore usando o contexto local
+    val context = LocalContext.current
+    val authDataStore = remember { AuthDataStore(context) }
+
     // =========================================================================
     // VARIÁVEIS DE ESTADO (Centralizadas aqui para serem passadas aos componentes)
     // Passo 1
     val nome = remember { mutableStateOf("") }
     val email = remember { mutableStateOf("") }
     val phone = remember { mutableStateOf("") }
-    // CORREÇÃO DE ESTADO 1: Usar lista de Ints para IDs e String para Nomes formatados
     val selectedTypeIds = remember { mutableStateOf(emptyList<Int>()) }
     val selectedTypeNames = remember { mutableStateOf("") }
     val cnpj = remember { mutableStateOf("") }
@@ -75,7 +80,7 @@ fun RegistroScreen(navController: NavHostController?) {
         // Imagem topo
         Image(
             painter = painterResource(id = R.drawable.imglogin),
-            contentDescription = stringResource(R.string.desc_icon_name), // Usando stringResource
+            contentDescription = stringResource(R.string.desc_icon_name),
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxWidth()
@@ -216,7 +221,8 @@ fun RegistroScreen(navController: NavHostController?) {
                         isLoading = isLoading,
                         errorMessage = errorMessage,
                         instituicaoService = instituicaoService,
-                        scope = scope
+                        scope = scope,
+                        authDataStore = authDataStore // NOVO: Passando o AuthDataStore
                     )
                 } else {
                     RegistroContent(
@@ -225,8 +231,8 @@ fun RegistroScreen(navController: NavHostController?) {
                         nome = nome,
                         email = email,
                         phone = phone,
-                        selectedTypeIds = selectedTypeIds, // CORREÇÃO: Novo estado de IDs
-                        selectedTypeNames = selectedTypeNames, // CORREÇÃO: Novo estado de Nomes
+                        selectedTypeIds = selectedTypeIds,
+                        selectedTypeNames = selectedTypeNames,
                         cnpj = cnpj,
                         // Passo 2
                         cep = cep,
@@ -244,7 +250,8 @@ fun RegistroScreen(navController: NavHostController?) {
                         isLoading = isLoading,
                         errorMessage = errorMessage,
                         instituicaoService = instituicaoService,
-                        scope = scope
+                        scope = scope,
+                        authDataStore = authDataStore // NOVO: Passando o AuthDataStore
                     )
                 }
             }
@@ -252,7 +259,7 @@ fun RegistroScreen(navController: NavHostController?) {
     }
 }
 
-// Composable de Text Field Padronizado
+// Composable de Text Field Padronizado (Mantido)
 @Composable
 fun RegistroOutlinedTextField(
     value: String,
@@ -263,7 +270,7 @@ fun RegistroOutlinedTextField(
     trailingIcon: @Composable() (() -> Unit)? = null,
     modifier: Modifier = Modifier.fillMaxWidth(),
     readOnly: Boolean,
-    keyboardOptions: KeyboardOptions = KeyboardOptions.Default // CORREÇÃO: Adicionando keyboardOptions com Default
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
 ) {
     OutlinedTextField(
         value = value,
@@ -274,9 +281,8 @@ fun RegistroOutlinedTextField(
         trailingIcon = trailingIcon,
         label = { Text(label, color = Color.Gray) },
         visualTransformation = visualTransformation,
-        readOnly = readOnly, // Usando o parâmetro obrigatório
-        keyboardOptions = keyboardOptions, // Usando o novo parâmetro
-        // CORREÇÃO: Para simular o `enabled` baseado no `readOnly`, passamos o oposto
+        readOnly = readOnly,
+        keyboardOptions = keyboardOptions,
         enabled = !readOnly,
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = PrimaryColor,

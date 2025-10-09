@@ -22,6 +22,9 @@ import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import com.example.model.TipoInstituicaoResponse
+import android.util.Log // Importação necessária para logging
+
+private const val TAG = "TipoInstituicaoSelector" // Tag para identificação no Logcat
 
 @Composable
 fun TipoInstituicaoSelector(
@@ -29,7 +32,6 @@ fun TipoInstituicaoSelector(
     selectedTypeNames: MutableState<String>,
     isEnabled: Boolean,
 ) {
-    // ... (Estados e serviços existentes)
     val institutionTypes = remember { mutableStateOf<List<TipoInstituicao>>(emptyList()) }
     var isDropdownExpanded by remember { mutableStateOf(false) }
     val tipoInstituicaoService = remember { RetrofitFactory().getTipoInstituicaoService() }
@@ -38,29 +40,29 @@ fun TipoInstituicaoSelector(
     LaunchedEffect(Unit) {
         scope.launch {
             try {
-                // CORREÇÃO: O Call agora é para TipoInstituicaoResponse
                 tipoInstituicaoService.listarTodos().enqueue(object : Callback<TipoInstituicaoResponse> {
-                    // CORREÇÃO: Resposta agora é TipoInstituicaoResponse
                     override fun onResponse(call: Call<TipoInstituicaoResponse>, response: Response<TipoInstituicaoResponse>) {
                         if (response.isSuccessful) {
-                            // CORREÇÃO ESSENCIAL: Extrair a lista da propriedade "tipos_instituicao"
                             institutionTypes.value = response.body()?.tiposInstituicao ?: emptyList()
+                            Log.d(TAG, "Tipos de instituição carregados com sucesso.")
                         } else {
-                            println("Falha ao carregar tipos de instituição: ${response.errorBody()?.string()}")
+                            // Loga falhas de status HTTP (4xx, 5xx)
+                            Log.e(TAG, "Falha ao carregar tipos de instituição: HTTP ${response.code()} - ${response.errorBody()?.string()}")
                         }
                     }
 
                     override fun onFailure(call: Call<TipoInstituicaoResponse>, t: Throwable) {
-                        println("Erro de conexão ao carregar tipos de instituição: ${t.message}")
+                        // CORREÇÃO: Usa Log.e para erros de rede (Timeouts, Host não encontrado, etc.)
+                        Log.e(TAG, "ERRO DE CONEXÃO AO CARREGAR TIPOS: ${t.message}", t)
+                        // O Log.e com Throwable 't' imprime todo o StackTrace, que é crucial para debug.
                     }
                 })
             } catch (e: Exception) {
-                println("Exceção ao carregar tipos de instituição: ${e.message}")
+                Log.e(TAG, "Exceção ao iniciar requisição: ${e.message}", e)
             }
         }
     }
 
-    // ... (Restante do Composable permanece igual)
     Box {
         RegistroOutlinedTextField(
             value = selectedTypeNames.value,

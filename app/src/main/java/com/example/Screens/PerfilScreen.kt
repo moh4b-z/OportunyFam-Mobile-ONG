@@ -1,4 +1,4 @@
-package com.example.Screens
+package com.example.screens
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
@@ -23,11 +24,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.Components.BarraTarefas
-import com.example.oportunyfam_mobile_ong.R
+import com.example.oportunyfam_mobile_ong.R // Certifique-se de que este R está correto
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PerfilScreen(navController: NavHostController?) {
+fun PerfilScreen(
+    navController: NavHostController?,
+    instituicaoNome: String, // Dado dinâmico: Nome da Instituição
+    instituicaoEmail: String, // Dado dinâmico: Email da Instituição
+    onLogout: () -> Unit // Função para lidar com o Logout
+) {
 
     val gradient = Brush.horizontalGradient(
         colors = listOf(
@@ -52,6 +58,10 @@ fun PerfilScreen(navController: NavHostController?) {
                 Icon(Icons.Filled.ArrowBack, contentDescription = "Voltar", tint = Color.Black)
             }
             Spacer(modifier = Modifier.weight(1f))
+            // Botão de Logout que chama a função de limpeza de dados e navegação
+            IconButton(onClick = { onLogout() }) {
+                Icon(Icons.Filled.ExitToApp, contentDescription = "Sair", tint = Color.Black)
+            }
             IconButton(onClick = { }) {
                 Icon(Icons.Filled.Notifications, contentDescription = "Notificações", tint = Color.Black)
             }
@@ -90,8 +100,9 @@ fun PerfilScreen(navController: NavHostController?) {
                             .padding(horizontal = 24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        // Nome da Instituição (DADO DINÂMICO)
                         Text(
-                            "Laura De Andrade",
+                            instituicaoNome,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.Black
@@ -99,13 +110,15 @@ fun PerfilScreen(navController: NavHostController?) {
 
                         Spacer(modifier = Modifier.height(4.dp))
 
+                        // Email da Instituição (DADO DINÂMICO)
                         Text(
-                            "Osasco-SP",
+                            instituicaoEmail,
                             fontSize = 14.sp,
                             color = Color.Gray
                         )
 
 
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         // Stats (FOLLOWING)
                         Row(
@@ -137,7 +150,7 @@ fun PerfilScreen(navController: NavHostController?) {
                         ) {
                             Image(
                                 painter = painterResource(id = R.drawable.instituicao),
-                                contentDescription = "Imagem Perfil",
+                                contentDescription = "Imagem Perfil da Instituição",
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
                                     .size(70.dp)
@@ -187,7 +200,7 @@ fun PerfilScreen(navController: NavHostController?) {
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.perfil),
-                        contentDescription = "Imagem Perfil",
+                        contentDescription = "Imagem Perfil Pessoal",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.size(150.dp)
                     )
@@ -202,5 +215,10 @@ fun PerfilScreen(navController: NavHostController?) {
 @Preview(showSystemUi = true)
 @Composable
 fun PerfilScreenPreview() {
-    PerfilScreen(navController = null)
+    PerfilScreen(
+        navController = null,
+        instituicaoNome = "Mohammad ONG (Preview)",
+        instituicaoEmail = "mohammadsalim10000@gmail.com",
+        onLogout = {}
+    )
 }

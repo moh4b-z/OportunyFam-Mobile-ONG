@@ -12,10 +12,12 @@ interface AtividadeService {
     // --- ROTAS DE ATIVIDADE (CRUD) ---
 
     // POST /v1/atividades/
+    @Headers("Content-Type: application/json")
     @POST("atividades")
     fun criarAtividade(@Body atividade: AtividadeRequest): Call<AtividadeResponse>
 
     // PUT /v1/atividades/:id
+    @Headers("Content-Type: application/json")
     @PUT("atividades/{id}")
     fun atualizarAtividade(@Path("id") id: Int, @Body atividade: AtividadeRequest): Call<AtividadeResponse>
 

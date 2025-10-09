@@ -10,10 +10,12 @@ import retrofit2.http.*
 interface UsuarioService {
 
     // POST /v1/usuario - Envia o Request, retorna o Response
+    @Headers("Content-Type: application/json")
     @POST("usuario")
     fun criar(@Body usuario: UsuarioRequest): Call<UsuarioResponse>
 
     // PUT /v1/usuario/:id - Envia o Request, retorna o Response
+    @Headers("Content-Type: application/json")
     @PUT("usuario/{id}")
     fun atualizar(@Path("id") id: Int, @Body usuario: UsuarioRequest): Call<UsuarioResponse>
 

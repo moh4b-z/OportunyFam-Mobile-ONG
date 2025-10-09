@@ -1,21 +1,27 @@
 package com.example.oportunyfam.model
 
-data class Instituicao(
-    val id: Int? = null,
+import com.google.gson.annotations.SerializedName
+
+class Instituicao(
+    val id: Int,
     val nome: String,
-    val logo: String? = null,
+    val logo: String?,
     val cnpj: String,
+    val telefone: String,
     val email: String,
     val senha: String,
-    val descricao: String? = null,
+    val descricao: String?,
+    @SerializedName("criado_em")
+    val criadoEm: String,
+    @SerializedName("id_endereco")
+    val idEndereco: Int
+)
 
-    // Se o POST da Instituicao cria o Endereço junto, precisamos dos dados:
-    val cep: String,
-    val logradouro: String,
-    val numero: String? = null,
-    val complemento: String? = null,
-    val bairro: String,
-    val cidade: String,
-    val estado: String
-    // O backend calcula latitude/longitude/geo
+// Estrutura completa da resposta da API
+data class AuthResponse(
+    val status: Boolean,
+    @SerializedName("status_code")
+    val statusCode: Int,
+    val messagem: String,
+    val instituicao: Instituicao
 )
