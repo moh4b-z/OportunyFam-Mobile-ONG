@@ -21,7 +21,6 @@ private val DarkColorScheme = darkColorScheme(
     onBackground = onBackgroundDark,
     surface = surfaceDark,
     onSurface = onSurfaceDark
-    // Você pode adicionar tertiary, error, etc., conforme necessário.
 )
 
 private val LightColorScheme = lightColorScheme(

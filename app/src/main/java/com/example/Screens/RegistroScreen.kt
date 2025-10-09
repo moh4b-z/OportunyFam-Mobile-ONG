@@ -31,31 +31,23 @@ import com.example.oportunyfam_mobile_ong.R
 import androidx.compose.ui.text.input.VisualTransformation
 import com.example.Components.LoginContent
 import com.example.Components.RegistroContent
-import com.example.oportunyfam.model.Instituicao // Importação necessária
-import kotlinx.coroutines.launch // Importação necessária para o escopo
+import com.example.oportunyfam.model.Instituicao
+import kotlinx.coroutines.launch
 
-// Definição de cores
 val PrimaryColor = Color(0xFFFFA500)
 val BackgroundGray = Color(0xFFE0E0E0)
 
-// ✨ Constantes de Rota (Assumindo que estão em algum lugar)
-// Se não existir, crie um objeto para as rotas ou ajuste a navegação
 object NavRoutes {
     const val REGISTRO = "tela_registro"
     const val PERFIL = "tela_perfil"
-    // Adicione outras rotas conforme necessário
 }
 
 @Composable
 fun RegistroScreen(navController: NavHostController?) {
 
-    // Inicializa o AuthDataStore usando o contexto local
     val context = LocalContext.current
     val authDataStore = remember { AuthDataStore(context) }
 
-    // =========================================================================
-    // VARIÁVEIS DE ESTADO (Centralizadas aqui para serem passadas aos componentes)
-    // Passo 1
     val nome = remember { mutableStateOf("") }
     val email = remember { mutableStateOf("") }
     val phone = remember { mutableStateOf("") }
@@ -63,7 +55,7 @@ fun RegistroScreen(navController: NavHostController?) {
     val selectedTypeNames = remember { mutableStateOf("") }
     val cnpj = remember { mutableStateOf("") }
 
-    // Passo 2
+
     val cep = remember { mutableStateOf("") }
     val logradouro = remember { mutableStateOf("") }
     val numero = remember { mutableStateOf("") }
@@ -75,7 +67,7 @@ fun RegistroScreen(navController: NavHostController?) {
     val confirmarSenha = remember { mutableStateOf("") }
     val concordaTermos = remember { mutableStateOf(false) }
 
-    // Controles de Tela
+
     val isRegisterSelected = remember { mutableStateOf(true) }
     val currentStep = remember { mutableStateOf(1) }
     val isLoading = remember { mutableStateOf(false) }
@@ -83,26 +75,20 @@ fun RegistroScreen(navController: NavHostController?) {
     val scope = rememberCoroutineScope()
 
     val instituicaoService = remember { RetrofitFactory().getInstituicaoService() }
-    // =========================================================================
 
-    // ✨ IMPLEMENTAÇÃO DO CALLBACK DE SUCESSO DE AUTENTICAÇÃO/CADASTRO
+
     val onAuthSuccess: (Instituicao) -> Unit = { instituicaoLogada ->
         scope.launch {
-            // 1. SALVAR DADOS NO SHAREDPREFERENCES
             authDataStore.saveInstituicao(instituicaoLogada)
-            // 2. NAVEGAR PARA O PERFIL E LIMPAR O BACK STACK
             navController?.navigate(NavRoutes.PERFIL) {
-                // Isso garante que a tela de registro/login seja removida da pilha
                 popUpTo(NavRoutes.REGISTRO) { inclusive = true }
             }
-            // 3. Resetar o estado de loading (após a navegação ser acionada)
             isLoading.value = false
         }
     }
 
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Imagem topo
         Image(
             painter = painterResource(id = R.drawable.imglogin),
             contentDescription = stringResource(R.string.desc_icon_name),
@@ -113,7 +99,6 @@ fun RegistroScreen(navController: NavHostController?) {
                 .align(Alignment.TopCenter)
         )
 
-        // Card superior com a mensagem
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -139,7 +124,6 @@ fun RegistroScreen(navController: NavHostController?) {
             }
         }
 
-        // Card principal
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -156,7 +140,6 @@ fun RegistroScreen(navController: NavHostController?) {
                 verticalArrangement = Arrangement.Top
             ) {
 
-                // Botões Login / Registro
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -168,7 +151,6 @@ fun RegistroScreen(navController: NavHostController?) {
                         .padding(4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Botão Login
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -193,7 +175,6 @@ fun RegistroScreen(navController: NavHostController?) {
                         )
                     }
 
-                    // Botão Registro
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -237,7 +218,6 @@ fun RegistroScreen(navController: NavHostController?) {
                     }
                 }
 
-                // ================== CONTEÚDO DINÂMICO ==================
                 if (!isRegisterSelected.value) {
                     LoginContent(
                         navController = navController,
@@ -247,8 +227,7 @@ fun RegistroScreen(navController: NavHostController?) {
                         errorMessage = errorMessage,
                         instituicaoService = instituicaoService,
                         scope = scope,
-                        onAuthSuccess = onAuthSuccess // ✨ NOVO: Passando o callback
-                        // REMOVIDO: authDataStore = authDataStore
+                        onAuthSuccess = onAuthSuccess
                     )
                 } else {
                     RegistroContent(
@@ -277,8 +256,7 @@ fun RegistroScreen(navController: NavHostController?) {
                         errorMessage = errorMessage,
                         instituicaoService = instituicaoService,
                         scope = scope,
-                        onAuthSuccess = onAuthSuccess // ✨ NOVO: Passando o callback
-                        // REMOVIDO: authDataStore = authDataStore
+                        onAuthSuccess = onAuthSuccess
                     )
                 }
             }
@@ -286,7 +264,6 @@ fun RegistroScreen(navController: NavHostController?) {
     }
 }
 
-// Composable de Text Field Padronizado (Mantido)
 @Composable
 fun RegistroOutlinedTextField(
     value: String,
