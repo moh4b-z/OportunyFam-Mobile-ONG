@@ -1,12 +1,13 @@
 package com.example
+
 import android.os.Bundle
-import android.window.SplashScreen
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.Screens.HomeScreen
 import com.example.oportunyfam.SplashScreen
 import com.example.screens.PerfilScreen
 import com.example.screens.RegistroScreen
@@ -22,7 +23,7 @@ class MainActivity : ComponentActivity() {
 
                 NavHost(
                     navController = navController,
-                    startDestination = "tela_splash"
+                    startDestination = "HomeScreen"
                 ) {
                     composable("tela_splash") {
                         SplashScreen(navController)
@@ -33,9 +34,14 @@ class MainActivity : ComponentActivity() {
                     }
 
                     composable("tela_perfil") {
-                        PerfilScreen(navController,
-                            onLogout = {})
+                        PerfilScreen(
+                            navController = navController,
+                            onLogout = {}
+                        )
+                    }
 
+                    composable("HomeScreen") {
+                        HomeScreen(navController)
                     }
                 }
             }
