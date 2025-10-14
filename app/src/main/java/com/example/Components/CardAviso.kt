@@ -3,6 +3,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 
 @Composable
@@ -18,14 +19,14 @@ fun CardAviso(
             Text(
                 text = "Atenção!",
                 style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onPrimary
+                color = Color(0xFFFFB301)
             )
         },
         text = {
             Text(
                 text = pergunta,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onPrimary
+                color = Color(0xFFFFFFFF)
             )
         },
         confirmButton = {
@@ -35,7 +36,7 @@ fun CardAviso(
                 Text(
                     text = "Sim"
                     ,
-                    color = MaterialTheme.colorScheme.primary
+                    color = Color(0xFFFFB301)
                 )
             }
         },
@@ -45,11 +46,11 @@ fun CardAviso(
             ) {
                 Text(
                     text = "Não",
-                    color = MaterialTheme.colorScheme.onPrimary
+                    color = Color(0xFFFFFFFF)
                 )
             }
         },
-        containerColor = MaterialTheme.colorScheme.onPrimaryContainer
+        containerColor = Color(0xFF363534)
     )
 }
 
