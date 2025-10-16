@@ -1,5 +1,6 @@
 package com.example.oportunyfam.Telas
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,7 +28,6 @@ import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.example.Components.BarraTarefas
 import com.example.Components.CardAviso
-import com.example.oportunyfam.Service.CriancaService
 import com.example.oportunyfam.Service.RetrofitFactory
 import com.example.oportunyfam.model.CriancaRaw
 import com.example.oportunyfam_mobile_ong.R
@@ -37,6 +37,7 @@ import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 
+// -------------------- HOME SCREEN --------------------
 @Composable
 fun HomeScreen(navController: NavHostController?) {
 
@@ -44,7 +45,7 @@ fun HomeScreen(navController: NavHostController?) {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Carrega a lista de crianças
+    // Carrega a lista de crianças da API
     LaunchedEffect(Unit) {
         val service = RetrofitFactory().getCriancaService()
         try {
@@ -149,10 +150,10 @@ fun HomeScreen(navController: NavHostController?) {
                                     if (response.isSuccessful) {
                                         listaCriancas = listaCriancas.filter { it.id != c.id }
                                     } else {
-                                        // Feedback de erro
                                         errorMessage = "Erro ao cancelar inscrição"
                                     }
                                 }
+
                                 override fun onFailure(call: Call<Unit>, t: Throwable) {
                                     errorMessage = "Falha de conexão: ${t.localizedMessage}"
                                 }
@@ -167,6 +168,7 @@ fun HomeScreen(navController: NavHostController?) {
     }
 }
 
+// -------------------- CARD DE ATIVIDADES --------------------
 @Composable
 fun AtividadeCard(titulo: String, horario: String, pessoas: Int) {
     Card(
@@ -177,41 +179,39 @@ fun AtividadeCard(titulo: String, horario: String, pessoas: Int) {
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Row(
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.instituicao),
+                contentDescription = titulo,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .size(50.dp)
+                    .clip(CircleShape)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(
+                modifier = Modifier.weight(1f)
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.instituicao),
-                    contentDescription = titulo,
-                    modifier = Modifier
-                        .size(50.dp)
-                        .clip(CircleShape)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(titulo, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Text("🕒 $horario", fontSize = 14.sp, color = Color.Gray)
-                    Text("👥 $pessoas Pessoas cadastradas", fontSize = 14.sp, color = Color.Gray)
-                }
-
-                Box(
-                    modifier = Modifier
-                        .width(4.dp)
-                        .height(40.dp)
-                        .background(Color(0xFFFFA000))
-                        .align(Alignment.CenterVertically)
-                )
+                Text(titulo, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("🕒 $horario", fontSize = 14.sp, color = Color.Gray)
+                Text("👥 $pessoas Pessoas cadastradas", fontSize = 14.sp, color = Color.Gray)
             }
+
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(40.dp)
+                    .background(Color(0xFFFFA000))
+            )
         }
     }
 }
 
+// -------------------- ALUNO CARD --------------------
 @Composable
 fun AlunoCard(crianca: CriancaRaw, onExcluir: (CriancaRaw) -> Unit) {
     var showDialog by remember { mutableStateOf(false) }
@@ -252,14 +252,6 @@ fun AlunoCard(crianca: CriancaRaw, onExcluir: (CriancaRaw) -> Unit) {
                 Text(crianca.data_nascimento ?: "Sem data", fontSize = 14.sp, color = Color.Gray)
             }
 
-            IconButton(onClick = { showDeleteWarning = true }) {
-                Icon(
-                    painter = painterResource(id = R.drawable.delete),
-                    contentDescription = "Excluir",
-                    tint = Color.Red
-                )
-            }
-
             Box(
                 modifier = Modifier
                     .width(4.dp)
@@ -269,16 +261,23 @@ fun AlunoCard(crianca: CriancaRaw, onExcluir: (CriancaRaw) -> Unit) {
         }
     }
 
+    // Diálogo de detalhes
     if (showDialog) {
-        DetalhesCriancaDialog(crianca = crianca, onDismiss = { showDialog = false })
+        DetalhesCriancaDialog(
+            crianca = crianca,
+            onDismiss = { showDialog = false },
+            onDeleteClick = { showDeleteWarning = true }
+        )
     }
 
+    // CardAviso de confirmação de exclusão
     if (showDeleteWarning) {
         CardAviso(
             pergunta = "Deseja realmente cancelar a inscrição de ${crianca.nome}?",
             onConfirm = {
                 onExcluir(crianca)
                 showDeleteWarning = false
+                showDialog = false // fecha o diálogo após exclusão
             },
             onDismiss = { showDeleteWarning = false },
             onCancel = { showDeleteWarning = false }
@@ -286,8 +285,13 @@ fun AlunoCard(crianca: CriancaRaw, onExcluir: (CriancaRaw) -> Unit) {
     }
 }
 
+// -------------------- DETALHES DA CRIANÇA --------------------
 @Composable
-fun DetalhesCriancaDialog(crianca: CriancaRaw, onDismiss: () -> Unit) {
+fun DetalhesCriancaDialog(
+    crianca: CriancaRaw,
+    onDismiss: () -> Unit,
+    onDeleteClick: () -> Unit
+) {
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
@@ -329,9 +333,28 @@ fun DetalhesCriancaDialog(crianca: CriancaRaw, onDismiss: () -> Unit) {
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
+
+                // Botão “Deseja cancelar inscrição?” dentro do diálogo
+                Button(
+                    onClick = onDeleteClick,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, Color.Red),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Deseja cancelar inscrição?",
+                        color = Color.Red,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Botão fechar
                 Button(
                     onClick = onDismiss,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFA000))
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFA000)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Fechar", color = Color.White)
                 }
@@ -340,13 +363,13 @@ fun DetalhesCriancaDialog(crianca: CriancaRaw, onDismiss: () -> Unit) {
     }
 }
 
+// -------------------- BARRA DE TAREFAS --------------------
 @Composable
 fun BarraDeTarefas() {
     BarraTarefas()
 }
 
-
-
+// -------------------- PREVIEWS --------------------
 @Preview(showBackground = true)
 @Composable
 fun PreviewHomeScreen() {
@@ -367,8 +390,7 @@ fun PreviewAlunoCard() {
     )
     AlunoCard(
         crianca = dummy,
-        service = RetrofitFactory().getCriancaService(),
-        onAtualizarLista = {}
+        onExcluir = {}
     )
 }
 
