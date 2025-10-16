@@ -337,16 +337,16 @@ fun DetalhesCriancaDialog(
                 // Botão “Deseja cancelar inscrição?” dentro do diálogo
                 Button(
                     onClick = onDeleteClick,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color.Red),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFA000)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
                         text = "Deseja cancelar inscrição?",
-                        color = Color.Red,
+                        color = Color.White,
                         fontWeight = FontWeight.Bold
                     )
                 }
+
 
                 Spacer(modifier = Modifier.height(12.dp))
 
