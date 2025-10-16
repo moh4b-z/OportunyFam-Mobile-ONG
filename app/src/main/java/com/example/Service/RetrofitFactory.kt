@@ -59,4 +59,8 @@ class RetrofitFactory {
     fun getTipoInstituicaoService(): TipoInstituicaoService {
         return retrofitFactory.create(TipoInstituicaoService::class.java)
     }
+    fun getCriancaService(): CriancaService {
+        return retrofitFactory.create(CriancaService::class.java)
+    }
+
 }

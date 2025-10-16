@@ -26,8 +26,8 @@ import com.example.oportunyfam.Service.InstituicaoService
 import com.example.oportunyfam.model.Instituicao
 import com.example.oportunyfam.model.LoginRequest
 import com.example.oportunyfam_mobile_ong.R
-import com.example.screens.PrimaryColor
-import com.example.screens.RegistroOutlinedTextField
+import com.example.Telas.PrimaryColor
+import com.example.Telas.RegistroOutlinedTextField
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import retrofit2.Response

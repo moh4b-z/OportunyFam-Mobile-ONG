@@ -7,10 +7,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.Screens.HomeScreen
 import com.example.oportunyfam.SplashScreen
-import com.example.screens.PerfilScreen
-import com.example.screens.RegistroScreen
+import com.example.Telas.PerfilScreen
+import com.example.Telas.RegistroScreen
+import com.example.oportunyfam.Telas.HomeScreen
 import com.example.theme.OportunyFamMobileONGTheme
 
 class MainActivity : ComponentActivity() {

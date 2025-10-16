@@ -1,5 +1,6 @@
 package com.example.oportunyfam.Service
 
+import com.example.oportunyfam.model.CriancaListResponse
 import com.example.oportunyfam.model.CriancaRequest
 import com.example.oportunyfam.model.CriancaResponse
 import com.example.oportunyfam.model.LoginRequest
@@ -9,27 +10,27 @@ import retrofit2.http.*
 
 interface CriancaService {
 
-    // POST /v1/crianca - Envia o Request, retorna o Response
-    @POST("crianca")
+    // POST /v1/oportunyfam/criancas
+    @POST("criancas")
     fun criar(@Body crianca: CriancaRequest): Call<CriancaResponse>
 
-    // PUT /v1/crianca/:id - Envia o Request, retorna o Response
-    @PUT("crianca/{id}")
+    // PUT /v1/oportunyfam/criancas/:id
+    @PUT("criancas/{id}")
     fun atualizar(@Path("id") id: Int, @Body crianca: CriancaRequest): Call<CriancaResponse>
 
-    // GET /v1/crianca - Retorna Lista de Responses
-    @GET("crianca")
-    fun listarTodas(): Call<List<CriancaResponse>>
+    // GET /v1/oportunyfam/criancas
+    @GET("criancas")
+    fun listarTodas(): Call<CriancaListResponse>
 
-    // GET /v1/crianca/:id - Retorna um Response
-    @GET("crianca/{id}")
+    // GET /v1/oportunyfam/criancas/:id
+    @GET("criancas/{id}")
     fun buscarPorId(@Path("id") id: Int): Call<CriancaResponse>
 
-    // POST /v1/crianca/login - Sem mudança
-    @POST("crianca/login")
+    // POST /v1/oportunyfam/criancas/login
+    @POST("criancas/login")
     fun loginCrianca(@Body request: LoginRequest): Call<LoginResponse>
 
-    // DELETE /v1/crianca/:id - Sem mudança
-    @DELETE("crianca/{id}")
+    // DELETE /v1/oportunyfam/criancas/:id
+    @DELETE("criancas/{id}")
     fun deletar(@Path("id") id: Int): Call<Unit>
 }

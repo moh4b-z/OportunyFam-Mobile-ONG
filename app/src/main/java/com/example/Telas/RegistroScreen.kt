@@ -1,4 +1,4 @@
-package com.example.screens
+package com.example.Telas
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background

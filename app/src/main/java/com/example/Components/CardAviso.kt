@@ -1,10 +1,8 @@
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+package com.example.Components
+
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.tooling.preview.Preview
 
 @Composable
 fun CardAviso(
@@ -26,7 +24,7 @@ fun CardAviso(
             Text(
                 text = pergunta,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFFFFFFFF)
+                color = Color.White
             )
         },
         confirmButton = {
@@ -34,8 +32,7 @@ fun CardAviso(
                 onClick = onConfirm
             ) {
                 Text(
-                    text = "Sim"
-                    ,
+                    text = "Sim",
                     color = Color(0xFFFFB301)
                 )
             }
@@ -46,21 +43,10 @@ fun CardAviso(
             ) {
                 Text(
                     text = "Não",
-                    color = Color(0xFFFFFFFF)
+                    color = Color.White
                 )
             }
         },
         containerColor = Color(0xFF363534)
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun CardAvisoPreview() {
-    CardAviso(
-        pergunta = "Deseja realmente excluir este cliente?",
-        onConfirm = {},
-        onDismiss = {},
-        onCancel = {}
     )
 }
