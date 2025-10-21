@@ -20,6 +20,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
 import com.example.oportunyfam.Telas.BarraDeTarefas
 import com.example.oportunyfam_mobile_ong.R
 
@@ -36,7 +37,7 @@ data class Conversa(
 // ------------------- Tela principal de conversas premium -------------------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ConversasScreen() {
+fun ConversasScreen(navController: NavHostController?) {
     val conversas = remember {
         listOf(
             Conversa("Laura de Andrade", "Olá! Que bom que entrou em contato!", "10:24", R.drawable.perfil, true, 2),
@@ -198,5 +199,5 @@ fun ConversaItemPremium(conversa: Conversa) {
 @Preview(showBackground = true)
 @Composable
 fun PreviewConversasScreen() {
-    ConversasScreen()
+    ConversasScreen(null)
 }

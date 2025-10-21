@@ -91,6 +91,11 @@ dependencies {
     implementation("org.osmdroid:osmdroid-android:6.1.18")//OpenStreetMap
 
     implementation("com.google.android.gms:play-services-location:21.3.0")//Para obter a posição atual do usuário
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+
+    // ✨ CORREÇÃO CRÍTICA: Adicione o compilador do Room usando KSP
+    ksp("androidx.room:room-compiler:2.6.1") // <<< Esta linha estava faltando
 
 
 }
