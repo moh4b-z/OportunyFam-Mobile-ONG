@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.Telas.ConversasScreen
 import com.example.oportunyfam.SplashScreen
 import com.example.Telas.PerfilScreen
 import com.example.Telas.RegistroScreen
@@ -47,6 +48,9 @@ class MainActivity : ComponentActivity() {
 
                     composable("AtividadesScreen") {
                         AtividadesScreen(navController)
+                    }
+                    composable("ConversasScreen") {
+                        ConversasScreen(navController)
                     }
                 }
             }
