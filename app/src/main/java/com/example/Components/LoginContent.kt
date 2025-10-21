@@ -23,11 +23,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.oportunyfam.Service.InstituicaoService
-import com.example.oportunyfam.model.Instituicao
 import com.example.oportunyfam.model.LoginRequest
 import com.example.oportunyfam_mobile_ong.R
 import com.example.Telas.PrimaryColor
 import com.example.Telas.RegistroOutlinedTextField
+import com.oportunyfam_mobile.model.Instituicao
+import com.oportunyfam_mobile.model.InstituicaoResponse
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import retrofit2.Response
@@ -115,17 +116,20 @@ fun LoginContent(
                     )
 
                     // Chamada ao serviço
-                    val response: Response<Instituicao> = instituicaoService.loginInstituicao(request)
-
+                    val response: Response<InstituicaoResponse> = instituicaoService.loginInstituicao(request)
+                    val body = response.body()
                     // Acessando propriedades da Response
-                    if (response.isSuccessful && response.body() != null) {
-                        val instituicaoLogada = response.body()!!
+                    if (response.isSuccessful && body?.status_code == 201) {
+                        val instituicaoLogada = body.instituicao
 
-                        // ✨ CHAMADA AO CALLBACK CENTRALIZADO
-                        // A responsabilidade de salvar e navegar está agora em RegistroScreen.kt
-                        onAuthSuccess(instituicaoLogada)
+                        if (instituicaoLogada != null) {
+                            onAuthSuccess(instituicaoLogada)
+                        } else {
+                            errorMessage.value = "Erro: instituição não retornada"
+                            isLoading.value = false
+                        }
 
-                    } else {
+                    }else {
                         val errorBody = response.errorBody()?.string() ?: response.message()
                         errorMessage.value = "Falha no Login. Verifique suas credenciais. Erro: $errorBody"
                         isLoading.value = false // Para o loading em caso de erro

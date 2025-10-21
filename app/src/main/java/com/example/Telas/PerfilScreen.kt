@@ -25,30 +25,49 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.Components.BarraTarefas
-import com.example.data.AuthDataStore
-import com.example.oportunyfam.model.Instituicao
+import com.example.data.InstituicaoAuthDataStore
 import com.example.oportunyfam_mobile_ong.R
+import com.oportunyfam_mobile.model.Instituicao
 import kotlinx.coroutines.launch
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PerfilScreen(
-    navController: NavHostController?,
-    onLogout: () -> Unit // Função para lidar com o Logout
+    navController: NavHostController?
 ) {
     val context = LocalContext.current
-    val authDataStore = remember { AuthDataStore(context) }
+    // ✨ CORREÇÃO 1: Usando o nome da classe correto do arquivo de funções
+    val instituicaoAuthDataStore = remember { InstituicaoAuthDataStore(context) }
     val scope = rememberCoroutineScope()
 
     // Estado para armazenar os dados da instituição logada
     var instituicao by remember { mutableStateOf<Instituicao?>(null) }
     val isLoadingData = remember { mutableStateOf(true) }
 
+    // ----------------------------------------------------
+    // ✨ FUNÇÃO PARA LOGOUT E NAVEGAÇÃO
+    // ----------------------------------------------------
+    val onLogout: () -> Unit = {
+        scope.launch {
+            // Chama a função de limpeza de dados do DataStore
+            instituicaoAuthDataStore.logout()
+            // Navega para a tela de login (ajuste "login" para a rota correta do seu projeto)
+            navController?.navigate("login") {
+                // Limpa o back stack para que o usuário não possa voltar
+                popUpTo(navController.graph.id) {
+                    inclusive = true
+                }
+            }
+        }
+    }
+    // ----------------------------------------------------
+
     // Efeito para carregar os dados do DataStore quando a tela é iniciada
     LaunchedEffect(Unit) {
         scope.launch {
-            // ✨ CORREÇÃO: Usando a função loadInstituicao() do AuthDataStore.
-            instituicao = authDataStore.loadInstituicao()
+            // Usando a função loadInstituicao() do InstituicaoAuthDataStore
+            instituicao = instituicaoAuthDataStore.loadInstituicao()
             isLoadingData.value = false
         }
     }
@@ -68,7 +87,7 @@ fun PerfilScreen(
         return
     }
 
-    // Se não houver dados logados, redireciona (chamando onLogout)
+    // Se não houver dados logados, redireciona (chama onLogout para garantir a navegação)
     if (instituicao == null) {
         LaunchedEffect(Unit) {
             onLogout()
@@ -97,10 +116,12 @@ fun PerfilScreen(
                 Icon(Icons.Filled.ArrowBack, contentDescription = "Voltar", tint = Color.Black)
             }
             Spacer(modifier = Modifier.weight(1f))
-            // Botão de Logout que chama a função de limpeza de dados e navegação
-            IconButton(onClick = { onLogout() }) {
+
+            // ✨ BOTÃO PARA SAIR (Logout)
+            IconButton(onClick = onLogout) {
                 Icon(Icons.Filled.ExitToApp, contentDescription = "Sair", tint = Color.Black)
             }
+
             IconButton(onClick = { /* Ação para Notificações */ }) {
                 Icon(Icons.Filled.Notifications, contentDescription = "Notificações", tint = Color.Black)
             }
@@ -259,7 +280,6 @@ fun PerfilScreen(
 @Composable
 fun PerfilScreenPreview() {
     PerfilScreen(
-        navController = null,
-        onLogout = {}
+        navController = null
     )
 }

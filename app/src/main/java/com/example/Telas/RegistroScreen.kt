@@ -25,13 +25,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.example.data.AuthDataStore
 import com.example.oportunyfam.Service.RetrofitFactory
 import com.example.oportunyfam_mobile_ong.R
 import androidx.compose.ui.text.input.VisualTransformation
 import com.example.Components.LoginContent
 import com.example.Components.RegistroContent
-import com.example.oportunyfam.model.Instituicao
+import com.example.data.InstituicaoAuthDataStore
+import com.oportunyfam_mobile.model.Instituicao
 import kotlinx.coroutines.launch
 
 val PrimaryColor = Color(0xFFFFA500)
@@ -46,7 +46,7 @@ object NavRoutes {
 fun RegistroScreen(navController: NavHostController?) {
 
     val context = LocalContext.current
-    val authDataStore = remember { AuthDataStore(context) }
+    val authDataStore = remember { InstituicaoAuthDataStore(context) }
 
     val nome = remember { mutableStateOf("") }
     val email = remember { mutableStateOf("") }

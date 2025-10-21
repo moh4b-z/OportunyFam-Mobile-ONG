@@ -1,27 +1,40 @@
-package com.example.oportunyfam.model
+package com.oportunyfam_mobile.model
 
-import com.google.gson.annotations.SerializedName
+import com.example.model.TipoInstituicao
+import com.example.oportunyfam.model.EnderecoResponse
 
-class Instituicao(
-    val id: Int,
+data class InstituicaoRequest(
     val nome: String,
     val logo: String?,
     val cnpj: String,
-    val telefone: String,
+    val telefone: String?,
     val email: String,
     val senha: String,
     val descricao: String?,
-    @SerializedName("criado_em")
-    val criadoEm: String,
-    @SerializedName("id_endereco")
-    val idEndereco: Int
+    val cep: String,
+    val logradouro: String,
+    val numero: String?,
+    val complemento: String?,
+    val bairro: String,
+    val cidade: String,
+    val estado: String,
+    val tipos_instituicao: List<Int>
 )
 
-// Estrutura completa da resposta da API
-data class AuthResponse(
+data class InstituicaoResponse(
     val status: Boolean,
-    @SerializedName("status_code")
-    val statusCode: Int,
+    val status_code: Int,
     val messagem: String,
-    val instituicao: Instituicao
+    val instituicao: Instituicao?
+)
+
+data class Instituicao(
+    val id: Int,
+    val nome: String,
+    val cnpj: String,
+    val email: String,
+    val descricao: String?,
+    val criado_em: String,
+    val endereco: EnderecoResponse?,
+    val tipos_instituicao: List<TipoInstituicao>?
 )

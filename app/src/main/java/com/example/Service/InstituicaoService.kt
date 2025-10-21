@@ -1,8 +1,8 @@
 package com.example.oportunyfam.Service
 
-import com.example.model.InstituicaoRequest
-import com.example.oportunyfam.model.Instituicao
 import com.example.oportunyfam.model.LoginRequest
+import com.oportunyfam_mobile.model.InstituicaoRequest
+import com.oportunyfam_mobile.model.InstituicaoResponse
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.http.*
@@ -12,25 +12,25 @@ interface InstituicaoService {
     // POST - Criar nova instituição
     @Headers("Content-Type: application/json")
     @POST("instituicoes")
-    suspend fun criar(@Body request: InstituicaoRequest): Response<Instituicao>
+    suspend fun criar(@Body request: InstituicaoRequest): Response<InstituicaoResponse>
 
     @Headers("Content-Type: application/json")
     @POST("instituicoes/login")
-    suspend fun loginInstituicao(@Body request: LoginRequest): Response<Instituicao>
+    suspend fun loginInstituicao(@Body request: LoginRequest): Response<InstituicaoResponse>
 
     // GET - Listar todas as instituições
     // Esta rota é a mesma usada para a busca/filtro
     @GET("instituicoes")
-    fun listarTodas(): Call<List<Instituicao>>
+    fun listarTodas(): Call<List<InstituicaoResponse>>
 
     // GET - Buscar instituição por ID
     @GET("instituicoes/{id}")
-    fun buscarPorId(@Path("id") id: Int): Call<Instituicao>
+    fun buscarPorId(@Path("id") id: Int): Call<InstituicaoResponse>
 
     // PUT - Atualizar instituição por ID
     // O backend usa PUT /:id, então o ID pode vir do objeto e/ou do Path
     @PUT("instituicoes/{id}")
-    fun atualizar(@Path("id") id: Int, @Body instituicao: Instituicao): Call<Instituicao>
+    fun atualizar(@Path("id") id: Int, @Body request: InstituicaoRequest): Call<InstituicaoResponse>
 
     // DELETE - Excluir instituição por ID
     // Assumindo que o delete recebe o ID no Path

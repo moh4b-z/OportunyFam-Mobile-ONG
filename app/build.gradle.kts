@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.devtools.ksp")
+    alias(libs.plugins.androidx.room)
 }
 
 android {
@@ -91,4 +93,8 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.3.0")//Para obter a posição atual do usuário
 
 
+}
+
+room {
+    schemaDirectory("$projectDir/schemas")
 }

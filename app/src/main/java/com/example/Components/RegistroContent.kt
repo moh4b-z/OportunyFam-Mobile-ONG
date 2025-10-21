@@ -20,15 +20,16 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.example.model.InstituicaoRequest
 import com.example.oportunyfam.Service.InstituicaoService
-import com.example.oportunyfam.model.Instituicao
 import com.example.Telas.PrimaryColor
 import com.example.Telas.RegistroOutlinedTextField
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import retrofit2.Response
 import com.example.oportunyfam_mobile_ong.R
+import com.oportunyfam_mobile.model.Instituicao
+import com.oportunyfam_mobile.model.InstituicaoRequest
+import com.oportunyfam_mobile.model.InstituicaoResponse
 
 // REMOVIDO: import com.example.data.AuthDataStore
 
@@ -417,14 +418,19 @@ fun RegistroContent(
                                             cep = cep.value
                                         )
 
-                                        val response: Response<Instituicao> = instituicaoService.criar(request)
+                                        val response: Response<InstituicaoResponse> = instituicaoService.criar(request)
 
-                                        if (response.isSuccessful && response.body() != null) {
-                                            val instituicaoCriada = response.body()!!
+                                        val body = response.body()
+                                        // Acessando propriedades da Response
+                                        if (response.isSuccessful && body?.status_code == 201) {
+                                            val instituicaoLogada = body.instituicao
 
-                                            // ✨ CHAMADA AO CALLBACK CENTRALIZADO
-                                            // A responsabilidade de salvar e navegar está agora em RegistroScreen.kt
-                                            onAuthSuccess(instituicaoCriada)
+                                            if (instituicaoLogada != null) {
+                                                onAuthSuccess(instituicaoLogada)
+                                            } else {
+                                                errorMessage.value = "Erro: instituição não retornada"
+                                                isLoading.value = false
+                                            }
 
                                         } else {
                                             val errorBody = response.errorBody()?.string() ?: response.message()

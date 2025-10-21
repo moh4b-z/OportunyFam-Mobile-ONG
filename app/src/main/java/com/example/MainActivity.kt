@@ -36,8 +36,7 @@ class MainActivity : ComponentActivity() {
 
                     composable("tela_perfil") {
                         PerfilScreen(
-                            navController = navController,
-                            onLogout = {}
+                            navController = navController
                         )
                     }
 

@@ -2,8 +2,8 @@ package com.example.oportunyfam.Service
 
 import com.example.oportunyfam.model.LoginRequest
 import com.example.oportunyfam.model.LoginResponse
-import com.example.oportunyfam.model.UsuarioRequest
-import com.example.oportunyfam.model.UsuarioResponse
+import com.oportunyfam_mobile.model.UsuarioRequest
+import com.oportunyfam_mobile.model.UsuarioResponse
 import retrofit2.Call
 import retrofit2.http.*
 
