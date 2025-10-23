@@ -7,7 +7,6 @@ import retrofit2.http.Headers
 import retrofit2.http.PUT
 import retrofit2.http.Url
 import okhttp3.RequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Retrofit
 import retrofit2.http.Body
 import java.io.File
@@ -26,6 +25,17 @@ interface AzureBlobApiService {
     ): Response<Void>
 }
 
+
+
+
+
+
+
+
+
+
+
+
 object AzureBlobRetrofit {
     private const val BASE_URL = "https://placeholder.blob.core.windows.net/"
 
@@ -38,7 +48,56 @@ object AzureBlobRetrofit {
     val apiService: AzureBlobApiService by lazy {
         retrofit.create(AzureBlobApiService::class.java)
     }
+
+    // 🔽🔽🔽 ADICIONAR ESTA FUNÇÃO AQUI 🔽🔽🔽
+    suspend fun uploadImageToAzure(
+        imageFile: File,
+        storageAccount: String,
+        sasToken: String,
+        containerName: String
+    ): String? {
+        val blobName = "${UUID.randomUUID()}-${imageFile.name}"
+        val baseUrl = "https://${storageAccount}.blob.core.windows.net/${containerName}/${blobName}"
+        val uploadUrl = "${baseUrl}?${sasToken}"
+
+        return try {
+            val fileBytes = FileInputStream(imageFile).readBytes()
+            val requestBody = fileBytes.toRequestBody("image/*".toMediaTypeOrNull())
+
+            val response = apiService.uploadFile(uploadUrl, requestBody)
+
+            if (response.isSuccessful) {
+                println("Upload de imagem bem-sucedido para: $baseUrl")
+                baseUrl
+            } else {
+                val errorBody = response.errorBody()?.string()
+                println("Erro no upload da imagem: ${response.code()} - $errorBody")
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            println("Erro ao fazer upload da imagem: ${e.message}")
+            null
+        }
+    }
+    // 🔼🔼🔼 ATÉ AQUI 🔼🔼🔼
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 suspend fun uploadFileToAzure(
     file: File,

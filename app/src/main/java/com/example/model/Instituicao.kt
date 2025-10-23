@@ -18,7 +18,7 @@ data class InstituicaoRequest(
     val bairro: String,
     val cidade: String,
     val estado: String,
-    val tipos_instituicao: List<Int>
+    val tipos_instituicao: List<Int?>
 )
 
 data class InstituicaoResponse(
@@ -36,5 +36,17 @@ data class Instituicao(
     val descricao: String?,
     val criado_em: String,
     val endereco: EnderecoResponse?,
-    val tipos_instituicao: List<TipoInstituicao>?
+    val tipos_instituicao: List<TipoInstituicao>?,
+    val telefone: String?,
+    val logo: String?
+)
+
+
+data class InstituicaoAtualizarRequest(
+    val nome: String?,
+    val cnpj: String?,
+    val email: String?,
+    val descricao: String?,
+    val telefone: String?,
+    val logo: String?
 )

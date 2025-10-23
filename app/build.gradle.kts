@@ -16,7 +16,6 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -29,20 +28,25 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     kotlinOptions {
         jvmTarget = "11"
     }
+
     buildFeatures {
         compose = true
     }
 }
 
 dependencies {
-    implementation("com.squareup.okhttp3:logging-interceptor:4.9.1")
+    // ----------------------------
+    // 🧩 Android e Compose
+    // ----------------------------
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -51,12 +55,14 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation(libs.androidx.navigation.runtime.android)
-    implementation(libs.androidx.storage)
-    implementation(libs.androidx.foundation.layout.android)
-    implementation(libs.androidx.foundation.layout.android)
-    implementation(libs.androidx.foundation.layout.android)
+    implementation("androidx.compose.material:material-icons-extended:1.5.4")
+    implementation("androidx.navigation:navigation-compose:2.8.0")
     implementation(libs.androidx.core.splashscreen)
+    implementation(libs.androidx.foundation.layout.android)
+
+    // ----------------------------
+    // 🧠 Testes
+    // ----------------------------
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -64,42 +70,53 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-    implementation("com.google.code.gson:gson:2.10.1")
 
-    implementation("androidx.navigation:navigation-compose:2.8.0")
-    implementation("androidx.compose.material3:material3:1.2.0") // ou a versão mais recente
-    implementation("androidx.compose.material:material-icons-extended:1.5.4") // necessário para ícones
-
-    //Retrofit
+    // ----------------------------
+    // 🌐 Retrofit + OkHttp
+    // ----------------------------
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
 
-    //COIL biblioteca para fazer chamada das img
-    implementation("io.coil-kt:coil-compose:2.7.0")
+    // ✅ OkHttp unificado — evita conflito do toRequestBody()
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
 
-    implementation("androidx.datastore:datastore-preferences:1.1.1")//Banco de dados local (Room ou DataStore)
+    // ----------------------------
+    // 🧩 Outras bibliotecas úteis
+    // ----------------------------
+    implementation("com.google.code.gson:gson:2.10.1")
+    implementation("io.coil-kt:coil-compose:2.7.0") // imagens com Coil
+    implementation("androidx.datastore:datastore-preferences:1.1.1") // armazenamento local
 
-    //cache de dados offline
+    // ----------------------------
+    // 💾 Room (banco de dados local)
+    // ----------------------------
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
+    ksp("androidx.room:room-compiler:2.6.1")
 
-
-    //mapa
+    // ----------------------------
+    // 🗺️ Mapas e localização
+    // ----------------------------
     implementation("com.google.android.gms:play-services-maps:19.0.0")
-    implementation("com.google.maps.android:maps-compose:2.11.4") // integração com Jetpack Compose
-
-    implementation("org.osmdroid:osmdroid-android:6.1.18")//OpenStreetMap
-
-    implementation("com.google.android.gms:play-services-location:21.3.0")//Para obter a posição atual do usuário
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-
-    // ✨ CORREÇÃO CRÍTICA: Adicione o compilador do Room usando KSP
-    ksp("androidx.room:room-compiler:2.6.1") // <<< Esta linha estava faltando
-
-
+    implementation("com.google.maps.android:maps-compose:2.11.4")
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
+    implementation("com.google.android.gms:play-services-location:21.3.0")
 }
 
+// ----------------------------
+// ⚙️ Força versões corretas (evita conflito de OkHttp)
+// ----------------------------
+configurations.all {
+    resolutionStrategy {
+        force("com.squareup.okhttp3:okhttp:4.11.0")
+        force("com.squareup.okhttp3:logging-interceptor:4.11.0")
+    }
+}
+
+// ----------------------------
+// 🧱 Room Schema
+// ----------------------------
 room {
     schemaDirectory("$projectDir/schemas")
 }
