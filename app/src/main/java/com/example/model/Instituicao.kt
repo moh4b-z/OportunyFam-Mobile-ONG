@@ -43,10 +43,10 @@ data class Instituicao(
 
 
 data class InstituicaoAtualizarRequest(
-    val nome: String?,
-    val cnpj: String?,
-    val email: String?,
-    val descricao: String?,
-    val telefone: String?,
-    val logo: String?
+    val nome: String? = null,
+    val cnpj: String? = null,
+    val email: String? = null,
+    val descricao: String? = null,
+    val telefone: String? = null,
+    val logo: String? = null
 )
