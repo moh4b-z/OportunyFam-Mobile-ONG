@@ -3,23 +3,6 @@ package com.oportunyfam_mobile.model
 import com.example.model.TipoInstituicao
 import com.example.oportunyfam.model.EnderecoResponse
 
-data class InstituicaoRequest(
-    val nome: String,
-    val logo: String?,
-    val cnpj: String,
-    val telefone: String?,
-    val email: String,
-    val senha: String,
-    val descricao: String?,
-    val cep: String,
-    val logradouro: String,
-    val numero: String?,
-    val complemento: String?,
-    val bairro: String,
-    val cidade: String,
-    val estado: String,
-    val tipos_instituicao: List<Int?>
-)
 
 data class InstituicaoResponse(
     val status: Boolean,
@@ -29,17 +12,51 @@ data class InstituicaoResponse(
 )
 
 data class Instituicao(
-    val id: Int,
+    val instituicao_id: Int,
+    val pessoa_id: Int,
     val nome: String,
-    val cnpj: String,
     val email: String,
+    val foto_perfil: String?,
+    val cnpj: String,
     val descricao: String?,
     val criado_em: String,
-    val endereco: EnderecoResponse?,
-    val tipos_instituicao: List<TipoInstituicao>?,
-    val telefone: String?,
-    val logo: String?
+    val atualizado_em: String?,
+    val endereco: Endereco?,
+    val tipos_instituicao: List<Any> = emptyList(),
+    val publicacoes: List<Any> = emptyList(),
+    val conversas: List<Any> = emptyList(),
+    val atividades: List<Any> = emptyList()
 )
+
+data class Endereco(
+    val id: Int,
+    val cep: String,
+    val bairro: String,
+    val cidade: String,
+    val estado: String,
+    val numero: String?,
+    val latitude: Double?,
+    val longitude: Double?,
+    val logradouro: String,
+    val complemento: String?
+)
+
+data class InstituicaoRequest(
+    val nome: String,
+    val foto_perfil: String? = null,
+    val email: String,
+    val senha: String,
+    val cnpj: String,
+    val descricao: String? = null,
+    val cep: String,
+    val logradouro: String,
+    val numero: String?,
+    val complemento: String?,
+    val bairro: String,
+    val cidade: String,
+    val estado: String
+)
+
 
 
 data class InstituicaoAtualizarRequest(
@@ -50,3 +67,4 @@ data class InstituicaoAtualizarRequest(
     val telefone: String? = null,
     val logo: String? = null
 )
+

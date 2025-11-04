@@ -1,9 +1,21 @@
 package com.example.oportunyfam.model
 
+import com.oportunyfam_mobile.model.Instituicao
+import com.oportunyfam_mobile.model.Usuario
+
 data class LoginResponse(
-    val type: String, // "usuario", "instituicao", "crianca"
-    val id: Int,
-    val nome: String,
-    val email: String
-    // ... outros dados do usuário logado
+    val status: Boolean,
+    val status_code: Int,
+    val messagem: String,
+    val tipo: String,
+    val result: ResultData
+)
+sealed class ResultData {
+    data class InstituicaoResult(val data: Instituicao) : ResultData()
+    data class UsuarioResult(val data: Usuario) : ResultData()
+}
+
+data class LoginRequest(
+    val email: String,
+    val senha: String
 )
