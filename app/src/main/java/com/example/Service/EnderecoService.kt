@@ -1,4 +1,4 @@
-package com.example.oportunyfam.Service
+package com.example.Service
 
 import com.example.oportunyfam.model.EnderecoRequest
 import com.example.oportunyfam.model.EnderecoResponse

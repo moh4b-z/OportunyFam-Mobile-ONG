@@ -20,7 +20,7 @@ interface TipoInstituicaoService {
     fun atualizar(@Path("id") id: Int, @Body tipoInstituicao: TipoInstituicao): Call<TipoInstituicao>
 
     // GET /v1/tipoInstituicao - Listar todos os tipos
-    @GET("tipoInstituicoes/")
+    @GET("tipoInstituicoes")
     fun listarTodos(): Call<TipoInstituicaoResponse>
 
     // GET /v1/tipoInstituicao/:id - Buscar tipo por ID

@@ -1,19 +1,17 @@
 package com.example.oportunyfam.Service
 
+
+import com.example.Service.EnderecoService
 import com.example.Service.TipoInstituicaoService
-import com.example.oportunyfam.Service.AtividadeService
-import com.example.oportunyfam.Service.AuthService
-import com.example.oportunyfam.Service.EnderecoService
-import com.example.oportunyfam.Service.InstituicaoService
-import com.example.oportunyfam.Service.UsuarioService
 import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import kotlin.jvm.java
 
 class RetrofitFactory {
-    private val BASE_URL = "http://10.0.2.2:8080/v1/oportunyfam/"
+    private val BASE_URL = "https://oportunyfam-back-end.onrender.com/v1/oportunyfam/"
 
     // Cria o objeto Gson com setLenient para melhor flexibilidade na desserialização
     private val gson = GsonBuilder().setLenient().create()
