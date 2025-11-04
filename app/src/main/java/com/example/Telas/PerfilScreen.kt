@@ -5,9 +5,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
@@ -30,7 +30,6 @@ import com.example.data.InstituicaoAuthDataStore
 import com.example.oportunyfam.Service.RetrofitFactory
 import com.example.oportunyfam_mobile_ong.R
 import com.oportunyfam_mobile.model.Instituicao
-import com.oportunyfam_mobile.model.InstituicaoRequest
 import kotlinx.coroutines.launch
 
 // 🔽 NOVOS IMPORTS PARA IMAGEM 🔽
@@ -43,6 +42,7 @@ import com.example.Service.AzureBlobRetrofit
 import com.example.model.getRealPathFromURI
 import com.oportunyfam_mobile.model.InstituicaoAtualizarRequest
 import java.io.File
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,7 +109,7 @@ fun PerfilScreen(
                             descricao = currentInstituicao.descricao ?: "",
                         )
 
-                        val response = instituicaoService.atualizar(currentInstituicao.id, updateRequest)
+                        val response = instituicaoService.atualizar(currentInstituicao.instituicao_id, updateRequest)
 
                         if (response.isSuccessful) {
                             // Atualizar estado local
@@ -197,9 +197,6 @@ fun PerfilScreen(
                     val instituicaoService = RetrofitFactory().getInstituicaoService()
                     val currentInstituicao = instituicao!!
 
-                    // CORREÇÃO: Usar dados reais do endereço em vez de strings vazias
-                    val endereco = currentInstituicao.endereco
-
                     // Criar o request para atualização com dados reais
                     val updateRequest = InstituicaoAtualizarRequest(
                         nome = currentInstituicao.nome,
@@ -210,11 +207,11 @@ fun PerfilScreen(
                         descricao = novaDescricao
                     )
 
-                    val response = instituicaoService.atualizar(currentInstituicao.id, updateRequest)
+                    val response = instituicaoService.atualizar(currentInstituicao.instituicao_id, updateRequest)
 
                     if (response.isSuccessful) {
                         // Atualiza o estado local com a nova descrição
-                        val updatedInstituicao = currentInstituicao.copy(descricao = novaDescricao)
+                        val updatedInstituicao = currentInstituicao.copy( descricao = novaDescricao)
                         instituicao = updatedInstituicao
 
                         // Atualiza também no DataStore
@@ -316,12 +313,12 @@ fun PerfilScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = { navController?.popBackStack() }) {
-                Icon(Icons.Filled.ArrowBack, contentDescription = "Voltar", tint = Color.Black)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar", tint = Color.Black)
             }
             Spacer(modifier = Modifier.weight(1f))
 
             IconButton(onClick = onLogout) {
-                Icon(Icons.Filled.ExitToApp, contentDescription = "Sair", tint = Color.Black)
+                Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Sair", tint = Color.Black)
             }
 
             IconButton(onClick = { /* Ação para Notificações */ }) {
@@ -332,7 +329,7 @@ fun PerfilScreen(
             }
         }
 
-        Divider(color = Color.LightGray, thickness = 1.5.dp)
+        HorizontalDivider(color = Color.LightGray, thickness = 1.5.dp)
 
         // Conteúdo principal
         Box(
@@ -452,7 +449,7 @@ fun PerfilScreen(
                         Spacer(modifier = Modifier.height(32.dp))
 
                         // Divisor
-                        Divider(
+                        HorizontalDivider(
                             color = Color.LightGray,
                             thickness = 1.dp,
                             modifier = Modifier.fillMaxWidth()

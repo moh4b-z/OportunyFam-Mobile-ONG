@@ -1,8 +1,10 @@
 package com.example.oportunyfam.Service
 
-import com.example.oportunyfam.model.CriancaListResponse
-import com.example.oportunyfam.model.CriancaRequest
-import com.example.oportunyfam.model.CriancaResponse
+
+
+import com.example.model.CriancaListResponse
+import com.example.model.CriancaRequest
+import com.example.model.CriancaResponse
 import com.example.oportunyfam.model.LoginRequest
 import com.example.oportunyfam.model.LoginResponse
 import retrofit2.Call

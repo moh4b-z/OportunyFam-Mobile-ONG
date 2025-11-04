@@ -28,8 +28,8 @@ import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.example.Components.BarraTarefas
 import com.example.Components.CardAviso
+import com.example.model.CriancaRaw
 import com.example.oportunyfam.Service.RetrofitFactory
-import com.example.oportunyfam.model.CriancaRaw
 import com.example.oportunyfam_mobile_ong.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

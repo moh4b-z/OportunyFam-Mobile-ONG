@@ -2,7 +2,10 @@ package com.example.oportunyfam.Service
 
 
 import com.example.Service.EnderecoService
+import com.example.Service.LoginUniversalService
 import com.example.Service.TipoInstituicaoService
+import com.example.oportunyfam.model.ResultData
+import com.example.oportunyfam.model.ResultDataDeserializer
 import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -13,8 +16,11 @@ import kotlin.jvm.java
 class RetrofitFactory {
     private val BASE_URL = "https://oportunyfam-back-end.onrender.com/v1/oportunyfam/"
 
-    // Cria o objeto Gson com setLenient para melhor flexibilidade na desserialização
-    private val gson = GsonBuilder().setLenient().create()
+    // Cria o objeto Gson com setLenient e registra o deserializador customizado
+    private val gson = GsonBuilder()
+        .setLenient()
+        .registerTypeAdapter(ResultData::class.java, ResultDataDeserializer())
+        .create()
 
     // 1. Cria o interceptor de logging
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
@@ -59,6 +65,10 @@ class RetrofitFactory {
     }
     fun getCriancaService(): CriancaService {
         return retrofitFactory.create(CriancaService::class.java)
+    }
+
+    fun getLoginUniversalService(): LoginUniversalService {
+        return retrofitFactory.create(LoginUniversalService::class.java)
     }
 
 }

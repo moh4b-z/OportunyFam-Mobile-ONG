@@ -1,6 +1,5 @@
 package com.example.oportunyfam.Service
 
-import com.example.oportunyfam.model.LoginRequest
 import com.oportunyfam_mobile.model.InstituicaoAtualizarRequest
 import com.oportunyfam_mobile.model.InstituicaoRequest
 import com.oportunyfam_mobile.model.InstituicaoResponse
@@ -15,9 +14,6 @@ interface InstituicaoService {
     @POST("instituicoes")
     suspend fun criar(@Body request: InstituicaoRequest): Response<InstituicaoResponse>
 
-    @Headers("Content-Type: application/json")
-    @POST("instituicoes/login")
-    suspend fun loginInstituicao(@Body request: LoginRequest): Response<InstituicaoResponse>
 
     // GET - Listar todas as instituições
     @GET("instituicoes")

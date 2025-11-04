@@ -1,5 +1,7 @@
 package com.oportunyfam_mobile.model
 
+import com.example.model.Crianca
+
 data class UsuarioResponse(
     val status: Boolean,
     val status_code: Int,

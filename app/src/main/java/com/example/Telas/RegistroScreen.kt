@@ -75,6 +75,7 @@ fun RegistroScreen(navController: NavHostController?) {
     val scope = rememberCoroutineScope()
 
     val instituicaoService = remember { RetrofitFactory().getInstituicaoService() }
+    val loginUniversalService = remember { RetrofitFactory().getLoginUniversalService() }
 
 
     val onAuthSuccess: (Instituicao) -> Unit = { instituicaoLogada ->
@@ -225,7 +226,7 @@ fun RegistroScreen(navController: NavHostController?) {
                         senha = senha,
                         isLoading = isLoading,
                         errorMessage = errorMessage,
-                        instituicaoService = instituicaoService,
+                        loginUniversalService = loginUniversalService,
                         scope = scope,
                         onAuthSuccess = onAuthSuccess
                     )
