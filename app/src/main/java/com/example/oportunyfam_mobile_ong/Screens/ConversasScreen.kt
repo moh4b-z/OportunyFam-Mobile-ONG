@@ -22,7 +22,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.oportunyfam_mobile_ong.Components.BarraTarefas
 import com.example.oportunyfam_mobile_ong.R
@@ -33,16 +32,18 @@ import com.example.oportunyfam_mobile_ong.viewmodel.ConversaUI
 @Composable
 fun ConversasScreen(
     navController: NavHostController?,
-    viewModel: ChatViewModel = viewModel()
+    viewModel: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val conversas by viewModel.conversas.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val instituicaoId by viewModel.instituicaoId.collectAsState()
 
-    LaunchedEffect(Unit) {
-        // Carrega conversas apenas na primeira vez
-        // O ViewModel controla para não fazer requisições duplicadas
-        viewModel.carregarConversas()
+    // ✅ AGUARDA o ID estar disponível antes de carregar conversas
+    LaunchedEffect(instituicaoId) {
+        if (instituicaoId != null) {
+            viewModel.carregarConversas()
+        }
     }
 
     Scaffold(
@@ -120,7 +121,9 @@ fun ConversasScreen(
                     ConversaListPremium(
                         conversas = conversas,
                         onConversaClick = { conversa ->
-                            navController?.navigate("ChatScreen/${conversa.id}/${conversa.nome}/${conversa.pessoaId}")
+                            // ✅ CORRIGIDO: Passa o ID da instituição logada, não o ID da outra pessoa
+                            val instId = instituicaoId ?: 0
+                            navController?.navigate("ChatScreen/${conversa.id}/${conversa.nome}/$instId")
                         }
                     )
                 }

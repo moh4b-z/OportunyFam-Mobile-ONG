@@ -53,7 +53,7 @@ private fun SplashScreenContent(onAnimationEnd: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xA9F69508)),
+            .background(Color(0xA9FFEDDB)),
         contentAlignment = Alignment.Center
     ) {
         Image(

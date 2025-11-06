@@ -2,7 +2,11 @@ package com.example.oportunyfam_mobile_ong.Service
 
 import android.util.Log
 import com.example.oportunyfam_mobile_ong.model.Mensagem
-import com.google.firebase.database.*
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -21,10 +25,20 @@ import kotlinx.coroutines.tasks.await
  *         - criado_em
  *         - id_conversa
  *         - id_pessoa
+ *
+ * Configuração do Firebase:
+ * - Project ID: oportunyfamong
+ * - Database URL: https://oportunyfamong-default-rtdb.firebaseio.com/
  */
 class FirebaseMensagemService {
     private val database: DatabaseReference = FirebaseDatabase.getInstance().reference
     private val TAG = "FirebaseMensagemService"
+
+    init {
+        // Log para verificar se a configuração está correta
+        Log.d(TAG, "🔥 Firebase Database URL: ${FirebaseDatabase.getInstance().reference}")
+        Log.d(TAG, "📱 Firebase configurado para projeto: oportunyfamong")
+    }
 
     /**
      * Escuta mensagens em tempo real de uma conversa

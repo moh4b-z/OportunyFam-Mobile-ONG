@@ -107,21 +107,19 @@ dependencies {
     // ----------------------------
     // 🔥 Firebase
     // ----------------------------
-    // Import the Firebase BoM
+    // Import the Firebase BoM (gerencia todas as versões)
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
 
-    implementation(platform("com.google.firebase:firebase-bom:34.5.0"))
+    // Firebase Analytics (sem versão - gerenciado pelo BoM)
+    implementation("com.google.firebase:firebase-analytics-ktx")
 
+    // Firebase Realtime Database (sem versão - gerenciado pelo BoM)
+    implementation("com.google.firebase:firebase-database-ktx")
 
-    // TODO: Add the dependencies for Firebase products you want to use
-
-    // When using the BoM, don't specify versions in Firebase dependencies
-
-    implementation("com.google.firebase:firebase-analytics")
-
-
-    // Add the dependencies for any other desired Firebase products
-
-    // https://firebase.google.com/docs/android/setup#available-libraries
+    // Firebase Coroutines (para usar com Kotlin Coroutines)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
 }
 

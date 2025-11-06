@@ -1,7 +1,8 @@
 package com.example.oportunyfam_mobile_ong.viewmodel
 
+import android.app.Application
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.oportunyfam_mobile_ong.Service.FirebaseMensagemService
 import com.example.oportunyfam_mobile_ong.Service.MensagemService
@@ -9,6 +10,7 @@ import com.example.oportunyfam_mobile_ong.model.Mensagem
 import com.example.oportunyfam_mobile_ong.model.MensagemRequest
 import com.example.oportunyfam_mobile_ong.Service.InstituicaoService
 import com.example.oportunyfam_mobile_ong.Service.RetrofitFactory
+import com.example.oportunyfam_mobile_ong.data.InstituicaoAuthDataStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,12 +27,11 @@ data class ConversaUI(
     val pessoaId: Int
 )
 
-class ChatViewModel(
-    private val instituicaoId: Int = 6 // TODO: Pegar do AuthDataStore
-) : ViewModel() {
+class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val instituicaoService: InstituicaoService = RetrofitFactory().getInstituicaoService()
     private val mensagemService: MensagemService = RetrofitFactory().getMensagemService()
     private val firebaseMensagemService: FirebaseMensagemService = FirebaseMensagemService()
+    private val authDataStore = InstituicaoAuthDataStore(application)
 
     private val _conversas = MutableStateFlow<List<ConversaUI>>(emptyList())
     val conversas: StateFlow<List<ConversaUI>> = _conversas.asStateFlow()
@@ -44,8 +45,21 @@ class ChatViewModel(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
+    // ID da instituição logada (carregado do AuthDataStore)
+    private val _instituicaoId = MutableStateFlow<Int?>(null)
+    val instituicaoId: StateFlow<Int?> = _instituicaoId.asStateFlow()
+
     // Flag para controlar se já carregou conversas
     private var conversasCarregadas = false
+
+    init {
+        // Carrega o ID da instituição ao inicializar o ViewModel
+        viewModelScope.launch {
+            val instituicao = authDataStore.loadInstituicao()
+            _instituicaoId.value = instituicao?.instituicao_id
+            Log.d("ChatViewModel", "Instituição logada: ID=${instituicao?.instituicao_id}, Nome=${instituicao?.nome}")
+        }
+    }
 
     /**
      * Carrega conversas apenas na primeira vez que entra na tela
@@ -59,8 +73,18 @@ class ChatViewModel(
         viewModelScope.launch {
             _isLoading.value = true
             try {
+                val instId = _instituicaoId.value
+                if (instId == null) {
+                    _errorMessage.value = "Usuário não está logado"
+                    Log.e("ChatViewModel", "Instituição não está logada")
+                    _isLoading.value = false
+                    return@launch
+                }
+
+                Log.d("ChatViewModel", "Carregando conversas para instituição ID=$instId")
+
                 val response = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    instituicaoService.buscarPorId(instituicaoId).execute()
+                    instituicaoService.buscarPorId(instId).execute()
                 }
 
                 if (response.isSuccessful) {
@@ -80,7 +104,7 @@ class ChatViewModel(
                         )
                     }
                     conversasCarregadas = true
-                    Log.d("ChatViewModel", "Conversas carregadas pela primeira vez: ${_conversas.value.size}")
+                    Log.d("ChatViewModel", "✅ Conversas carregadas: ${_conversas.value.size}")
                 } else {
                     _errorMessage.value = "Erro ao carregar conversas: ${response.message()}"
                     Log.e("ChatViewModel", "Erro: ${response.errorBody()?.string()}")
@@ -96,30 +120,48 @@ class ChatViewModel(
 
     /**
      * Inicia escuta em tempo real do Firebase para uma conversa
-     * Substitui completamente o polling por listener do Firebase
+     * Primeiro carrega do backend, depois mantém sincronização em tempo real
      */
     fun iniciarEscutaMensagens(conversaId: Int) {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
 
-                // Primeiro, carrega mensagens do backend e sincroniza com Firebase
-                val response = mensagemService.listarPorConversa(conversaId)
+                // Primeiro, carrega mensagens do backend
+                val response = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    mensagemService.listarPorConversa(conversaId)
+                }
+
                 if (response.isSuccessful) {
                     val mensagensBackend = response.body()?.mensagens ?: emptyList()
-                    firebaseMensagemService.sincronizarMensagens(conversaId, mensagensBackend)
-                    Log.d("ChatViewModel", "Mensagens sincronizadas com Firebase: ${mensagensBackend.size}")
+                    _mensagens.value = mensagensBackend
+                    Log.d("ChatViewModel", "Mensagens carregadas do backend: ${mensagensBackend.size}")
+
+                    // Sincroniza com Firebase em background (não bloqueia a UI)
+                    launch(kotlinx.coroutines.Dispatchers.IO) {
+                        try {
+                            firebaseMensagemService.sincronizarMensagens(conversaId, mensagensBackend)
+                            Log.d("ChatViewModel", "Mensagens sincronizadas com Firebase: ${mensagensBackend.size}")
+                        } catch (e: Exception) {
+                            Log.e("ChatViewModel", "Erro ao sincronizar mensagens", e)
+                        }
+                    }
+                } else {
+                    _errorMessage.value = "Erro ao carregar mensagens"
+                    Log.e("ChatViewModel", "Erro: ${response.errorBody()?.string()}")
                 }
 
                 _isLoading.value = false
 
                 // Agora escuta mudanças em tempo real do Firebase
                 firebaseMensagemService.observarMensagens(conversaId).collect { mensagensAtualizadas ->
-                    _mensagens.value = mensagensAtualizadas
-                    Log.d("ChatViewModel", "📱 Mensagens atualizadas EM TEMPO REAL: ${mensagensAtualizadas.size}")
+                    if (mensagensAtualizadas.isNotEmpty()) {
+                        _mensagens.value = mensagensAtualizadas
+                        Log.d("ChatViewModel", "📱 Mensagens atualizadas EM TEMPO REAL: ${mensagensAtualizadas.size}")
+                    }
                 }
             } catch (e: Exception) {
-                _errorMessage.value = "Erro ao conectar Firebase: ${e.message}"
+                _errorMessage.value = "Erro ao carregar mensagens: ${e.message}"
                 Log.e("ChatViewModel", "Erro ao iniciar escuta de mensagens", e)
                 _isLoading.value = false
             }

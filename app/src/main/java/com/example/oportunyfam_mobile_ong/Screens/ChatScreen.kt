@@ -36,7 +36,7 @@ fun ChatScreen(
     conversaId: Int,
     nomeContato: String,
     pessoaIdAtual: Int,
-    viewModel: ChatViewModel = viewModel()
+    viewModel: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val mensagens by viewModel.mensagens.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
