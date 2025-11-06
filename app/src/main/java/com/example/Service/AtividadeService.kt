@@ -1,63 +1,57 @@
 package com.example.oportunyfam.Service
 
-import com.example.oportunyfam.model.AtividadeRequest
-import com.example.oportunyfam.model.AtividadeResponse
-import com.example.oportunyfam.model.AulaRequest
-import com.example.oportunyfam.model.AulaResponse
+import com.example.oportunyfam.model.*
 import retrofit2.Call
 import retrofit2.http.*
 
 interface AtividadeService {
 
-    // --- ROTAS DE ATIVIDADE (CRUD) ---
+    // --- ROTAS DE ATIVIDADE ---
 
-    // POST /v1/atividades/
+    // POST /atividades/ - Criar atividade
     @Headers("Content-Type: application/json")
     @POST("atividades")
-    fun criarAtividade(@Body atividade: AtividadeRequest): Call<AtividadeResponse>
+    fun criarAtividade(@Body atividade: AtividadeRequest): Call<AtividadeCriadaResponse>
 
-    // PUT /v1/atividades/:id
+    // GET /atividades/ - Buscar todas as atividades
+    @GET("atividades")
+    fun buscarTodasAtividades(): Call<AtividadesListResponse>
+
+
+    // GET /atividades/instituicao/:idInstituicao - Buscar atividades por instituição
+    @GET("atividades/instituicao/{idInstituicao}")
+    fun buscarAtividadesPorInstituicao(@Path("idInstituicao") idInstituicao: Int): Call<AtividadesListResponse>
+
+    // PUT /atividades/:id - Atualizar atividade
     @Headers("Content-Type: application/json")
     @PUT("atividades/{id}")
-    fun atualizarAtividade(@Path("id") id: Int, @Body atividade: AtividadeRequest): Call<AtividadeResponse>
+    fun atualizarAtividade(@Path("id") id: Int, @Body atividade: AtividadeRequest): Call<AtividadeCriadaResponse>
 
-    // DELETE /v1/atividades/:id
+    // DELETE /atividades/:id - Deletar atividade
     @DELETE("atividades/{id}")
     fun deletarAtividade(@Path("id") id: Int): Call<Unit>
 
-    // GET /v1/atividades/ (Busca todas, possivelmente com filtros)
-    @GET("atividades")
-    fun buscarTodasAtividades(): Call<List<AtividadeResponse>> // Retorna detalhes da View
+    // --- ROTAS DE AULAS ---
 
     // GET /v1/atividades/:id (Busca por ID)
     @GET("atividades/{id}")
     fun buscarAtividadePorId(@Path("id") id: Int): Call<AtividadeResponse>
 
-    // --- ROTAS DE AULAS (CRUD) ---
-    // Nota: O prefixo "/aulas" é adicionado à URL base do Retrofit, se a rota for absoluta.
-    // Se a rota for relativa (como aqui), ela é concatenada com o prefixo do controller.
+    // POST /aulas/lote - Criar várias aulas de uma vez
+    @Headers("Content-Type: application/json")
+    @POST("atividades/aulas/lote")
+    fun criarAulasLote(@Body aulaLote: AulaLoteRequest): Call<AulaLoteResponse>
 
-    // POST /v1/atividades/aulas/
-    @POST("atividades/aulas")
-    fun criarAula(@Body aula: AulaRequest): Call<AulaResponse>
+    // GET /aulas/:id - Buscar aula por ID
+    @GET("atividades/aulas/{id}")
+    fun buscarAulaPorId(@Path("id") id: Int): Call<AulaCriadaResponse>
 
-    // PUT /v1/atividades/aulas/:id
+    // PUT /aulas/:id - Atualizar aula
+    @Headers("Content-Type: application/json")
     @PUT("atividades/aulas/{id}")
-    fun atualizarAula(@Path("id") id: Int, @Body aula: AulaRequest): Call<AulaResponse>
+    fun atualizarAula(@Path("id") id: Int, @Body aula: AulaRequest): Call<AulaCriadaResponse>
 
-    // DELETE /v1/atividades/aulas/:id
+    // DELETE /aulas/:id - Deletar aula
     @DELETE("atividades/aulas/{id}")
     fun deletarAula(@Path("id") id: Int): Call<Unit>
-
-    // GET /v1/atividades/aulas/:id (Buscar aula específica)
-    @GET("atividades/aulas/{id}")
-    fun buscarAulaPorId(@Path("id") id: Int): Call<AulaResponse> // Usamos AulaResponse aqui, não o HorarioDetalhe
-
-    // GET /v1/atividades/aulas (Buscar todas as aulas)
-    @GET("atividades/aulas")
-    fun buscarTodasAulas(): Call<List<AulaResponse>>
-
-    // GET /v1/atividades/aulas/instituicao/:idInstituicao (Buscar aulas por Instituição)
-    @GET("atividades/aulas/instituicao/{idInstituicao}")
-    fun buscarAulasPorInstituicao(@Path("idInstituicao") idInstituicao: Int): Call<List<AulaResponse>>
 }

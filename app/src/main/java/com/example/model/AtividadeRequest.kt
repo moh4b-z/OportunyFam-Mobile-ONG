@@ -1,9 +1,9 @@
 package com.example.oportunyfam.model
 
+// Request para criar/atualizar atividade
 data class AtividadeRequest(
-    val id: Int? = null, // Para PUT
-    val id_instituicao: Int, // Chave estrangeira obrigatória
-    val id_categoria: Int, // Chave estrangeira obrigatória
+    val id_instituicao: Int,
+    val id_categoria: Int,
     val titulo: String,
     val descricao: String? = null,
     val faixa_etaria_min: Int,

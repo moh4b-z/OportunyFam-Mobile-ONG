@@ -1,23 +1,70 @@
 package com.example.oportunyfam.model
 
+import com.google.gson.annotations.SerializedName
 
-data class AtividadeResponse(
-    val atividade_id: Int, // Mapeia para 'atividade_id' da View
+// Response para atividade simples (após cadastro)
+data class AtividadeCriadaResponse(
+    val status: Boolean,
+    val status_code: Int,
+    val messagem: String,
+    val atividade: AtividadeSimples
+)
+
+data class AtividadeSimples(
+    val id: Int,
+    val id_instituicao: Int,
+    val id_categoria: Int,
     val titulo: String,
     val descricao: String? = null,
     val faixa_etaria_min: Int,
     val faixa_etaria_max: Int,
     val gratuita: Boolean,
-    val preco: Double,
-    val ativo: Boolean,
+    val preco: String,
+    val ativo: Boolean
+)
 
-    // CAMPOS JOIN DA VIEW
-    val categoria: String, // c.nome AS categoria
+// Response para lista de atividades (com detalhes completos)
+data class AtividadesListResponse(
+    val status: Boolean,
+    val status_code: Int,
+    val messagem: String,
+    val atividades: List<AtividadeResponse>
+)
+
+// Response para atividade única (com detalhes completos)
+data class AtividadeUnicaResponse(
+    val status: Boolean,
+    val status_code: Int,
+    val messagem: String,
+    val atividade: AtividadeResponse
+)
+
+// Atividade com detalhes completos e aulas
+data class AtividadeResponse(
+    val atividade_id: Int,
+    val titulo: String,
+    val descricao: String? = null,
+    val faixa_etaria_min: Int,
+    val faixa_etaria_max: Int,
+    val gratuita: Int, // 0 ou 1
+    val preco: Double,
+    val ativo: Int, // 0 ou 1
+    val categoria: String,
     val instituicao_id: Int,
-    val instituicao: String, // i.nome AS instituicao
+    val instituicao_nome: String,
+    val instituicao_foto: String?,
     val cidade: String,
     val estado: String,
+    val aulas: List<AulaDetalhe>
+)
 
-    // ARRAY DE HORÁRIOS DA VIEW
-    val horarios: List<HorarioDetalhe> // Lista da classe definida acima (AulaResponse simplificada)
+// Detalhes de uma aula dentro da atividade
+data class AulaDetalhe(
+    val status: String, // "Futura" ou "Encerrada"
+    val aula_id: Int,
+    val hora_fim: String,
+    val data_aula: String,
+    val hora_inicio: String,
+    val vagas_total: Int,
+    val vagas_disponiveis: Int
 )
