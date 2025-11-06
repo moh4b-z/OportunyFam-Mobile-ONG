@@ -42,19 +42,46 @@ fun TipoInstituicaoSelector(
             try {
                 tipoInstituicaoService.listarTodos().enqueue(object : Callback<TipoInstituicaoResponse> {
                     override fun onResponse(call: Call<TipoInstituicaoResponse>, response: Response<TipoInstituicaoResponse>) {
-                        if (response.isSuccessful) {
-                            institutionTypes.value = response.body()?.tiposInstituicao ?: emptyList()
-                            Log.d(TAG, "Tipos de instituição carregados com sucesso.")
-                        } else {
-                            // Loga falhas de status HTTP (4xx, 5xx)
-                            Log.e(TAG, "Falha ao carregar tipos de instituição: HTTP ${response.code()} - ${response.errorBody()?.string()}")
+                        when {
+                            response.isSuccessful -> {
+                                institutionTypes.value = response.body()?.tiposInstituicao ?: emptyList()
+                                Log.d(TAG, "Tipos de instituição carregados com sucesso.")
+                            }
+                            response.code() == 429 -> {
+                                // Rate limit: usar tipos pré-definidos
+                                Log.w(TAG, "Rate limit (429) ao carregar tipos - usando fallback")
+                                institutionTypes.value = listOf(
+                                    TipoInstituicao(1, "ONG"),
+                                    TipoInstituicao(2, "Escola Pública"),
+                                    TipoInstituicao(3, "Escola Privada"),
+                                    TipoInstituicao(4, "Centro Esportivo"),
+                                    TipoInstituicao(5, "Centro Cultural")
+                                )
+                            }
+                            else -> {
+                                Log.e(TAG, "Falha ao carregar tipos de instituição: HTTP ${response.code()} - ${response.errorBody()?.string()}")
+                                // Usar tipos pré-definidos em caso de erro
+                                institutionTypes.value = listOf(
+                                    TipoInstituicao(1, "ONG"),
+                                    TipoInstituicao(2, "Escola Pública"),
+                                    TipoInstituicao(3, "Escola Privada"),
+                                    TipoInstituicao(4, "Centro Esportivo"),
+                                    TipoInstituicao(5, "Centro Cultural")
+                                )
+                            }
                         }
                     }
 
                     override fun onFailure(call: Call<TipoInstituicaoResponse>, t: Throwable) {
-                        // CORREÇÃO: Usa Log.e para erros de rede (Timeouts, Host não encontrado, etc.)
                         Log.e(TAG, "ERRO DE CONEXÃO AO CARREGAR TIPOS: ${t.message}", t)
-                        // O Log.e com Throwable 't' imprime todo o StackTrace, que é crucial para debug.
+                        // Usar tipos pré-definidos em caso de falha de conexão
+                        institutionTypes.value = listOf(
+                            TipoInstituicao(1, "ONG"),
+                            TipoInstituicao(2, "Escola Pública"),
+                            TipoInstituicao(3, "Escola Privada"),
+                            TipoInstituicao(4, "Centro Esportivo"),
+                            TipoInstituicao(5, "Centro Cultural")
+                        )
                     }
                 })
             } catch (e: Exception) {

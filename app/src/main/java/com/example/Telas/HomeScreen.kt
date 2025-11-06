@@ -22,12 +22,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.example.Components.BarraTarefas
 import com.example.Components.CardAviso
+import com.example.MainActivity.NavRoutes
 import com.example.model.CriancaRaw
 import com.example.oportunyfam.Service.RetrofitFactory
 import com.example.oportunyfam_mobile_ong.R
@@ -37,10 +39,18 @@ import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 
-// -------------------- HOME SCREEN --------------------
+/**
+ * HomeScreen - Tela principal do aplicativo
+ *
+ * Exibe:
+ * - Lista de atividades disponíveis
+ * - Lista de alunos cadastrados
+ * - Opções de gerenciamento
+ *
+ * @param navController Controlador de navegação
+ */
 @Composable
 fun HomeScreen(navController: NavHostController?) {
-
     var listaCriancas by remember { mutableStateOf<List<CriancaRaw>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -49,7 +59,9 @@ fun HomeScreen(navController: NavHostController?) {
     LaunchedEffect(Unit) {
         val service = RetrofitFactory().getCriancaService()
         try {
-            val response = withContext(Dispatchers.IO) { service.listarTodas().execute() }
+            val response = withContext(Dispatchers.IO) {
+                service.listarTodas().execute()
+            }
             if (response.isSuccessful) {
                 listaCriancas = response.body()?.criancas ?: emptyList()
             } else {
@@ -68,44 +80,20 @@ fun HomeScreen(navController: NavHostController?) {
             .background(Color.White)
     ) {
         // Cabeçalho
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.logo),
-                contentDescription = "Logo",
-                modifier = Modifier.size(45.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Associação Esperança",
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp,
-                color = Color.Black
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            Icon(
-                imageVector = Icons.Default.Notifications,
-                contentDescription = "Notificações",
-                tint = Color(0xFFFFA000),
-                modifier = Modifier.size(25.dp)
-            )
-        }
+        HomeHeader()
 
-        Divider(color = Color.LightGray, thickness = 1.dp)
+        HorizontalDivider(color = Color.LightGray, thickness = 1.dp)
         Spacer(modifier = Modifier.height(8.dp))
 
+        // Conteúdo principal
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .padding(horizontal = 16.dp)
         ) {
+            // Seção de Atividades
             item {
-                // Atividades fixas
                 AtividadeCard("Futebol", "Das 10:00 às 12:00", 18)
                 AtividadeCard("Vôlei", "Das 13:00 às 15:00", 12)
                 AtividadeCard("Luta", "Das 16:00 às 18:00", 27)
@@ -120,24 +108,14 @@ fun HomeScreen(navController: NavHostController?) {
                 )
             }
 
+            // Estados de carregamento e erro
             when {
                 isLoading -> item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = Color(0xFFFFA000))
-                    }
+                    LoadingIndicator()
                 }
 
                 errorMessage != null -> item {
-                    Text(
-                        text = errorMessage!!,
-                        color = Color.Red,
-                        modifier = Modifier.padding(16.dp)
-                    )
+                    ErrorMessage(errorMessage!!)
                 }
 
                 else -> items(listaCriancas) { crianca ->
@@ -164,11 +142,86 @@ fun HomeScreen(navController: NavHostController?) {
             }
         }
 
-        BarraDeTarefas()
+        // Barra de tarefas
+        BarraTarefas(
+            navController = navController,
+            currentRoute = NavRoutes.HOME
+        )
     }
 }
 
-// -------------------- CARD DE ATIVIDADES --------------------
+// ==================== COMPONENTES ====================
+
+/**
+ * Cabeçalho da tela com logo e notificações
+ */
+@Composable
+private fun HomeHeader() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Logo fixa da instituição
+        Image(
+            painter = painterResource(id = R.drawable.logo),
+            contentDescription = "Logo",
+            modifier = Modifier.size(45.dp),
+            contentScale = ContentScale.Crop
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = "Associação Esperança",
+            fontWeight = FontWeight.Bold,
+            fontSize = 20.sp,
+            color = Color.Black
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        Icon(
+            imageVector = Icons.Default.Notifications,
+            contentDescription = "Notificações",
+            tint = Color(0xFFFFA000),
+            modifier = Modifier.size(25.dp)
+        )
+    }
+}
+
+/**
+ * Indicador de carregamento
+ */
+@Composable
+private fun LoadingIndicator() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator(color = Color(0xFFFFA000))
+    }
+}
+
+/**
+ * Mensagem de erro
+ */
+@Composable
+private fun ErrorMessage(message: String) {
+    Text(
+        text = message,
+        color = Color.Red,
+        modifier = Modifier.padding(16.dp)
+    )
+}
+
+/**
+ * Card de Atividade
+ *
+ * @param titulo Nome da atividade
+ * @param horario Horário da atividade
+ * @param pessoas Número de pessoas cadastradas
+ */
 @Composable
 fun AtividadeCard(titulo: String, horario: String, pessoas: Int) {
     Card(
@@ -211,7 +264,12 @@ fun AtividadeCard(titulo: String, horario: String, pessoas: Int) {
     }
 }
 
-// -------------------- ALUNO CARD --------------------
+/**
+ * Card de Aluno com opções de visualização e exclusão
+ *
+ * @param crianca Dados da criança
+ * @param onExcluir Callback para exclusão
+ */
 @Composable
 fun AlunoCard(crianca: CriancaRaw, onExcluir: (CriancaRaw) -> Unit) {
     var showDialog by remember { mutableStateOf(false) }
@@ -249,7 +307,11 @@ fun AlunoCard(crianca: CriancaRaw, onExcluir: (CriancaRaw) -> Unit) {
                     .clickable { showDialog = true }
             ) {
                 Text(crianca.nome, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text(crianca.data_nascimento ?: "Sem data", fontSize = 14.sp, color = Color.Gray)
+                Text(
+                    crianca.data_nascimento ?: "Sem data",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
             }
 
             Box(
@@ -270,14 +332,14 @@ fun AlunoCard(crianca: CriancaRaw, onExcluir: (CriancaRaw) -> Unit) {
         )
     }
 
-    // CardAviso de confirmação de exclusão
+    // Confirmação de exclusão
     if (showDeleteWarning) {
         CardAviso(
             pergunta = "Deseja realmente cancelar a inscrição de ${crianca.nome}?",
             onConfirm = {
                 onExcluir(crianca)
                 showDeleteWarning = false
-                showDialog = false // fecha o diálogo após exclusão
+                showDialog = false
             },
             onDismiss = { showDeleteWarning = false },
             onCancel = { showDeleteWarning = false }
@@ -285,7 +347,13 @@ fun AlunoCard(crianca: CriancaRaw, onExcluir: (CriancaRaw) -> Unit) {
     }
 }
 
-// -------------------- DETALHES DA CRIANÇA --------------------
+/**
+ * Diálogo com detalhes completos da criança
+ *
+ * @param crianca Dados da criança
+ * @param onDismiss Callback para fechar o diálogo
+ * @param onDeleteClick Callback para excluir
+ */
 @Composable
 fun DetalhesCriancaDialog(
     crianca: CriancaRaw,
@@ -307,6 +375,7 @@ fun DetalhesCriancaDialog(
                     .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // Foto de perfil
                 AsyncImage(
                     model = crianca.foto_perfil,
                     contentDescription = "Foto do aluno",
@@ -319,25 +388,35 @@ fun DetalhesCriancaDialog(
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(crianca.nome, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+
+                // Nome
+                Text(
+                    crianca.nome,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp
+                )
+
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Informações detalhadas
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("Data de Nascimento: ${crianca.data_nascimento ?: "-"}", fontSize = 16.sp)
-                    Text("Email: ${crianca.email ?: "-"}", fontSize = 16.sp)
-                    Text("CPF: ${crianca.cpf ?: "-"}", fontSize = 16.sp)
-                    Text("Sexo: ${crianca.id_sexo ?: "-"}", fontSize = 16.sp)
+                    InfoRow("Data de Nascimento", crianca.data_nascimento ?: "-")
+                    InfoRow("Email", crianca.email ?: "-")
+                    InfoRow("CPF", crianca.cpf ?: "-")
+                    InfoRow("Sexo", crianca.id_sexo?.toString() ?: "-")
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Botão “Deseja cancelar inscrição?” dentro do diálogo
+                // Botão cancelar inscrição
                 Button(
                     onClick = onDeleteClick,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFA000)),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFFFA000)
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
@@ -347,29 +426,49 @@ fun DetalhesCriancaDialog(
                     )
                 }
 
-
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Botão fechar
-                Button(
+                OutlinedButton(
                     onClick = onDismiss,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFA000)),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color(0xFFFFA000)
+                    ),
+                    border = BorderStroke(1.dp, Color(0xFFFFA000))
                 ) {
-                    Text("Fechar", color = Color.White)
+                    Text("Fechar")
                 }
             }
         }
     }
 }
 
-// -------------------- BARRA DE TAREFAS --------------------
+/**
+ * Linha de informação formatada
+ */
 @Composable
-fun BarraDeTarefas() {
-    BarraTarefas()
+private fun InfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = "$label:",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.DarkGray
+        )
+        Text(
+            text = value,
+            fontSize = 16.sp,
+            color = Color.Gray
+        )
+    }
 }
 
-// -------------------- PREVIEWS --------------------
+// ==================== PREVIEWS ====================
+
 @Preview(showBackground = true)
 @Composable
 fun PreviewHomeScreen() {

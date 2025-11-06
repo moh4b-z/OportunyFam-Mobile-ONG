@@ -26,22 +26,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.Components.BarraTarefas
+import com.example.MainActivity.NavRoutes
 import com.example.data.InstituicaoAuthDataStore
 import com.example.oportunyfam.Service.RetrofitFactory
 import com.example.oportunyfam_mobile_ong.R
-import com.oportunyfam_mobile.model.Instituicao
-import kotlinx.coroutines.launch
-
-// 🔽 NOVOS IMPORTS PARA IMAGEM 🔽
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import coil.compose.rememberAsyncImagePainter
-import android.net.Uri
-import androidx.compose.foundation.clickable
-import com.example.Service.AzureBlobRetrofit
-import com.example.model.getRealPathFromURI
 import com.oportunyfam_mobile.model.InstituicaoAtualizarRequest
-import java.io.File
+
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.collectAsState
+import android.util.Log
+import coil.request.CachePolicy
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,9 +49,34 @@ fun PerfilScreen(
     val instituicaoAuthDataStore = remember { InstituicaoAuthDataStore(context) }
     val scope = rememberCoroutineScope()
 
-    // Estado para armazenar os dados da instituição logada
-    var instituicao by remember { mutableStateOf<Instituicao?>(null) }
-    val isLoadingData = remember { mutableStateOf(true) }
+    // Instituicao reativa a partir do DataStore
+    val instituicao by instituicaoAuthDataStore.instituicaoStateFlow().collectAsState(initial = null)
+    val isLoadingData = remember { mutableStateOf(false) }
+
+    // Carrega dados explicitamente se ainda não estiverem disponíveis
+    LaunchedEffect(key1 = Unit) {
+        if (instituicao == null) {
+            Log.d("PerfilScreen", "Tentando carregar dados da instituição...")
+            isLoadingData.value = true
+            try {
+                val loaded = instituicaoAuthDataStore.loadInstituicao()
+                Log.d("PerfilScreen", "Dados carregados: ${loaded?.nome ?: "null"}")
+            } catch (e: Exception) {
+                Log.e("PerfilScreen", "Erro ao carregar dados: ${e.message}", e)
+            } finally {
+                isLoadingData.value = false
+            }
+        }
+    }
+
+    // Adicionar log para ver os dados da instituição
+    LaunchedEffect(instituicao) {
+        Log.d("PerfilScreen", "========== DEBUG IMAGEM ==========")
+        Log.d("PerfilScreen", "Instituicao: ${instituicao?.nome}")
+        Log.d("PerfilScreen", "Foto Perfil URL: ${instituicao?.foto_perfil}")
+        Log.d("PerfilScreen", "URL está vazia? ${instituicao?.foto_perfil.isNullOrEmpty()}")
+        Log.d("PerfilScreen", "==================================")
+    }
 
     // Estado para controlar a exibição do diálogo de edição
     var showEditDialog by remember { mutableStateOf(false) }
@@ -70,99 +91,6 @@ fun PerfilScreen(
     var showSnackbar by remember { mutableStateOf(false) }
     var snackbarMessage by remember { mutableStateOf("") }
 
-    // 🔽 NOVOS ESTADOS PARA IMAGEM 🔽
-    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    var tempImageFile by remember { mutableStateOf<File?>(null) }
-
-    // ----------------------------------------------------
-    // FUNÇÃO PARA FAZER UPLOAD E ATUALIZAR IMAGEM (DECLARAR PRIMEIRO!)
-    // ----------------------------------------------------
-    val uploadAndUpdateProfileImage: () -> Unit = {
-        tempImageFile?.let { imageFile ->
-            isLoadingUpdate = true
-            scope.launch {
-                try {
-                    // 🔽 CONFIGURAR COM SEUS DADOS DO AZURE 🔽
-                    val storageAccount = "sua-conta-storage"
-                    val sasToken = "seu-token-sas"
-                    val containerName = "imagens-perfil"
-
-                    // Fazer upload para Azure
-                    val imageUrl = AzureBlobRetrofit.uploadImageToAzure(
-                        imageFile,
-                        storageAccount,
-                        sasToken,
-                        containerName
-                    )
-
-                    if (imageUrl != null && instituicao != null) {
-                        // Atualizar na API
-                        val instituicaoService = RetrofitFactory().getInstituicaoService()
-                        val currentInstituicao = instituicao!!
-
-                        val updateRequest = InstituicaoAtualizarRequest(
-                            nome = currentInstituicao.nome,
-                            logo = imageUrl, // NOVA URL DA IMAGEM\\
-                            cnpj = currentInstituicao.cnpj,
-                            telefone = currentInstituicao.telefone,
-                            email = currentInstituicao.email,
-                            descricao = currentInstituicao.descricao ?: "",
-                        )
-
-                        val response = instituicaoService.atualizar(currentInstituicao.instituicao_id, updateRequest)
-
-                        if (response.isSuccessful) {
-                            // Atualizar estado local
-                            val updatedInstituicao = currentInstituicao.copy(logo = imageUrl)
-                            instituicao = updatedInstituicao
-                            instituicaoAuthDataStore.saveInstituicao(updatedInstituicao)
-
-                            snackbarMessage = "Imagem de perfil atualizada com sucesso!"
-                            showSnackbar = true
-                        } else {
-                            snackbarMessage = "Erro ao atualizar perfil: ${response.code()}"
-                            showSnackbar = true
-                        }
-                    } else {
-                        snackbarMessage = "Erro ao fazer upload da imagem"
-                        showSnackbar = true
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    snackbarMessage = "Erro: ${e.message}"
-                    showSnackbar = true
-                } finally {
-                    isLoadingUpdate = false
-                    tempImageFile = null
-                    selectedImageUri = null
-                }
-            }
-        }
-    }
-
-    // ----------------------------------------------------
-    // LAUNCHER PARA SELECIONAR IMAGEM (DECLARAR DEPOIS DA FUNÇÃO)
-    // ----------------------------------------------------
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            selectedImageUri = it
-            // Converter URI para File
-            val filePath = context.getRealPathFromURI(it)
-            filePath?.let { path ->
-                tempImageFile = File(path)
-                uploadAndUpdateProfileImage() // ✅ AGORA A FUNÇÃO JÁ ESTÁ DECLARADA
-            }
-        }
-    }
-
-    // ----------------------------------------------------
-    // FUNÇÃO PARA ABRIR SELETOR DE IMAGEM
-    // ----------------------------------------------------
-    val openImagePicker: () -> Unit = {
-        imagePickerLauncher.launch("image/*")
-    }
 
     // ----------------------------------------------------
     // FUNÇÃO PARA LOGOUT E NAVEGAÇÃO
@@ -170,8 +98,8 @@ fun PerfilScreen(
     val onLogout: () -> Unit = {
         scope.launch {
             instituicaoAuthDataStore.logout()
-            navController?.navigate("login") {
-                popUpTo(navController.graph.id) {
+            navController?.navigate(NavRoutes.REGISTRO) {
+                popUpTo(navController.graph.startDestinationId) {
                     inclusive = true
                 }
             }
@@ -200,7 +128,7 @@ fun PerfilScreen(
                     // Criar o request para atualização com dados reais
                     val updateRequest = InstituicaoAtualizarRequest(
                         nome = currentInstituicao.nome,
-                        logo = currentInstituicao.logo,
+                        foto_perfil = currentInstituicao.foto_perfil,
                         cnpj = currentInstituicao.cnpj,
                         telefone = currentInstituicao.telefone,
                         email = currentInstituicao.email,
@@ -212,9 +140,6 @@ fun PerfilScreen(
                     if (response.isSuccessful) {
                         // Atualiza o estado local com a nova descrição
                         val updatedInstituicao = currentInstituicao.copy( descricao = novaDescricao)
-                        instituicao = updatedInstituicao
-
-                        // Atualiza também no DataStore
                         instituicaoAuthDataStore.saveInstituicao(updatedInstituicao)
 
                         showEditDialog = false
@@ -238,13 +163,8 @@ fun PerfilScreen(
         }
     }
 
-    // Efeito para carregar os dados do DataStore quando a tela é iniciada
-    LaunchedEffect(Unit) {
-        scope.launch {
-            instituicao = instituicaoAuthDataStore.loadInstituicao()
-            isLoadingData.value = false
-        }
-    }
+    // Não é necessário carregar manualmente: `instituicao` vem do StateFlow reativo
+    // isLoadingData permanece false
 
     val gradient = Brush.horizontalGradient(
         colors = listOf(
@@ -261,10 +181,26 @@ fun PerfilScreen(
         return
     }
 
-    // Se não houver dados logados, redireciona
+    // Se não houver dados logados, mostra loading e aguarda
     if (instituicao == null) {
+        // Timeout: se após 3 segundos ainda não carregar, redireciona
         LaunchedEffect(Unit) {
-            onLogout()
+            kotlinx.coroutines.delay(3000)
+            if (instituicao == null) {
+                Log.w("PerfilScreen", "Timeout aguardando dados da instituição - redirecionando para login")
+                onLogout()
+            }
+        }
+
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(color = Color(0xFFFFA000))
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Carregando perfil...", color = Color.Gray)
+            }
         }
         return
     }
@@ -406,10 +342,10 @@ fun PerfilScreen(
                                 .padding(8.dp),
                             verticalAlignment = Alignment.Top
                         ) {
-                            // Imagem da Instituição
+                            // Imagem da Instituição (SEMPRE ESTÁTICA - não muda com upload)
                             Image(
                                 painter = painterResource(id = R.drawable.instituicao),
-                                contentDescription = "Imagem Perfil da Instituição",
+                                contentDescription = "Logo da Instituição",
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
                                     .size(70.dp)
@@ -460,7 +396,7 @@ fun PerfilScreen(
                 }
             }
 
-            // 🔽 IMAGEM DE PERFIL CENTRALIZADA (MODIFICADA) 🔽
+            // 🔽 IMAGEM DE PERFIL CENTRALIZADA - CARREGA DA API 🔽
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -470,55 +406,57 @@ fun PerfilScreen(
             ) {
                 Card(
                     shape = RoundedCornerShape(70.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                    modifier = Modifier.clickable {
-                        if (!isLoadingUpdate) {
-                            openImagePicker()
-                        }
-                    }
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
-                    // Mostrar imagem temporária se selecionada, senão mostrar a atual
-                    if (selectedImageUri != null) {
-                        Image(
-                            painter = rememberAsyncImagePainter(model = selectedImageUri),
-                            contentDescription = "Nova imagem de perfil",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.size(150.dp)
-                        )
-                    } else {
-                        Image(
-                            painter = painterResource(id = R.drawable.perfil),
-                            contentDescription = "Imagem Perfil Pessoal",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.size(150.dp)
-                        )
-                    }
+                    Box(modifier = Modifier.size(150.dp)) {
+                        // Carrega imagem da URL da API ou mostra imagem padrão
+                        val fotoPerfilUrl = instituicao?.foto_perfil
 
-                    // Mostrar loading durante upload
-                    if (isLoadingUpdate) {
-                        Box(
-                            modifier = Modifier
-                                .size(150.dp)
-                                .background(Color.Black.copy(alpha = 0.5F)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(color = Color.White)
+                        // DEBUG: Log sempre que renderizar
+                        Log.d("PerfilScreen_Render", "Renderizando imagem. URL: $fotoPerfilUrl")
+
+                        if (!fotoPerfilUrl.isNullOrEmpty()) {
+                            Log.d("PerfilScreen_Render", "✅ Carregando AsyncImage com URL: $fotoPerfilUrl")
+                            // Carrega imagem do servidor com cache desabilitado
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(fotoPerfilUrl)
+                                    .crossfade(true)
+                                    .diskCachePolicy(CachePolicy.DISABLED)
+                                    .memoryCachePolicy(CachePolicy.DISABLED)
+                                    .build(),
+                                contentDescription = "Imagem de perfil da instituição",
+                                contentScale = ContentScale.Crop,
+                                placeholder = painterResource(id = R.drawable.perfil),
+                                error = painterResource(id = R.drawable.perfil),
+                                modifier = Modifier.fillMaxSize(),
+                                onSuccess = {
+                                    Log.d("PerfilScreen_Render", "✅ Imagem carregada com SUCESSO!")
+                                },
+                                onError = { error ->
+                                    Log.e("PerfilScreen_Render", "❌ ERRO ao carregar imagem: ${error.result.throwable.message}")
+                                }
+                            )
+                        } else {
+                            Log.d("PerfilScreen_Render", "⚠️ URL vazia, mostrando imagem padrão")
+                            // Imagem padrão quando não há foto de perfil
+                            Image(
+                                painter = painterResource(id = R.drawable.perfil),
+                                contentDescription = "Sem foto de perfil",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
                         }
                     }
                 }
-
-                // Texto indicativo
-                Text(
-                    "Clique para alterar a foto",
-                    fontSize = 12.sp,
-                    color = Color.Gray,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
             }
         }
 
         // Barra de Tarefas
-        BarraTarefas()
+        BarraTarefas(
+            navController = navController,
+            currentRoute = NavRoutes.PERFIL
+        )
     }
 
     // Diálogo de edição de descrição

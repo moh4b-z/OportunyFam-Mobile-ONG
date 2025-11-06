@@ -21,10 +21,22 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.example.oportunyfam.Telas.BarraDeTarefas
+import com.example.Components.BarraTarefas
+import com.example.MainActivity.NavRoutes
 import com.example.oportunyfam_mobile_ong.R
 
-// ------------------- Modelo de conversa -------------------
+// ==================== MODELO DE DADOS ====================
+
+/**
+ * Modelo de dados para uma conversa
+ *
+ * @param nome Nome do contato ou instituição
+ * @param mensagem Última mensagem recebida
+ * @param hora Horário da última mensagem
+ * @param imagem ID do recurso da imagem de perfil
+ * @param online Status online do contato
+ * @param mensagensNaoLidas Quantidade de mensagens não lidas
+ */
 data class Conversa(
     val nome: String,
     val mensagem: String,
@@ -34,36 +46,88 @@ data class Conversa(
     val mensagensNaoLidas: Int = 0
 )
 
-// ------------------- Tela principal de conversas premium -------------------
+// ==================== SCREEN PRINCIPAL ====================
+
+/**
+ * ConversasScreen - Tela de conversas e mensagens
+ *
+ * Exibe uma lista de conversas com:
+ * - Status online/offline
+ * - Contador de mensagens não lidas
+ * - Avatar com borda animada
+ * - Design premium com gradientes
+ *
+ * @param navController Controlador de navegação
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConversasScreen(navController: NavHostController?) {
     val conversas = remember {
         listOf(
-            Conversa("Laura de Andrade", "Olá! Que bom que entrou em contato!", "10:24", R.drawable.perfil, true, 2),
-            Conversa("Instituto Aprender", "Temos vagas após o feriado.", "Ontem", R.drawable.perfil, true, 0),
-            Conversa("Escola Esperança", "Inscrições para reforço escolar abertas!", "Ontem", R.drawable.perfil, false, 1)
+            Conversa(
+                nome = "Laura de Andrade",
+                mensagem = "Olá! Que bom que entrou em contato!",
+                hora = "10:24",
+                imagem = R.drawable.perfil,
+                online = true,
+                mensagensNaoLidas = 2
+            ),
+            Conversa(
+                nome = "Instituto Aprender",
+                mensagem = "Temos vagas após o feriado.",
+                hora = "Ontem",
+                imagem = R.drawable.perfil,
+                online = true,
+                mensagensNaoLidas = 0
+            ),
+            Conversa(
+                nome = "Escola Esperança",
+                mensagem = "Inscrições para reforço escolar abertas!",
+                hora = "Ontem",
+                imagem = R.drawable.perfil,
+                online = false,
+                mensagensNaoLidas = 1
+            )
         )
     }
 
     Scaffold(
-        topBar = { ConversasTopBarPremium() },
-        bottomBar = { BarraDeTarefas() },
+        topBar = { ConversasTopBar() },
+        bottomBar = {
+            BarraTarefas(
+                navController = navController,
+                currentRoute = NavRoutes.CONVERSAS
+            )
+        },
         containerColor = Color(0xFFF5F5F5)
     ) { padding ->
-        ConversaListPremium(conversas = conversas, modifier = Modifier.padding(padding))
+        ConversaList(
+            conversas = conversas,
+            modifier = Modifier.padding(padding)
+        )
     }
 }
 
-// ------------------- TopBar degradê -------------------
+// ==================== COMPONENTES ====================
+
+/**
+ * TopBar com gradiente laranja
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ConversasTopBarPremium() {
+private fun ConversasTopBar() {
     val gradient = Brush.horizontalGradient(
         colors = listOf(Color(0xFFFFA726), Color(0xFFF57C00))
     )
+
     TopAppBar(
-        title = { Text("Conversas", fontWeight = FontWeight.Bold, fontSize = 22.sp) },
+        title = {
+            Text(
+                "Conversas",
+                fontWeight = FontWeight.Bold,
+                fontSize = 22.sp
+            )
+        },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = Color.Transparent,
             titleContentColor = Color.White
@@ -72,7 +136,7 @@ fun ConversasTopBarPremium() {
             .background(gradient)
             .fillMaxWidth(),
         actions = {
-            IconButton(onClick = { /* ação */ }) {
+            IconButton(onClick = { /* Ação de perfil ou configurações */ }) {
                 Icon(
                     painter = painterResource(id = R.drawable.logo),
                     contentDescription = "Logo",
@@ -83,35 +147,51 @@ fun ConversasTopBarPremium() {
     )
 }
 
-// ------------------- Lista de conversas premium -------------------
+/**
+ * Lista de conversas com espaçamento e padding
+ */
 @Composable
-fun ConversaListPremium(conversas: List<Conversa>, modifier: Modifier = Modifier) {
+private fun ConversaList(
+    conversas: List<Conversa>,
+    modifier: Modifier = Modifier
+) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(vertical = 8.dp, horizontal = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(conversas) { conversa ->
-            ConversaItemPremium(conversa)
+            ConversaItem(conversa)
         }
     }
 }
 
-// ------------------- Avatar com borda degradê animada -------------------
+/**
+ * Avatar com borda degradê animada e indicador online
+ *
+ * @param imagem ID do recurso da imagem
+ * @param online Se true, exibe indicador verde
+ */
 @Composable
-fun AvatarDegrade(imagem: Int, online: Boolean) {
-    val infiniteTransition = rememberInfiniteTransition()
+private fun AvatarComBordaAnimada(imagem: Int, online: Boolean) {
+    val infiniteTransition = rememberInfiniteTransition(label = "avatar_animation")
+
     val animatedOffset by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 100f,
         animationSpec = infiniteRepeatable(
             animation = tween(2000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
-        )
+        ),
+        label = "offset_animation"
     )
 
     val gradient = Brush.linearGradient(
-        colors = listOf(Color(0xFFFFA726), Color(0xFFF57C00), Color(0xFFFFA726)),
+        colors = listOf(
+            Color(0xFFFFA726),
+            Color(0xFFF57C00),
+            Color(0xFFFFA726)
+        ),
         start = Offset(animatedOffset, 0f),
         end = Offset(100f + animatedOffset, 100f)
     )
@@ -131,6 +211,8 @@ fun AvatarDegrade(imagem: Int, online: Boolean) {
                 .clip(CircleShape)
                 .align(Alignment.Center)
         )
+
+        // Indicador de status online
         if (online) {
             Box(
                 modifier = Modifier
@@ -143,13 +225,17 @@ fun AvatarDegrade(imagem: Int, online: Boolean) {
     }
 }
 
-// ------------------- Item de conversa premium -------------------
+/**
+ * Item individual de conversa com design premium
+ *
+ * @param conversa Dados da conversa a ser exibida
+ */
 @Composable
-fun ConversaItemPremium(conversa: Conversa) {
+private fun ConversaItem(conversa: Conversa) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { /* Navegação futura */ },
+            .clickable { /* TODO: Navegar para tela de chat */ },
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
@@ -159,15 +245,24 @@ fun ConversaItemPremium(conversa: Conversa) {
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AvatarDegrade(imagem = conversa.imagem, online = conversa.online)
+            // Avatar com borda animada
+            AvatarComBordaAnimada(
+                imagem = conversa.imagem,
+                online = conversa.online
+            )
 
             Spacer(modifier = Modifier.width(12.dp))
 
+            // Informações da conversa
             Column(modifier = Modifier.weight(1f)) {
-                Text(conversa.nome, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text(
+                    text = conversa.nome,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp
+                )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    conversa.mensagem,
+                    text = conversa.mensagem,
                     color = Color.Gray,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -177,8 +272,16 @@ fun ConversaItemPremium(conversa: Conversa) {
 
             Spacer(modifier = Modifier.width(8.dp))
 
+            // Hora e badge de mensagens não lidas
             Column(horizontalAlignment = Alignment.End) {
-                Text(conversa.hora, color = Color(0xFF616161), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text(
+                    text = conversa.hora,
+                    color = Color(0xFF616161),
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp
+                )
+
+                // Badge de mensagens não lidas
                 if (conversa.mensagensNaoLidas > 0) {
                     Box(
                         modifier = Modifier
@@ -187,7 +290,12 @@ fun ConversaItemPremium(conversa: Conversa) {
                             .background(Color(0xFFD32F2F), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("${conversa.mensagensNaoLidas}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "${conversa.mensagensNaoLidas}",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
@@ -195,9 +303,10 @@ fun ConversaItemPremium(conversa: Conversa) {
     }
 }
 
-// ------------------- Preview premium -------------------
+// ==================== PREVIEW ====================
+
 @Preview(showBackground = true)
 @Composable
 fun PreviewConversasScreen() {
-    ConversasScreen(null)
+    ConversasScreen(navController = null)
 }

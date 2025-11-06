@@ -1,6 +1,5 @@
 package com.example.oportunyfam.Service
 
-
 import com.example.Service.EnderecoService
 import com.example.Service.LoginUniversalService
 import com.example.Service.TipoInstituicaoService
@@ -11,62 +10,110 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import kotlin.jvm.java
 
+/**
+ * RetrofitFactory - Fábrica para criar instâncias dos serviços de API
+ *
+ * Configura o Retrofit com:
+ * - Logging de requisições/respostas
+ * - Deserialização customizada de dados
+ * - Configurações de rede otimizadas
+ */
 class RetrofitFactory {
-    private val BASE_URL = "https://oportunyfam-back-end.onrender.com/v1/oportunyfam/"
 
-    // Cria o objeto Gson com setLenient e registra o deserializador customizado
+    companion object {
+        // URL base da API
+        private const val BASE_URL = "https://oportunyfam-back-end.onrender.com/v1/oportunyfam/"
+
+        // Níveis de log
+        private val LOG_LEVEL = HttpLoggingInterceptor.Level.BODY
+    }
+
+    /**
+     * Configuração do Gson com deserializador customizado
+     */
     private val gson = GsonBuilder()
         .setLenient()
         .registerTypeAdapter(ResultData::class.java, ResultDataDeserializer())
         .create()
 
-    // 1. Cria o interceptor de logging
+    /**
+     * Interceptor para logging de requisições e respostas
+     */
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
-        // Define o nível de detalhe (Headers e Body serão logados no Logcat)
-        level = HttpLoggingInterceptor.Level.BODY
+        level = LOG_LEVEL
     }
 
-    // 2. Adiciona o interceptor ao cliente OkHttp
+    /**
+     * Cliente HTTP com configurações personalizadas
+     */
     private val client = OkHttpClient.Builder()
-        .addInterceptor(loggingInterceptor) // Adiciona o interceptor
+        .addInterceptor(loggingInterceptor)
         .build()
 
-    private val retrofitFactory = Retrofit
-        .Builder()
+    /**
+     * Instância principal do Retrofit
+     */
+    private val retrofitFactory = Retrofit.Builder()
         .baseUrl(BASE_URL)
-        // CORREÇÃO 1: Devemos passar o nosso objeto 'gson' configurado
         .addConverterFactory(GsonConverterFactory.create(gson))
-        // CORREÇÃO 2 (CRÍTICA): Devemos conectar o cliente que contém o interceptor
         .client(client)
         .build()
 
+    // ==================== SERVIÇOS ====================
+
+    /**
+     * Serviço de Instituições
+     */
     fun getInstituicaoService(): InstituicaoService {
         return retrofitFactory.create(InstituicaoService::class.java)
     }
 
+    /**
+     * Serviço de Autenticação
+     */
     fun getAuthService(): AuthService {
         return retrofitFactory.create(AuthService::class.java)
     }
 
+    /**
+     * Serviço de Usuários
+     */
     fun getUsuarioService(): UsuarioService {
         return retrofitFactory.create(UsuarioService::class.java)
     }
+
+    /**
+     * Serviço de Endereços
+     */
     fun getEnderecoService(): EnderecoService {
         return retrofitFactory.create(EnderecoService::class.java)
     }
+
+    /**
+     * Serviço de Atividades
+     */
     fun getAtividadeService(): AtividadeService {
         return retrofitFactory.create(AtividadeService::class.java)
     }
 
+    /**
+     * Serviço de Tipos de Instituição
+     */
     fun getTipoInstituicaoService(): TipoInstituicaoService {
         return retrofitFactory.create(TipoInstituicaoService::class.java)
     }
+
+    /**
+     * Serviço de Crianças
+     */
     fun getCriancaService(): CriancaService {
         return retrofitFactory.create(CriancaService::class.java)
     }
 
+    /**
+     * Serviço de Login Universal
+     */
     fun getLoginUniversalService(): LoginUniversalService {
         return retrofitFactory.create(LoginUniversalService::class.java)
     }

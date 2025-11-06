@@ -25,6 +25,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.example.MainActivity.NavRoutes
 import com.example.oportunyfam.Service.RetrofitFactory
 import com.example.oportunyfam_mobile_ong.R
 import androidx.compose.ui.text.input.VisualTransformation
@@ -37,10 +38,6 @@ import kotlinx.coroutines.launch
 val PrimaryColor = Color(0xFFFFA500)
 val BackgroundGray = Color(0xFFE0E0E0)
 
-object NavRoutes {
-    const val REGISTRO = "tela_registro"
-    const val PERFIL = "tela_perfil"
-}
 
 @Composable
 fun RegistroScreen(navController: NavHostController?) {
@@ -81,8 +78,8 @@ fun RegistroScreen(navController: NavHostController?) {
     val onAuthSuccess: (Instituicao) -> Unit = { instituicaoLogada ->
         scope.launch {
             authDataStore.saveInstituicao(instituicaoLogada)
-            navController?.navigate(NavRoutes.PERFIL) {
-                popUpTo(NavRoutes.REGISTRO) { inclusive = true }
+            navController?.navigate(NavRoutes.HOME) {
+                popUpTo(NavRoutes.SPLASH) { inclusive = true }
             }
             isLoading.value = false
         }

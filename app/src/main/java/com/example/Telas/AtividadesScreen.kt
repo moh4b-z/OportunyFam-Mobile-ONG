@@ -27,9 +27,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.example.Components.BarraTarefas
+import com.example.MainActivity.NavRoutes
 import com.example.oportunyfam_mobile_ong.R
 
-// -------------------- ESTADOS DA TELA --------------------
+// ==================== ENUMS E ESTADOS ====================
+
+/**
+ * Estados possíveis da tela de atividades
+ */
 enum class TelaAtividade {
     LISTA,
     DETALHES,
@@ -38,16 +44,29 @@ enum class TelaAtividade {
     CONFIGURACOES
 }
 
+// ==================== SCREEN PRINCIPAL ====================
 
-// -------------------- ATIVIDADES SCREEN --------------------
+/**
+ * AtividadesScreen - Tela de gerenciamento de atividades
+ *
+ * Permite:
+ * - Listar todas as atividades
+ * - Ver detalhes de cada atividade
+ * - Gerenciar alunos por atividade
+ * - Visualizar calendário de aulas
+ * - Configurar atividades
+ *
+ * @param navController Controlador de navegação
+ */
 @Composable
-fun AtividadesScreen( navController: NavHostController?) {
+fun AtividadesScreen(navController: NavHostController?) {
     var telaAtual by remember { mutableStateOf(TelaAtividade.LISTA) }
     var atividadeSelecionada by remember { mutableStateOf("") }
 
     when (telaAtual) {
         TelaAtividade.LISTA -> {
             ListaAtividadesScreen(
+                navController = navController,
                 onAtividadeClick = { atividade ->
                     atividadeSelecionada = atividade
                     telaAtual = TelaAtividade.DETALHES
@@ -84,43 +103,59 @@ fun AtividadesScreen( navController: NavHostController?) {
     }
 }
 
-// -------------------- LISTA DE ATIVIDADES --------------------
+// ==================== TELAS INTERNAS ====================
+
+/**
+ * Tela de lista de atividades
+ */
 @Composable
-fun ListaAtividadesScreen(onAtividadeClick: (String) -> Unit) {
-    val atividades = listOf(
-        "Futebol",
-        "Vôlei",
-        "Luta"
-    )
+fun ListaAtividadesScreen(
+    navController: NavHostController?,
+    onAtividadeClick: (String) -> Unit
+) {
+    val atividades = listOf("Futebol", "Vôlei", "Luta")
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
-            .padding(16.dp)
     ) {
-        Text(
-            text = "Atividades",
-            fontWeight = FontWeight.Bold,
-            fontSize = 22.sp,
-            color = Color.Black,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize()
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(16.dp)
         ) {
-            items(atividades) { atividade ->
-                AtividadeCardVisual(
-                    titulo = atividade,
-                    onClick = { onAtividadeClick(atividade) }
-                )
+            Text(
+                text = "Atividades",
+                fontWeight = FontWeight.Bold,
+                fontSize = 22.sp,
+                color = Color.Black,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(atividades) { atividade ->
+                    AtividadeCardVisual(
+                        titulo = atividade,
+                        onClick = { onAtividadeClick(atividade) }
+                    )
+                }
             }
         }
+
+        // Barra de Tarefas
+        BarraTarefas(
+            navController = navController,
+            currentRoute = NavRoutes.ATIVIDADES
+        )
     }
 }
 
-// -------------------- DETALHES DA ATIVIDADE --------------------
+/**
+ * Tela de detalhes da atividade
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetalhesAtividadeScreen(
@@ -153,29 +188,7 @@ fun DetalhesAtividadeScreen(
                 .background(Color.White)
         ) {
             // Card de resumo
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text("Resumo da Atividade", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        InfoItem("Alunos", "24", Icons.Default.Group)
-                        InfoItem("Próxima Aula", "15/12", Icons.Default.CalendarToday)
-                        InfoItem("Status", "Ativa", Icons.Default.Settings)
-                    }
-                }
-            }
+            ResumoAtividadeCard()
 
             // Opções de gerenciamento
             Column(modifier = Modifier.padding(16.dp)) {
@@ -201,7 +214,9 @@ fun DetalhesAtividadeScreen(
     }
 }
 
-// -------------------- GERENCIAR ALUNOS --------------------
+/**
+ * Tela de gerenciamento de alunos
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GerenciarAlunosScreen(atividade: String, onBack: () -> Unit) {
@@ -250,7 +265,9 @@ fun GerenciarAlunosScreen(atividade: String, onBack: () -> Unit) {
     }
 }
 
-// -------------------- CALENDÁRIO DE AULAS --------------------
+/**
+ * Tela de calendário de aulas
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarioAulasScreen(atividade: String, onBack: () -> Unit) {
@@ -284,17 +301,8 @@ fun CalendarioAulasScreen(atividade: String, onBack: () -> Unit) {
                 .padding(paddingValues)
                 .background(Color.White)
         ) {
-            // Visual do calendário (simples)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .padding(16.dp)
-                    .background(Color(0xFFF5F5F5), RoundedCornerShape(16.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Calendário Visual", fontSize = 18.sp, color = Color.Gray)
-            }
+            // Visual do calendário (placeholder)
+            CalendarioPlaceholder()
 
             // Próximas aulas
             Text(
@@ -313,7 +321,9 @@ fun CalendarioAulasScreen(atividade: String, onBack: () -> Unit) {
     }
 }
 
-// -------------------- CONFIGURAÇÕES DA ATIVIDADE --------------------
+/**
+ * Tela de configurações da atividade
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConfiguracoesAtividadeScreen(atividade: String, onBack: () -> Unit) {
@@ -355,7 +365,11 @@ fun ConfiguracoesAtividadeScreen(atividade: String, onBack: () -> Unit) {
     }
 }
 
-// -------------------- COMPONENTES REUTILIZÁVEIS --------------------
+// ==================== COMPONENTES REUTILIZÁVEIS ====================
+
+/**
+ * Card visual de atividade
+ */
 @Composable
 fun AtividadeCardVisual(titulo: String, onClick: () -> Unit) {
     Card(
@@ -398,6 +412,39 @@ fun AtividadeCardVisual(titulo: String, onClick: () -> Unit) {
     }
 }
 
+/**
+ * Card de resumo da atividade
+ */
+@Composable
+private fun ResumoAtividadeCard() {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text("Resumo da Atividade", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                InfoItem("Alunos", "24", Icons.Default.Group)
+                InfoItem("Próxima Aula", "15/12", Icons.Default.CalendarToday)
+                InfoItem("Status", "Ativa", Icons.Default.Settings)
+            }
+        }
+    }
+}
+
+/**
+ * Opção de gerenciamento clicável
+ */
 @Composable
 fun OpcaoGerenciamento(titulo: String, descricao: String, onClick: () -> Unit) {
     Card(
@@ -418,13 +465,24 @@ fun OpcaoGerenciamento(titulo: String, descricao: String, onClick: () -> Unit) {
                 Text(titulo, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text(descricao, fontSize = 14.sp, color = Color.Gray)
             }
-            Icon(Icons.Default.ArrowBack, contentDescription = null, modifier = Modifier.rotate(180f))
+            Icon(
+                Icons.Default.ArrowBack,
+                contentDescription = null,
+                modifier = Modifier.rotate(180f)
+            )
         }
     }
 }
 
+/**
+ * Item de informação com ícone
+ */
 @Composable
-fun InfoItem(titulo: String, valor: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+fun InfoItem(
+    titulo: String,
+    valor: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector
+) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Icon(icon, contentDescription = titulo, tint = Color(0xFFFFA000))
         Spacer(modifier = Modifier.height(4.dp))
@@ -433,6 +491,9 @@ fun InfoItem(titulo: String, valor: String, icon: androidx.compose.ui.graphics.v
     }
 }
 
+/**
+ * Card de aluno
+ */
 @Composable
 fun CardAluno(aluno: Aluno) {
     Card(
@@ -462,11 +523,17 @@ fun CardAluno(aluno: Aluno) {
                 Text(aluno.email, fontSize = 14.sp, color = Color.Gray)
                 Text("Desde ${aluno.dataCadastro}", fontSize = 12.sp, color = Color.Gray)
             }
-            Text(aluno.status, color = if (aluno.status == "Ativo") Color.Green else Color.Red)
+            Text(
+                aluno.status,
+                color = if (aluno.status == "Ativo") Color.Green else Color.Red
+            )
         }
     }
 }
 
+/**
+ * Card de aula
+ */
 @Composable
 fun CardAula(aula: Aula) {
     Card(
@@ -482,22 +549,29 @@ fun CardAula(aula: Aula) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(aula.data, fontWeight = FontWeight.Bold)
-                Text(aula.horario, color = Color(0xFFFFA000), fontWeight = FontWeight.Bold)
+                Text(
+                    aula.horario,
+                    color = Color(0xFFFFA000),
+                    fontWeight = FontWeight.Bold
+                )
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(aula.descricao, color = Color.Gray)
             Spacer(modifier = Modifier.height(8.dp))
-            Text("${aula.alunosConfirmados} alunos confirmados", fontSize = 12.sp, color = Color.Gray)
+            Text(
+                "${aula.alunosConfirmados} alunos confirmados",
+                fontSize = 12.sp,
+                color = Color.Gray
+            )
         }
     }
 }
 
-
-
+/**
+ * Card de configuração
+ */
 @Composable
 fun CardConfiguracao(config: Configuracao) {
-
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -520,7 +594,9 @@ fun CardConfiguracao(config: Configuracao) {
                     Switch(
                         checked = config.valor,
                         onCheckedChange = { /* TODO */ },
-                        colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFFFFA000))
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color(0xFFFFA000)
+                        )
                     )
                 }
                 is Configuracao.Info -> {
@@ -531,7 +607,28 @@ fun CardConfiguracao(config: Configuracao) {
     }
 }
 
-// -------------------- MODELOS DE DADOS --------------------
+/**
+ * Placeholder do calendário
+ */
+@Composable
+private fun CalendarioPlaceholder() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp)
+            .padding(16.dp)
+            .background(Color(0xFFF5F5F5), RoundedCornerShape(16.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("Calendário Visual", fontSize = 18.sp, color = Color.Gray)
+    }
+}
+
+// ==================== MODELOS DE DADOS ====================
+
+/**
+ * Modelo de dados para Aluno
+ */
 data class Aluno(
     val nome: String,
     val email: String,
@@ -539,6 +636,9 @@ data class Aluno(
     val status: String
 )
 
+/**
+ * Modelo de dados para Aula
+ */
 data class Aula(
     val data: String,
     val horario: String,
@@ -546,16 +646,28 @@ data class Aula(
     val alunosConfirmados: Int
 )
 
+/**
+ * Modelo de dados para Configuração
+ */
 sealed class Configuracao {
-
     abstract val titulo: String
     abstract val descricao: String
 
-    data class Toggle(override val titulo: String, override val descricao: String, val valor: Boolean) : Configuracao()
-    data class Info(override val titulo: String, override val descricao: String, val valor: String) : Configuracao()
+    data class Toggle(
+        override val titulo: String,
+        override val descricao: String,
+        val valor: Boolean
+    ) : Configuracao()
+
+    data class Info(
+        override val titulo: String,
+        override val descricao: String,
+        val valor: String
+    ) : Configuracao()
 }
 
-// -------------------- DADOS EXEMPLO --------------------
+// ==================== DADOS DE EXEMPLO ====================
+
 fun getAlunosExemplo(): List<Aluno> = listOf(
     Aluno("Maria Oliveira", "maria@email.com", "15/12/2023", "Ativo"),
     Aluno("João Silva", "joao@email.com", "10/12/2023", "Ativo"),
@@ -575,7 +687,8 @@ fun getConfiguracoesExemplo(): List<Configuracao> = listOf(
     Configuracao.Info("Duração da Aula", "Tempo padrão por aula", "2 horas")
 )
 
-// -------------------- PREVIEW --------------------
+// ==================== PREVIEWS ====================
+
 @Preview(showBackground = true)
 @Composable
 fun PreviewAtividadesScreen() {

@@ -17,35 +17,51 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlinx.coroutines.delay
-import com.example.oportunyfam_mobile_ong.R // Certifique-se de que este R está correto
+import com.example.oportunyfam_mobile_ong.R
 
-
+/**
+ * SplashScreen - Tela de abertura do aplicativo
+ *
+ * Exibe o logo com animação de escala e redireciona para a tela de registro
+ * após um breve período.
+ *
+ * @param navController Controlador de navegação para redirecionar após a animação
+ */
 @Composable
 fun SplashScreen(navController: NavController) {
     SplashScreenContent(
         onAnimationEnd = {
-
             navController.navigate("tela_registro") {
-                popUpTo("SplashScreen") { inclusive = true }
+                popUpTo("tela_splash") { inclusive = true }
             }
         }
     )
 }
 
+/**
+ * Preview da SplashScreen sem funcionalidade de navegação
+ */
 @Composable
 fun SplashScreenPreviewContent() {
     SplashScreenContent(onAnimationEnd = {})
 }
 
+/**
+ * Conteúdo principal da SplashScreen com animação
+ *
+ * @param onAnimationEnd Callback executado quando a animação termina
+ */
 @Composable
 private fun SplashScreenContent(onAnimationEnd: () -> Unit) {
     val scale = remember { Animatable(0f) }
 
     LaunchedEffect(Unit) {
+        // Anima o logo de 0 a 1 (escala completa)
         scale.animateTo(
             targetValue = 1f,
             animationSpec = tween(durationMillis = 1500)
         )
+        // Aguarda 1 segundo antes de navegar
         delay(1000)
         onAnimationEnd()
     }
@@ -53,7 +69,7 @@ private fun SplashScreenContent(onAnimationEnd: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xA9F69508)),
+            .background(Color(0xA9F69508)), // Cor laranja característica
         contentAlignment = Alignment.Center
     ) {
         Image(

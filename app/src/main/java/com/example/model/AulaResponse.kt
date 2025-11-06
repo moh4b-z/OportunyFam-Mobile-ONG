@@ -1,30 +1,23 @@
 package com.example.oportunyfam.model
 
-// Response para aula única criada
-data class AulaCriadaResponse(
-    val status: Boolean,
-    val status_code: Int,
-    val messagem: String,
-    val aula: AulaResponse
-)
+import java.time.LocalTime
 
-// Response para aula
-data class AulaResponse(
+data class HorarioDetalhe(
     val id: Int,
-    val id_atividade: Int,
-    val data_aula: String,
-    val hora_inicio: String,
-    val hora_fim: String,
+    val dia_semana: Int,
+    val inicio: LocalTime, // Mapeia para 'inicio' no JSON_OBJECT da View
+    val fim: LocalTime,    // Mapeia para 'fim' no JSON_OBJECT da View
     val vagas_total: Int,
     val vagas_disponiveis: Int
 )
-
-// Response para criação em lote de aulas
-data class AulaLoteResponse(
-    val status: Boolean,
-    val status_code: Int,
-    val messagem: String,
-    val aulas_inseridas: List<AulaResponse>,
-    val total_inseridas: Int,
-    val erros: Any? // null ou lista de erros
+// Esta classe é a estrutura do array JSON retornado pelo backend
+data class AulaResponse(
+    val id: Int,
+    val id_atividade: Int,
+    val dia_semana: Int,
+    val hora_inicio: LocalTime,
+    val hora_fim: LocalTime,
+    val vagas_total: Int,
+    val vagas_disponiveis: Int,
+    val ativo: Boolean
 )

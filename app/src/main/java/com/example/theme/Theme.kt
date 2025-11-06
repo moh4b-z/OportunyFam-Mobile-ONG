@@ -10,6 +10,9 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
+/**
+ * Esquema de cores para o tema escuro
+ */
 private val DarkColorScheme = darkColorScheme(
     primary = primaryDark,
     onPrimary = onPrimaryDark,
@@ -23,6 +26,9 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = onSurfaceDark
 )
 
+/**
+ * Esquema de cores para o tema claro
+ */
 private val LightColorScheme = lightColorScheme(
     primary = primaryLight,
     onPrimary = onPrimaryLight,
@@ -36,20 +42,35 @@ private val LightColorScheme = lightColorScheme(
     onSurface = onSurfaceLight
 )
 
+/**
+ * Tema principal do aplicativo OportunyFam
+ *
+ * Suporta:
+ * - Tema claro e escuro
+ * - Cores dinâmicas (Android 12+)
+ * - Tipografia personalizada
+ *
+ * @param darkTheme Define se deve usar o tema escuro (padrão: tema do sistema)
+ * @param dynamicColor Define se deve usar cores dinâmicas do sistema (padrão: true, requer Android 12+)
+ * @param content Conteúdo da aplicação
+ */
 @Composable
 fun OportunyFamMobileONGTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
+        // Cores dinâmicas disponíveis no Android 12+
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            if (darkTheme) dynamicDarkColorScheme(context)
+            else dynamicLightColorScheme(context)
         }
-
+        // Tema escuro estático
         darkTheme -> DarkColorScheme
+
+        // Tema claro estático (padrão)
         else -> LightColorScheme
     }
 

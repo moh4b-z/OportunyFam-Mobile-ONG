@@ -1,19 +1,15 @@
 package com.example.oportunyfam.model
 
-// Request para criar uma única aula
-data class AulaRequest(
-    val id_atividade: Int,
-    val data_aula: String, // Formato: "YYYY-MM-DD"
-    val hora_inicio: String, // Formato: "HH:MM:SS"
-    val hora_fim: String, // Formato: "HH:MM:SS"
-    val vagas_total: Int
-)
+import java.time.LocalTime
 
-// Request para criar várias aulas em lote
-data class AulaLoteRequest(
-    val id_atividade: Int,
-    val hora_inicio: String, // Formato: "HH:MM:SS"
-    val hora_fim: String, // Formato: "HH:MM:SS"
+
+data class AulaRequest(
+    val id: Int? = null, // Para PUT
+    val id_atividade: Int, // Chave estrangeira obrigatória
+    val dia_semana: Int, // 1=Dom, 2=Seg, ...
+    val hora_inicio: LocalTime,
+    val hora_fim: LocalTime,
     val vagas_total: Int,
-    val datas: List<String> // Lista de datas no formato: "YYYY-MM-DD"
+    val vagas_disponiveis: Int, // Opcional, pode ser calculado no backend
+    val ativo: Boolean = true
 )
