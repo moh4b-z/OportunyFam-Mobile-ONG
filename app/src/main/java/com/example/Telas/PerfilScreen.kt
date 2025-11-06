@@ -10,6 +10,7 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,6 +39,12 @@ import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
 import android.util.Log
 import coil.request.CachePolicy
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
+import com.example.Service.AzureBlobRetrofit
+import com.example.model.getRealPathFromURI
+import java.io.File
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,6 +97,130 @@ fun PerfilScreen(
     // Estado para mensagens de erro/sucesso
     var showSnackbar by remember { mutableStateOf(false) }
     var snackbarMessage by remember { mutableStateOf("") }
+
+    // Estados para upload de imagem
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var tempImageFile by remember { mutableStateOf<File?>(null) }
+
+    // ----------------------------------------------------
+    // FUNÇÃO PARA FAZER UPLOAD DA FOTO DE PERFIL
+    // ----------------------------------------------------
+    val uploadAndUpdateProfileImage: () -> Unit = {
+        tempImageFile?.let { imageFile ->
+            isLoadingUpdate = true
+            scope.launch {
+                try {
+                    // Configuração do Azure Storage
+                    // ⚠️ IMPORTANTE: Configure as credenciais do Azure Storage
+                    // Em produção, use variáveis de ambiente ou BuildConfig
+                    val storageAccount = "oportunyfamstorage"
+                    val accountKey = System.getenv("AZURE_STORAGE_KEY")
+                        ?: "CONFIGURE_SUA_CHAVE_AQUI" // ⚠️ Substituir pela chave real
+                    val containerName = "imagens-perfil"
+
+                    Log.d("PerfilScreen", "🔍 Iniciando upload da imagem...")
+
+                    // Fazer upload para Azure
+                    val imageUrl = AzureBlobRetrofit.uploadImageToAzure(
+                        imageFile,
+                        storageAccount,
+                        accountKey,
+                        containerName
+                    )
+
+                    Log.d("PerfilScreen", "📤 Upload retornou URL: $imageUrl")
+
+                    if (imageUrl != null && instituicao != null) {
+                        // Atualizar na API
+                        val instituicaoService = RetrofitFactory().getInstituicaoService()
+                        val currentInstituicao = instituicao!!
+
+                        // Adiciona timestamp para forçar atualização de cache
+                        val versionedUrl = "$imageUrl?v=${System.currentTimeMillis()}"
+
+                        val updateRequest = InstituicaoAtualizarRequest(
+                            nome = currentInstituicao.nome,
+                            foto_perfil = versionedUrl,
+                            cnpj = currentInstituicao.cnpj,
+                            telefone = currentInstituicao.telefone,
+                            email = currentInstituicao.email,
+                            descricao = currentInstituicao.descricao ?: ""
+                        )
+
+                        val response = instituicaoService.atualizar(currentInstituicao.instituicao_id, updateRequest)
+
+                        when {
+                            response.isSuccessful -> {
+                                Log.d("PerfilScreen", "✅ Foto de perfil atualizada com sucesso!")
+                                val updatedInstituicao = currentInstituicao.copy(foto_perfil = versionedUrl)
+                                instituicaoAuthDataStore.saveInstituicao(updatedInstituicao)
+
+                                selectedImageUri = null
+                                snackbarMessage = "✅ Foto de perfil atualizada com sucesso!"
+                                showSnackbar = true
+                            }
+                            response.code() == 429 -> {
+                                Log.w("PerfilScreen", "⚠️ Rate limit - salvando localmente")
+                                val updatedInstituicao = currentInstituicao.copy(foto_perfil = versionedUrl)
+                                instituicaoAuthDataStore.saveInstituicao(updatedInstituicao)
+
+                                selectedImageUri = null
+                                snackbarMessage = "⚠️ Foto salva! Servidor ocupado, sincronizará depois."
+                                showSnackbar = true
+                            }
+                            else -> {
+                                snackbarMessage = "❌ Erro ao atualizar (${response.code()})"
+                                showSnackbar = true
+                            }
+                        }
+                    } else {
+                        snackbarMessage = "❌ Erro ao fazer upload da imagem"
+                        showSnackbar = true
+                    }
+                } catch (e: Exception) {
+                    Log.e("PerfilScreen", "❌ Erro no upload: ${e.message}", e)
+                    snackbarMessage = "❌ Erro: ${e.message}"
+                    showSnackbar = true
+                } finally {
+                    isLoadingUpdate = false
+                    tempImageFile = null
+                    selectedImageUri = null
+                }
+            }
+        }
+    }
+
+    // ----------------------------------------------------
+    // LAUNCHER PARA SELECIONAR IMAGEM DA GALERIA
+    // ----------------------------------------------------
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            selectedImageUri = it
+            Log.d("PerfilScreen", "📷 Imagem selecionada: $it")
+
+            // Converter URI para File
+            val filePath = context.getRealPathFromURI(it)
+            filePath?.let { path ->
+                tempImageFile = File(path)
+                Log.d("PerfilScreen", "📁 Arquivo preparado: ${tempImageFile?.name}")
+                uploadAndUpdateProfileImage()
+            } ?: run {
+                snackbarMessage = "❌ Erro ao processar a imagem"
+                showSnackbar = true
+            }
+        }
+    }
+
+    // ----------------------------------------------------
+    // FUNÇÃO PARA ABRIR SELETOR DE IMAGEM
+    // ----------------------------------------------------
+    val openImagePicker: () -> Unit = {
+        if (!isLoadingUpdate) {
+            imagePickerLauncher.launch("image/*")
+        }
+    }
 
 
     // ----------------------------------------------------
@@ -446,6 +577,32 @@ fun PerfilScreen(
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
+                        }
+
+                        // Botão de câmera flutuante para atualizar foto
+                        FloatingActionButton(
+                            onClick = openImagePicker,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(45.dp)
+                                .offset(x = (-5).dp, y = (-5).dp),
+                            containerColor = Color(0xFFFFA000),
+                            contentColor = Color.White,
+                            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
+                        ) {
+                            if (isLoadingUpdate) {
+                                CircularProgressIndicator(
+                                    color = Color.White,
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.CameraAlt,
+                                    contentDescription = "Atualizar foto de perfil",
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
                     }
                 }
