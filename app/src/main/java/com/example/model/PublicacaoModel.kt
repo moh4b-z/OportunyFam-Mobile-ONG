@@ -37,10 +37,10 @@ data class PublicacaoRequest(
     val titulo: String,
     
     @SerializedName("descricao")
-    val descricao: String?,
+    val descricao: String,
     
     @SerializedName("imagem")
-    val imagem: String?,
+    val imagem: String,
     
     @SerializedName("instituicao_id")
     val instituicaoId: Int
