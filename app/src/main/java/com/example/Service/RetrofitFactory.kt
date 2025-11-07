@@ -2,6 +2,7 @@ package com.example.oportunyfam.Service
 
 import com.example.Service.EnderecoService
 import com.example.Service.LoginUniversalService
+import com.example.Service.PublicacaoService
 import com.example.Service.TipoInstituicaoService
 import com.example.oportunyfam.model.ResultData
 import com.example.oportunyfam.model.ResultDataDeserializer
@@ -116,6 +117,13 @@ class RetrofitFactory {
      */
     fun getLoginUniversalService(): LoginUniversalService {
         return retrofitFactory.create(LoginUniversalService::class.java)
+    }
+
+    /**
+     * Serviço de Publicações
+     */
+    fun getPublicacaoService(): PublicacaoService {
+        return retrofitFactory.create(PublicacaoService::class.java)
     }
 
 }
