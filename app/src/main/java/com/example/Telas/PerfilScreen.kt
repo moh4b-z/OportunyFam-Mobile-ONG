@@ -45,6 +45,13 @@ import android.net.Uri
 import com.example.Service.AzureBlobRetrofit
 import com.example.model.getRealPathFromURI
 import java.io.File
+import com.example.viewmodel.PublicacaoViewModel
+import com.example.viewmodel.PublicacoesState
+import com.example.viewmodel.CriarPublicacaoState
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.filled.Add
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -83,6 +90,12 @@ fun PerfilScreen(
         Log.d("PerfilScreen", "Foto Perfil URL: ${instituicao?.foto_perfil}")
         Log.d("PerfilScreen", "URL está vazia? ${instituicao?.foto_perfil.isNullOrEmpty()}")
         Log.d("PerfilScreen", "==================================")
+        
+        // Carregar publicações quando a instituição estiver disponível
+        instituicao?.instituicao_id?.let { idInstituicao ->
+            Log.d("PerfilScreen", "🔍 Carregando publicações para instituição ID: $idInstituicao")
+            publicacaoViewModel.buscarPublicacoesPorInstituicao(idInstituicao)
+        }
     }
 
     // Estado para controlar a exibição do diálogo de edição
@@ -98,9 +111,55 @@ fun PerfilScreen(
     var showSnackbar by remember { mutableStateOf(false) }
     var snackbarMessage by remember { mutableStateOf("") }
 
+    // ViewModel para Publicações
+    val publicacaoViewModel: PublicacaoViewModel = viewModel()
+    val publicacoesState by publicacaoViewModel.publicacoesState.collectAsState()
+    val criarPublicacaoState by publicacaoViewModel.criarPublicacaoState.collectAsState()
+
+    // Estados para o diálogo de criar publicação
+    var showCriarPublicacaoDialog by remember { mutableStateOf(false) }
+    var publicacaoTitulo by remember { mutableStateOf("") }
+    var publicacaoDescricao by remember { mutableStateOf("") }
+    var publicacaoImagemUrl by remember { mutableStateOf<String?>(null) }
+    var publicacaoImagemUri by remember { mutableStateOf<Uri?>(null) }
+    var isUploadingPublicacaoImage by remember { mutableStateOf(false) }
+
     // Estados para upload de imagem
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var tempImageFile by remember { mutableStateOf<File?>(null) }
+
+    // Observar o estado de criação de publicação
+    LaunchedEffect(criarPublicacaoState) {
+        when (criarPublicacaoState) {
+            is CriarPublicacaoState.Success -> {
+                Log.d("PerfilScreen", "✅ Publicação criada com sucesso!")
+                snackbarMessage = "✅ Publicação criada com sucesso!"
+                showSnackbar = true
+                showCriarPublicacaoDialog = false
+                
+                // Reset do diálogo
+                publicacaoTitulo = ""
+                publicacaoDescricao = ""
+                publicacaoImagemUrl = null
+                publicacaoImagemUri = null
+                
+                // Recarregar publicações
+                instituicao?.instituicao_id?.let { idInstituicao ->
+                    publicacaoViewModel.buscarPublicacoesPorInstituicao(idInstituicao)
+                }
+                
+                publicacaoViewModel.resetCriarPublicacaoState()
+            }
+            is CriarPublicacaoState.Error -> {
+                val errorMessage = (criarPublicacaoState as CriarPublicacaoState.Error).message
+                Log.e("PerfilScreen", "❌ Erro ao criar publicação: $errorMessage")
+                snackbarMessage = "❌ $errorMessage"
+                showSnackbar = true
+                publicacaoViewModel.resetCriarPublicacaoState()
+            }
+            else -> {}
+        }
+    }
 
     // ----------------------------------------------------
     // FUNÇÃO PARA FAZER UPLOAD DA FOTO DE PERFIL
@@ -115,8 +174,14 @@ fun PerfilScreen(
                     // Em produção, use variáveis de ambiente ou BuildConfig
                     val storageAccount = "oportunyfamstorage"
                     val accountKey = System.getenv("AZURE_STORAGE_KEY")
-                        ?: "CONFIGURE_SUA_CHAVE_AQUI" // ⚠️ Substituir pela chave real
                     val containerName = "imagens-perfil"
+
+                    if (accountKey.isNullOrBlank()) {
+                        Log.e("PerfilScreen", "❌ AZURE_STORAGE_KEY não configurada")
+                        snackbarMessage = "❌ Erro de configuração: chave do Azure não encontrada"
+                        showSnackbar = true
+                        return@launch
+                    }
 
                     Log.d("PerfilScreen", "🔍 Iniciando upload da imagem...")
 
@@ -206,6 +271,68 @@ fun PerfilScreen(
                 tempImageFile = File(path)
                 Log.d("PerfilScreen", "📁 Arquivo preparado: ${tempImageFile?.name}")
                 uploadAndUpdateProfileImage()
+            } ?: run {
+                snackbarMessage = "❌ Erro ao processar a imagem"
+                showSnackbar = true
+            }
+        }
+    }
+
+    // ----------------------------------------------------
+    // LAUNCHER PARA SELECIONAR IMAGEM PARA PUBLICAÇÃO
+    // ----------------------------------------------------
+    val publicacaoImagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            publicacaoImagemUri = it
+            Log.d("PerfilScreen", "📷 Imagem de publicação selecionada: $it")
+
+            // Upload da imagem para Azure
+            val filePath = context.getRealPathFromURI(it)
+            filePath?.let { path ->
+                val imageFile = File(path)
+                isUploadingPublicacaoImage = true
+                scope.launch {
+                    try {
+                        val storageAccount = "oportunyfamstorage"
+                        val accountKey = System.getenv("AZURE_STORAGE_KEY")
+                        val containerName = "imagens-perfil"
+
+                        if (accountKey.isNullOrBlank()) {
+                            Log.e("PerfilScreen", "❌ AZURE_STORAGE_KEY não configurada")
+                            snackbarMessage = "❌ Erro de configuração: chave do Azure não encontrada"
+                            showSnackbar = true
+                            return@launch
+                        }
+
+                        Log.d("PerfilScreen", "🔍 Iniciando upload da imagem de publicação...")
+
+                        val imageUrl = AzureBlobRetrofit.uploadImageToAzure(
+                            imageFile,
+                            storageAccount,
+                            accountKey,
+                            containerName
+                        )
+
+                        Log.d("PerfilScreen", "📤 Upload de imagem retornou URL: $imageUrl")
+
+                        if (imageUrl != null) {
+                            publicacaoImagemUrl = imageUrl
+                            snackbarMessage = "✅ Imagem carregada com sucesso!"
+                            showSnackbar = true
+                        } else {
+                            snackbarMessage = "❌ Erro ao fazer upload da imagem"
+                            showSnackbar = true
+                        }
+                    } catch (e: Exception) {
+                        Log.e("PerfilScreen", "❌ Erro no upload da imagem: ${e.message}", e)
+                        snackbarMessage = "❌ Erro: ${e.message}"
+                        showSnackbar = true
+                    } finally {
+                        isUploadingPublicacaoImage = false
+                    }
+                }
             } ?: run {
                 snackbarMessage = "❌ Erro ao processar a imagem"
                 showSnackbar = true
@@ -522,6 +649,100 @@ fun PerfilScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
 
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // ==================== SEÇÃO DE PUBLICAÇÕES ====================
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Publicações",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black
+                            )
+                            
+                            // Botão para criar nova publicação
+                            FloatingActionButton(
+                                onClick = { showCriarPublicacaoDialog = true },
+                                modifier = Modifier.size(40.dp),
+                                containerColor = Color(0xFFFFA000),
+                                contentColor = Color.White
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Criar publicação",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Lista de publicações
+                        when (publicacoesState) {
+                            is PublicacoesState.Loading -> {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(100.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(color = Color(0xFFFFA000))
+                                }
+                            }
+                            is PublicacoesState.Success -> {
+                                val publicacoes = (publicacoesState as PublicacoesState.Success).publicacoes
+                                
+                                if (publicacoes.isEmpty()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(100.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            "Nenhuma publicação ainda. Crie a primeira!",
+                                            color = Color.Gray,
+                                            fontSize = 14.sp
+                                        )
+                                    }
+                                } else {
+                                    LazyColumn(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .weight(1f)
+                                            .padding(horizontal = 24.dp)
+                                    ) {
+                                        items(publicacoes) { publicacao ->
+                                            PublicacaoItem(publicacao = publicacao)
+                                            Spacer(modifier = Modifier.height(12.dp))
+                                        }
+                                    }
+                                }
+                            }
+                            is PublicacoesState.Error -> {
+                                val errorMessage = (publicacoesState as PublicacoesState.Error).message
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(100.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "Erro: $errorMessage",
+                                        color = Color.Red,
+                                        fontSize = 14.sp
+                                    )
+                                }
+                            }
+                            else -> {}
+                        }
+
                         Spacer(modifier = Modifier.height(24.dp))
                     }
                 }
@@ -660,6 +881,200 @@ fun PerfilScreen(
                 }
             }
         )
+    }
+
+    // Diálogo para criar publicação
+    if (showCriarPublicacaoDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!isUploadingPublicacaoImage && criarPublicacaoState !is CriarPublicacaoState.Loading) {
+                    showCriarPublicacaoDialog = false
+                    publicacaoTitulo = ""
+                    publicacaoDescricao = ""
+                    publicacaoImagemUrl = null
+                    publicacaoImagemUri = null
+                }
+            },
+            title = { Text("Criar Nova Publicação") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                ) {
+                    // Campo de título
+                    OutlinedTextField(
+                        value = publicacaoTitulo,
+                        onValueChange = { publicacaoTitulo = it },
+                        label = { Text("Título * (mín. 5 caracteres)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = publicacaoTitulo.isNotEmpty() && publicacaoTitulo.length < 5,
+                        supportingText = {
+                            Text(
+                                text = "${publicacaoTitulo.length}/5",
+                                color = if (publicacaoTitulo.length >= 5) Color.Gray else Color.Red,
+                                fontSize = 12.sp
+                            )
+                        },
+                        enabled = !isUploadingPublicacaoImage && criarPublicacaoState !is CriarPublicacaoState.Loading
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Campo de descrição
+                    OutlinedTextField(
+                        value = publicacaoDescricao,
+                        onValueChange = { publicacaoDescricao = it },
+                        label = { Text("Descrição * (mín. 10 caracteres)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 5,
+                        isError = publicacaoDescricao.isNotEmpty() && publicacaoDescricao.length < 10,
+                        supportingText = {
+                            Text(
+                                text = "${publicacaoDescricao.length}/10",
+                                color = if (publicacaoDescricao.length >= 10) Color.Gray else Color.Red,
+                                fontSize = 12.sp
+                            )
+                        },
+                        enabled = !isUploadingPublicacaoImage && criarPublicacaoState !is CriarPublicacaoState.Loading
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Botão para selecionar imagem
+                    Button(
+                        onClick = { publicacaoImagePickerLauncher.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isUploadingPublicacaoImage && criarPublicacaoState !is CriarPublicacaoState.Loading,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFFFA000)
+                        )
+                    ) {
+                        if (isUploadingPublicacaoImage) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Enviando imagem...")
+                        } else {
+                            Text(if (publicacaoImagemUrl != null) "✓ Imagem selecionada" else "Selecionar Imagem *")
+                        }
+                    }
+
+                    // Preview da imagem selecionada
+                    if (publicacaoImagemUrl != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        AsyncImage(
+                            model = publicacaoImagemUrl,
+                            contentDescription = "Preview da imagem",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                if (criarPublicacaoState is CriarPublicacaoState.Loading) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                } else {
+                    TextButton(
+                        onClick = {
+                            instituicao?.instituicao_id?.let { idInstituicao ->
+                                // Only call if all required fields are present
+                                val imageUrl = publicacaoImagemUrl
+                                if (publicacaoTitulo.length >= 5 && 
+                                    publicacaoDescricao.length >= 10 && 
+                                    imageUrl != null) {
+                                    publicacaoViewModel.criarPublicacao(
+                                        titulo = publicacaoTitulo,
+                                        descricao = publicacaoDescricao,
+                                        imagem = imageUrl,
+                                        instituicaoId = idInstituicao
+                                    )
+                                }
+                            }
+                        },
+                        enabled = publicacaoTitulo.length >= 5 && 
+                                  publicacaoDescricao.length >= 10 && 
+                                  publicacaoImagemUrl != null &&
+                                  !isUploadingPublicacaoImage &&
+                                  criarPublicacaoState !is CriarPublicacaoState.Loading
+                    ) {
+                        Text("Criar")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showCriarPublicacaoDialog = false
+                        publicacaoTitulo = ""
+                        publicacaoDescricao = ""
+                        publicacaoImagemUrl = null
+                        publicacaoImagemUri = null
+                    },
+                    enabled = !isUploadingPublicacaoImage && criarPublicacaoState !is CriarPublicacaoState.Loading
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+}
+
+// Composable para exibir um item de publicação
+@Composable
+fun PublicacaoItem(publicacao: com.example.model.Publicacao) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            // Título
+            Text(
+                text = publicacao.titulo,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Descrição
+            if (!publicacao.descricao.isNullOrBlank()) {
+                Text(
+                    text = publicacao.descricao,
+                    fontSize = 14.sp,
+                    color = Color.DarkGray,
+                    lineHeight = 20.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Imagem
+            if (!publicacao.imagem.isNullOrBlank()) {
+                AsyncImage(
+                    model = publicacao.imagem,
+                    contentDescription = "Imagem da publicação",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            }
+        }
     }
 }
 
