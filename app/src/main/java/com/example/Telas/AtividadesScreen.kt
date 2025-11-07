@@ -1,5 +1,6 @@
 package com.example.oportunyfam.Telas
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,7 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Settings
@@ -21,15 +22,24 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.Components.BarraTarefas
 import com.example.MainActivity.NavRoutes
+import com.example.data.InstituicaoAuthDataStore
+import com.example.oportunyfam.model.AtividadeResponse
 import com.example.oportunyfam_mobile_ong.R
+import com.example.viewmodel.AtividadeViewModel
+import com.example.viewmodel.AtividadesState
+import com.example.viewmodel.AtividadeDetalheState
 
 // ==================== ENUMS E ESTADOS ====================
 
@@ -49,8 +59,8 @@ enum class TelaAtividade {
 /**
  * AtividadesScreen - Tela de gerenciamento de atividades
  *
- * Permite:
- * - Listar todas as atividades
+ * Carrega atividades da API e permite:
+ * - Listar todas as atividades da instituição
  * - Ver detalhes de cada atividade
  * - Gerenciar alunos por atividade
  * - Visualizar calendário de aulas
@@ -60,45 +70,74 @@ enum class TelaAtividade {
  */
 @Composable
 fun AtividadesScreen(navController: NavHostController?) {
+    val context = LocalContext.current
+    val instituicaoAuthDataStore = remember { InstituicaoAuthDataStore(context) }
+    val instituicao by instituicaoAuthDataStore.instituicaoStateFlow().collectAsState(initial = null)
+
+    val viewModel: AtividadeViewModel = viewModel()
     var telaAtual by remember { mutableStateOf(TelaAtividade.LISTA) }
-    var atividadeSelecionada by remember { mutableStateOf("") }
+    var atividadeSelecionadaId by remember { mutableStateOf<Int?>(null) }
+
+    // Carregar atividades da instituição quando a tela for exibida
+    LaunchedEffect(instituicao) {
+        instituicao?.let {
+            Log.d("AtividadesScreen", "Carregando atividades da instituição: ${it.instituicao_id}")
+            viewModel.buscarAtividadesPorInstituicao(it.instituicao_id)
+        }
+    }
 
     when (telaAtual) {
         TelaAtividade.LISTA -> {
             ListaAtividadesScreen(
                 navController = navController,
-                onAtividadeClick = { atividade ->
-                    atividadeSelecionada = atividade
+                viewModel = viewModel,
+                instituicaoId = instituicao?.instituicao_id,
+                onAtividadeClick = { atividadeId ->
+                    atividadeSelecionadaId = atividadeId
+                    viewModel.buscarAtividadePorId(atividadeId)
                     telaAtual = TelaAtividade.DETALHES
                 }
             )
         }
         TelaAtividade.DETALHES -> {
-            DetalhesAtividadeScreen(
-                atividade = atividadeSelecionada,
-                onBack = { telaAtual = TelaAtividade.LISTA },
-                onVerAlunos = { telaAtual = TelaAtividade.ALUNOS },
-                onVerCalendario = { telaAtual = TelaAtividade.CALENDARIO },
-                onConfiguracoes = { telaAtual = TelaAtividade.CONFIGURACOES }
-            )
+            atividadeSelecionadaId?.let { id ->
+                DetalhesAtividadeScreen(
+                    viewModel = viewModel,
+                    atividadeId = id,
+                    onBack = {
+                        viewModel.limparDetalhe()
+                        telaAtual = TelaAtividade.LISTA
+                    },
+                    onVerAlunos = { telaAtual = TelaAtividade.ALUNOS },
+                    onVerCalendario = { telaAtual = TelaAtividade.CALENDARIO },
+                    onConfiguracoes = { telaAtual = TelaAtividade.CONFIGURACOES }
+                )
+            }
         }
         TelaAtividade.ALUNOS -> {
-            GerenciarAlunosScreen(
-                atividade = atividadeSelecionada,
-                onBack = { telaAtual = TelaAtividade.DETALHES }
-            )
+            atividadeSelecionadaId?.let { id ->
+                GerenciarAlunosScreen(
+                    atividadeId = id,
+                    onBack = { telaAtual = TelaAtividade.DETALHES }
+                )
+            }
         }
         TelaAtividade.CALENDARIO -> {
-            CalendarioAulasScreen(
-                atividade = atividadeSelecionada,
-                onBack = { telaAtual = TelaAtividade.DETALHES }
-            )
+            atividadeSelecionadaId?.let { id ->
+                CalendarioAulasScreen(
+                    viewModel = viewModel,
+                    atividadeId = id,
+                    onBack = { telaAtual = TelaAtividade.DETALHES }
+                )
+            }
         }
         TelaAtividade.CONFIGURACOES -> {
-            ConfiguracoesAtividadeScreen(
-                atividade = atividadeSelecionada,
-                onBack = { telaAtual = TelaAtividade.DETALHES }
-            )
+            atividadeSelecionadaId?.let { id ->
+                ConfiguracoesAtividadeScreen(
+                    atividadeId = id,
+                    onBack = { telaAtual = TelaAtividade.DETALHES }
+                )
+            }
         }
     }
 }
@@ -106,14 +145,16 @@ fun AtividadesScreen(navController: NavHostController?) {
 // ==================== TELAS INTERNAS ====================
 
 /**
- * Tela de lista de atividades
+ * Tela de lista de atividades (consumindo da API)
  */
 @Composable
 fun ListaAtividadesScreen(
     navController: NavHostController?,
-    onAtividadeClick: (String) -> Unit
+    viewModel: AtividadeViewModel,
+    instituicaoId: Int?,
+    onAtividadeClick: (Int) -> Unit
 ) {
-    val atividades = listOf("Futebol", "Vôlei", "Luta")
+    val atividadesState by viewModel.atividadesState.collectAsState()
 
     Column(
         modifier = Modifier
@@ -126,21 +167,105 @@ fun ListaAtividadesScreen(
                 .padding(16.dp)
         ) {
             Text(
-                text = "Atividades",
+                text = "Minhas Atividades",
                 fontWeight = FontWeight.Bold,
                 fontSize = 22.sp,
                 color = Color.Black,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(atividades) { atividade ->
-                    AtividadeCardVisual(
-                        titulo = atividade,
-                        onClick = { onAtividadeClick(atividade) }
-                    )
+            when (atividadesState) {
+                is AtividadesState.Loading -> {
+                    // Estado de carregamento
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(color = Color(0xFFFFA000))
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("Carregando atividades...", color = Color.Gray)
+                        }
+                    }
+                }
+                is AtividadesState.Success -> {
+                    val atividades = (atividadesState as AtividadesState.Success).atividades
+
+                    if (atividades.isEmpty()) {
+                        // Estado vazio
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    "Nenhuma atividade cadastrada",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Gray
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    "Cadastre sua primeira atividade!",
+                                    fontSize = 14.sp,
+                                    color = Color.LightGray
+                                )
+                            }
+                        }
+                    } else {
+                        // Lista de atividades
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(atividades) { atividade ->
+                                AtividadeCardAPI(
+                                    atividade = atividade,
+                                    onClick = { onAtividadeClick(atividade.atividade_id) }
+                                )
+                            }
+                        }
+                    }
+                }
+                is AtividadesState.Error -> {
+                    // Estado de erro
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(32.dp)
+                        ) {
+                            Text(
+                                "Erro ao carregar atividades",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Red
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                (atividadesState as AtividadesState.Error).message,
+                                fontSize = 14.sp,
+                                color = Color.Gray,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = {
+                                    // Tentar carregar novamente
+                                    instituicaoId?.let {
+                                        viewModel.buscarAtividadesPorInstituicao(it)
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFFFFA000)
+                                )
+                            ) {
+                                Text("Tentar Novamente", color = Color.White)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -154,24 +279,37 @@ fun ListaAtividadesScreen(
 }
 
 /**
- * Tela de detalhes da atividade
+ * Tela de detalhes da atividade (com dados da API)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetalhesAtividadeScreen(
-    atividade: String,
+    viewModel: AtividadeViewModel,
+    atividadeId: Int,
     onBack: () -> Unit,
     onVerAlunos: () -> Unit,
     onVerCalendario: () -> Unit,
     onConfiguracoes: () -> Unit
 ) {
+    val atividadeDetalheState by viewModel.atividadeDetalheState.collectAsState()
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(atividade, fontWeight = FontWeight.Bold) },
+                title = {
+                    when (atividadeDetalheState) {
+                        is AtividadeDetalheState.Success -> {
+                            Text(
+                                (atividadeDetalheState as AtividadeDetalheState.Success).atividade.titulo,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        else -> Text("Detalhes", fontWeight = FontWeight.Bold)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -181,34 +319,82 @@ fun DetalhesAtividadeScreen(
             )
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(Color.White)
-        ) {
-            // Card de resumo
-            ResumoAtividadeCard()
+        when (atividadeDetalheState) {
+            is AtividadeDetalheState.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = Color(0xFFFFA000))
+                }
+            }
+            is AtividadeDetalheState.Success -> {
+                val atividade = (atividadeDetalheState as AtividadeDetalheState.Success).atividade
 
-            // Opções de gerenciamento
-            Column(modifier = Modifier.padding(16.dp)) {
-                OpcaoGerenciamento(
-                    titulo = "👥 Gerenciar Alunos",
-                    descricao = "Ver e editar alunos cadastrados",
-                    onClick = onVerAlunos
-                )
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .background(Color.White)
+                ) {
+                    item {
+                        // Card de resumo com dados reais
+                        ResumoAtividadeCardAPI(atividade = atividade)
+                    }
 
-                OpcaoGerenciamento(
-                    titulo = "📅 Calendário de Aulas",
-                    descricao = "Agendar próximas aulas e horários",
-                    onClick = onVerCalendario
-                )
+                    item {
+                        // Opções de gerenciamento
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            OpcaoGerenciamento(
+                                titulo = "👥 Gerenciar Alunos",
+                                descricao = "Ver e editar alunos cadastrados",
+                                onClick = onVerAlunos
+                            )
 
-                OpcaoGerenciamento(
-                    titulo = "⚙️ Configurações",
-                    descricao = "Editar informações da atividade",
-                    onClick = onConfiguracoes
-                )
+                            OpcaoGerenciamento(
+                                titulo = "📅 Calendário de Aulas",
+                                descricao = "${atividade.aulas.size} aulas cadastradas",
+                                onClick = onVerCalendario
+                            )
+
+                            OpcaoGerenciamento(
+                                titulo = "⚙️ Configurações",
+                                descricao = "Editar informações da atividade",
+                                onClick = onConfiguracoes
+                            )
+                        }
+                    }
+                }
+            }
+            is AtividadeDetalheState.Error -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Erro ao carregar detalhes", color = Color.Red, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            (atividadeDetalheState as AtividadeDetalheState.Error).message,
+                            color = Color.Gray,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            }
+            AtividadeDetalheState.Idle -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = Color(0xFFFFA000))
+                }
             }
         }
     }
@@ -219,16 +405,16 @@ fun DetalhesAtividadeScreen(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GerenciarAlunosScreen(atividade: String, onBack: () -> Unit) {
+fun GerenciarAlunosScreen(atividadeId: Int, onBack: () -> Unit) {
     var searchText by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Alunos - $atividade", fontWeight = FontWeight.Bold) },
+                title = { Text("Alunos Matriculados", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -255,7 +441,7 @@ fun GerenciarAlunosScreen(atividade: String, onBack: () -> Unit) {
                 shape = RoundedCornerShape(12.dp)
             )
 
-            // Lista de alunos
+            // Lista de alunos (exemplo - implementar API depois)
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 items(getAlunosExemplo()) { aluno ->
                     CardAluno(aluno = aluno)
@@ -266,18 +452,24 @@ fun GerenciarAlunosScreen(atividade: String, onBack: () -> Unit) {
 }
 
 /**
- * Tela de calendário de aulas
+ * Tela de calendário de aulas (com dados da API)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CalendarioAulasScreen(atividade: String, onBack: () -> Unit) {
+fun CalendarioAulasScreen(
+    viewModel: AtividadeViewModel,
+    atividadeId: Int,
+    onBack: () -> Unit
+) {
+    val atividadeDetalheState by viewModel.atividadeDetalheState.collectAsState()
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Calendário - $atividade", fontWeight = FontWeight.Bold) },
+                title = { Text("Calendário de Aulas", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -291,30 +483,56 @@ fun CalendarioAulasScreen(atividade: String, onBack: () -> Unit) {
                 onClick = { /* Adicionar nova aula */ },
                 containerColor = Color(0xFFFFA000)
             ) {
-                Icon(Icons.Default.CalendarToday, contentDescription = "Nova Aula")
+                Icon(Icons.Default.CalendarToday, contentDescription = "Nova Aula", tint = Color.White)
             }
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(Color.White)
-        ) {
-            // Visual do calendário (placeholder)
-            CalendarioPlaceholder()
+        when (atividadeDetalheState) {
+            is AtividadeDetalheState.Success -> {
+                val atividade = (atividadeDetalheState as AtividadeDetalheState.Success).atividade
 
-            // Próximas aulas
-            Text(
-                text = "Próximas Aulas",
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                modifier = Modifier.padding(16.dp)
-            )
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .background(Color.White)
+                ) {
+                    // Título
+                    Text(
+                        text = "Aulas Cadastradas",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        modifier = Modifier.padding(16.dp)
+                    )
 
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(getProximasAulasExemplo()) { aula ->
-                    CardAula(aula = aula)
+                    if (atividade.aulas.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Nenhuma aula cadastrada", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Clique no + para adicionar", fontSize = 14.sp, color = Color.Gray)
+                            }
+                        }
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            items(atividade.aulas) { aula ->
+                                CardAulaAPI(aula = aula)
+                            }
+                        }
+                    }
+                }
+            }
+            else -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = Color(0xFFFFA000))
                 }
             }
         }
@@ -326,14 +544,14 @@ fun CalendarioAulasScreen(atividade: String, onBack: () -> Unit) {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ConfiguracoesAtividadeScreen(atividade: String, onBack: () -> Unit) {
+fun ConfiguracoesAtividadeScreen(atividadeId: Int, onBack: () -> Unit) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Configurações - $atividade", fontWeight = FontWeight.Bold) },
+                title = { Text("Configurações", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -368,7 +586,247 @@ fun ConfiguracoesAtividadeScreen(atividade: String, onBack: () -> Unit) {
 // ==================== COMPONENTES REUTILIZÁVEIS ====================
 
 /**
- * Card visual de atividade
+ * Card de atividade com dados da API
+ */
+@Composable
+fun AtividadeCardAPI(atividade: AtividadeResponse, onClick: () -> Unit) {
+    val context = LocalContext.current
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Imagem da atividade
+            if (!atividade.instituicao_foto.isNullOrEmpty()) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(atividade.instituicao_foto)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = atividade.titulo,
+                    modifier = Modifier
+                        .size(60.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(id = R.drawable.instituicao),
+                    error = painterResource(id = R.drawable.instituicao)
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = R.drawable.instituicao),
+                    contentDescription = atividade.titulo,
+                    modifier = Modifier
+                        .size(60.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    atividade.titulo,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = Color.Black
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    atividade.categoria,
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (atividade.gratuita == 1) "Gratuita" else "R$ ${atividade.preco}",
+                        fontSize = 12.sp,
+                        color = Color(0xFFFFA000),
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "• ${atividade.aulas.size} aulas",
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                }
+            }
+
+            // Indicador visual
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(60.dp)
+                    .background(
+                        if (atividade.ativo == 1) Color(0xFFFFA000) else Color.Gray,
+                        shape = RoundedCornerShape(2.dp)
+                    )
+            )
+        }
+    }
+}
+
+/**
+ * Card de resumo da atividade com dados da API
+ */
+@Composable
+private fun ResumoAtividadeCardAPI(atividade: AtividadeResponse) {
+    val context = LocalContext.current
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp)
+        ) {
+            // Cabeçalho com imagem
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (!atividade.instituicao_foto.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(atividade.instituicao_foto)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = atividade.titulo,
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(RoundedCornerShape(16.dp)),
+                        contentScale = ContentScale.Crop,
+                        placeholder = painterResource(id = R.drawable.instituicao),
+                        error = painterResource(id = R.drawable.instituicao)
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(id = R.drawable.instituicao),
+                        contentDescription = atividade.titulo,
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(RoundedCornerShape(16.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column {
+                    Text(
+                        atividade.titulo,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        color = Color.Black
+                    )
+                    Text(
+                        atividade.categoria,
+                        fontSize = 14.sp,
+                        color = Color.Gray
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Descrição
+            if (!atividade.descricao.isNullOrEmpty()) {
+                Text(
+                    "Descrição",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    atividade.descricao,
+                    fontSize = 14.sp,
+                    color = Color.DarkGray,
+                    lineHeight = 20.sp
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // Informações em grid
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                InfoItemSimple(label = "Faixa Etária", value = "${atividade.faixa_etaria_min}-${atividade.faixa_etaria_max} anos")
+                InfoItemSimple(
+                    label = "Valor",
+                    value = if (atividade.gratuita == 1) "Gratuita" else "R$ ${atividade.preco}"
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                InfoItemSimple(label = "Aulas", value = "${atividade.aulas.size}")
+                InfoItemSimple(
+                    label = "Status",
+                    value = if (atividade.ativo == 1) "Ativa" else "Inativa"
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                InfoItemSimple(label = "Local", value = "${atividade.cidade}, ${atividade.estado}")
+            }
+        }
+    }
+}
+
+/**
+ * Item de informação simples (sem ícone) para cards de resumo
+ */
+@Composable
+private fun InfoItemSimple(
+    label: String,
+    value: String
+) {
+    Column {
+        Text(
+            label,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp,
+            color = Color.Gray
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            value,
+            fontSize = 14.sp,
+            color = Color.Black,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+/**
+ * Card visual de atividade (antigo - manter para compatibilidade)
  */
 @Composable
 fun AtividadeCardVisual(titulo: String, onClick: () -> Unit) {
@@ -466,7 +924,7 @@ fun OpcaoGerenciamento(titulo: String, descricao: String, onClick: () -> Unit) {
                 Text(descricao, fontSize = 14.sp, color = Color.Gray)
             }
             Icon(
-                Icons.Default.ArrowBack,
+                Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = null,
                 modifier = Modifier.rotate(180f)
             )
@@ -532,7 +990,95 @@ fun CardAluno(aluno: Aluno) {
 }
 
 /**
- * Card de aula
+ * Card de aula com dados da API
+ */
+@Composable
+fun CardAulaAPI(aula: com.example.oportunyfam.model.AulaDetalhe) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (aula.status == "Futura") Color(0xFFFFF8E1) else Color(0xFFF5F5F5)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Ícone de calendário
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        if (aula.status == "Futura") Color(0xFFFFA000) else Color.Gray,
+                        shape = RoundedCornerShape(12.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.CalendarToday,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    aula.data_aula,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = Color.Black
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "${aula.hora_inicio} - ${aula.hora_fim}",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Group,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        "${aula.vagas_disponiveis}/${aula.vagas_total} vagas",
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                }
+            }
+
+            // Badge de status
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = if (aula.status == "Futura") Color(0xFF4CAF50) else Color.Gray
+            ) {
+                Text(
+                    aula.status,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Card de aula (antigo - manter para compatibilidade)
  */
 @Composable
 fun CardAula(aula: Aula) {

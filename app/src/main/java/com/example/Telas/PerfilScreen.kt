@@ -1,21 +1,30 @@
 package com.example.Telas
 
+import android.net.Uri
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -25,117 +34,130 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.example.Components.BarraTarefas
 import com.example.MainActivity.NavRoutes
-import com.example.data.InstituicaoAuthDataStore
-import com.example.oportunyfam.Service.RetrofitFactory
-import com.example.oportunyfam_mobile_ong.R
-import com.oportunyfam_mobile.model.InstituicaoAtualizarRequest
-
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import kotlinx.coroutines.launch
-import androidx.compose.runtime.collectAsState
-import android.util.Log
-import coil.request.CachePolicy
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import android.net.Uri
 import com.example.Service.AzureBlobRetrofit
+import com.example.data.InstituicaoAuthDataStore
 import com.example.model.getRealPathFromURI
+import com.example.oportunyfam.Service.RetrofitFactory
+import com.example.oportunyfam.model.PublicacaoRequest
+import com.example.oportunyfam_mobile_ong.R
+import com.example.viewmodel.PublicacaoViewModel
+import com.example.viewmodel.PublicacoesState
+import com.example.viewmodel.CriarPublicacaoState
+import com.oportunyfam_mobile.model.InstituicaoAtualizarRequest
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.File
+
+// ============================================
+// SCREEN PRINCIPAL
+// ============================================
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PerfilScreen(
-    navController: NavHostController?
-) {
+fun PerfilScreen(navController: NavHostController?) {
+    // ============================================
+    // INICIALIZAÇÃO E ESTADOS
+    // ============================================
     val context = LocalContext.current
     val instituicaoAuthDataStore = remember { InstituicaoAuthDataStore(context) }
     val scope = rememberCoroutineScope()
 
-    // Instituicao reativa a partir do DataStore
     val instituicao by instituicaoAuthDataStore.instituicaoStateFlow().collectAsState(initial = null)
-    val isLoadingData = remember { mutableStateOf(false) }
 
-    // Carrega dados explicitamente se ainda não estiverem disponíveis
-    LaunchedEffect(key1 = Unit) {
+    // ViewModel de Publicações
+    val publicacaoViewModel: PublicacaoViewModel = viewModel()
+    val publicacoesState by publicacaoViewModel.publicacoesState.collectAsState()
+    val criarPublicacaoState by publicacaoViewModel.criarPublicacaoState.collectAsState()
+
+    var isLoadingData by remember { mutableStateOf(false) }
+    var isLoadingUpdate by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var novaDescricao by remember { mutableStateOf("") }
+    var showSnackbar by remember { mutableStateOf(false) }
+    var snackbarMessage by remember { mutableStateOf("") }
+    var tempImageFile by remember { mutableStateOf<File?>(null) }
+
+    // Estados para publicação
+    var showPublicacaoDialog by remember { mutableStateOf(false) }
+    var publicacaoDescricao by remember { mutableStateOf("") }
+    var publicacaoImageFile by remember { mutableStateOf<File?>(null) }
+    var isUploadingPublicacao by remember { mutableStateOf(false) }
+
+
+    // ============================================
+    // CARREGAMENTO INICIAL
+    // ============================================
+    LaunchedEffect(Unit) {
         if (instituicao == null) {
-            Log.d("PerfilScreen", "Tentando carregar dados da instituição...")
-            isLoadingData.value = true
+            Log.d("PerfilScreen", "Carregando dados da instituição...")
+            isLoadingData = true
             try {
-                val loaded = instituicaoAuthDataStore.loadInstituicao()
-                Log.d("PerfilScreen", "Dados carregados: ${loaded?.nome ?: "null"}")
+                instituicaoAuthDataStore.loadInstituicao()
             } catch (e: Exception) {
                 Log.e("PerfilScreen", "Erro ao carregar dados: ${e.message}", e)
             } finally {
-                isLoadingData.value = false
+                isLoadingData = false
             }
         }
     }
 
-    // Adicionar log para ver os dados da instituição
+    // Carregar publicações quando instituição estiver disponível
     LaunchedEffect(instituicao) {
-        Log.d("PerfilScreen", "========== DEBUG IMAGEM ==========")
-        Log.d("PerfilScreen", "Instituicao: ${instituicao?.nome}")
-        Log.d("PerfilScreen", "Foto Perfil URL: ${instituicao?.foto_perfil}")
-        Log.d("PerfilScreen", "URL está vazia? ${instituicao?.foto_perfil.isNullOrEmpty()}")
-        Log.d("PerfilScreen", "==================================")
+        instituicao?.let {
+            Log.d("PerfilScreen", "🔍 Carregando publicações da instituição: ${it.instituicao_id}")
+            publicacaoViewModel.buscarPublicacoesPorInstituicao(it.instituicao_id)
+        }
     }
 
-    // Estado para controlar a exibição do diálogo de edição
-    var showEditDialog by remember { mutableStateOf(false) }
+    // Observar estado de criação de publicação
+    LaunchedEffect(criarPublicacaoState) {
+        when (criarPublicacaoState) {
+            is CriarPublicacaoState.Success -> {
+                snackbarMessage = "Publicação criada com sucesso!"
+                showSnackbar = true
+                publicacaoViewModel.limparEstadoCriacao()
+            }
+            is CriarPublicacaoState.Error -> {
+                snackbarMessage = (criarPublicacaoState as CriarPublicacaoState.Error).message
+                showSnackbar = true
+                publicacaoViewModel.limparEstadoCriacao()
+            }
+            else -> {}
+        }
+    }
 
-    // Estado para a nova descrição
-    var novaDescricao by remember { mutableStateOf("") }
-
-    // Estado para controlar o carregamento durante a atualização
-    var isLoadingUpdate by remember { mutableStateOf(false) }
-
-    // Estado para mensagens de erro/sucesso
-    var showSnackbar by remember { mutableStateOf(false) }
-    var snackbarMessage by remember { mutableStateOf("") }
-
-    // Estados para upload de imagem
-    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    var tempImageFile by remember { mutableStateOf<File?>(null) }
-
-    // ----------------------------------------------------
-    // FUNÇÃO PARA FAZER UPLOAD DA FOTO DE PERFIL
-    // ----------------------------------------------------
+    // ============================================
+    // FUNÇÕES DE NEGÓCIO
+    // ============================================
     val uploadAndUpdateProfileImage: () -> Unit = {
         tempImageFile?.let { imageFile ->
             isLoadingUpdate = true
             scope.launch {
                 try {
-                    // Configuração do Azure Storage
-                    // ⚠️ IMPORTANTE: Configure as credenciais do Azure Storage
-                    // Em produção, use variáveis de ambiente ou BuildConfig
-                    val storageAccount = "oportunyfamstorage"
-                    val accountKey = System.getenv("AZURE_STORAGE_KEY")
-                        ?: "CONFIGURE_SUA_CHAVE_AQUI" // ⚠️ Substituir pela chave real
-                    val containerName = "imagens-perfil"
+                    val accountKey = com.example.Config.AzureConfig.getStorageKey()
 
-                    Log.d("PerfilScreen", "🔍 Iniciando upload da imagem...")
+                    Log.d("PerfilScreen", "Iniciando upload da imagem...")
 
-                    // Fazer upload para Azure
                     val imageUrl = AzureBlobRetrofit.uploadImageToAzure(
                         imageFile,
-                        storageAccount,
+                        com.example.Config.AzureConfig.STORAGE_ACCOUNT,
                         accountKey,
-                        containerName
+                        com.example.Config.AzureConfig.CONTAINER_PERFIL
                     )
 
-                    Log.d("PerfilScreen", "📤 Upload retornou URL: $imageUrl")
+                    Log.d("PerfilScreen", "Upload retornou URL: $imageUrl")
 
                     if (imageUrl != null && instituicao != null) {
-                        // Atualizar na API
                         val instituicaoService = RetrofitFactory().getInstituicaoService()
                         val currentInstituicao = instituicao!!
-
-                        // Adiciona timestamp para forçar atualização de cache
                         val versionedUrl = "$imageUrl?v=${System.currentTimeMillis()}"
 
                         val updateRequest = InstituicaoAtualizarRequest(
@@ -151,103 +173,89 @@ fun PerfilScreen(
 
                         when {
                             response.isSuccessful -> {
-                                Log.d("PerfilScreen", "✅ Foto de perfil atualizada com sucesso!")
+                                Log.d("PerfilScreen", "Foto de perfil atualizada com sucesso!")
                                 val updatedInstituicao = currentInstituicao.copy(foto_perfil = versionedUrl)
                                 instituicaoAuthDataStore.saveInstituicao(updatedInstituicao)
-
-                                selectedImageUri = null
-                                snackbarMessage = "✅ Foto de perfil atualizada com sucesso!"
+                                snackbarMessage = "Foto de perfil atualizada com sucesso!"
                                 showSnackbar = true
                             }
                             response.code() == 429 -> {
-                                Log.w("PerfilScreen", "⚠️ Rate limit - salvando localmente")
+                                Log.w("PerfilScreen", "Rate limit - salvando localmente")
                                 val updatedInstituicao = currentInstituicao.copy(foto_perfil = versionedUrl)
                                 instituicaoAuthDataStore.saveInstituicao(updatedInstituicao)
-
-                                selectedImageUri = null
-                                snackbarMessage = "⚠️ Foto salva! Servidor ocupado, sincronizará depois."
+                                snackbarMessage = "Foto salva! Servidor ocupado, sincronizará depois."
                                 showSnackbar = true
                             }
                             else -> {
-                                snackbarMessage = "❌ Erro ao atualizar (${response.code()})"
+                                snackbarMessage = "Erro ao atualizar (${response.code()})"
                                 showSnackbar = true
                             }
                         }
                     } else {
-                        snackbarMessage = "❌ Erro ao fazer upload da imagem"
+                        snackbarMessage = "Erro ao fazer upload da imagem"
                         showSnackbar = true
                     }
                 } catch (e: Exception) {
-                    Log.e("PerfilScreen", "❌ Erro no upload: ${e.message}", e)
-                    snackbarMessage = "❌ Erro: ${e.message}"
+                    Log.e("PerfilScreen", "Erro no upload: ${e.message}", e)
+                    snackbarMessage = "Erro: ${e.message}"
                     showSnackbar = true
                 } finally {
                     isLoadingUpdate = false
                     tempImageFile = null
-                    selectedImageUri = null
                 }
             }
         }
     }
 
-    // ----------------------------------------------------
-    // LAUNCHER PARA SELECIONAR IMAGEM DA GALERIA
-    // ----------------------------------------------------
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            selectedImageUri = it
-            Log.d("PerfilScreen", "📷 Imagem selecionada: $it")
+            Log.d("PerfilScreen", "Imagem selecionada: $it")
 
-            // Converter URI para File
             val filePath = context.getRealPathFromURI(it)
             filePath?.let { path ->
                 tempImageFile = File(path)
-                Log.d("PerfilScreen", "📁 Arquivo preparado: ${tempImageFile?.name}")
+                Log.d("PerfilScreen", "Arquivo preparado: ${tempImageFile?.name}")
                 uploadAndUpdateProfileImage()
             } ?: run {
-                snackbarMessage = "❌ Erro ao processar a imagem"
+                snackbarMessage = "Erro ao processar a imagem"
                 showSnackbar = true
             }
         }
     }
 
-    // ----------------------------------------------------
-    // FUNÇÃO PARA ABRIR SELETOR DE IMAGEM
-    // ----------------------------------------------------
-    val openImagePicker: () -> Unit = {
-        if (!isLoadingUpdate) {
-            imagePickerLauncher.launch("image/*")
-        }
-    }
-
-
-    // ----------------------------------------------------
-    // FUNÇÃO PARA LOGOUT E NAVEGAÇÃO
-    // ----------------------------------------------------
-    val onLogout: () -> Unit = {
-        scope.launch {
-            instituicaoAuthDataStore.logout()
-            navController?.navigate(NavRoutes.REGISTRO) {
-                popUpTo(navController.graph.startDestinationId) {
-                    inclusive = true
-                }
+    // Launcher para selecionar imagem de publicação
+    val publicacaoImagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            Log.d("PerfilScreen", "Imagem de publicação selecionada: $it")
+            val filePath = context.getRealPathFromURI(it)
+            filePath?.let { path ->
+                publicacaoImageFile = File(path)
+                Log.d("PerfilScreen", "Arquivo de publicação preparado: ${publicacaoImageFile?.name}")
+            } ?: run {
+                snackbarMessage = "Erro ao processar a imagem"
+                showSnackbar = true
             }
         }
     }
 
-    // ----------------------------------------------------
-    // FUNÇÃO PARA EDITAR DESCRIÇÃO
-    // ----------------------------------------------------
+    val onLogout: () -> Unit = {
+        scope.launch {
+            instituicaoAuthDataStore.logout()
+            navController?.navigate(NavRoutes.REGISTRO) {
+                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+            }
+        }
+    }
+
     val onEditDescription: () -> Unit = {
         novaDescricao = instituicao?.descricao ?: ""
         showEditDialog = true
     }
 
-    // ----------------------------------------------------
-    // FUNÇÃO PARA SALVAR DESCRIÇÃO NA API
-    // ----------------------------------------------------
     val onSaveDescription: () -> Unit = {
         if (novaDescricao.isNotBlank() && instituicao != null) {
             isLoadingUpdate = true
@@ -256,7 +264,6 @@ fun PerfilScreen(
                     val instituicaoService = RetrofitFactory().getInstituicaoService()
                     val currentInstituicao = instituicao!!
 
-                    // Criar o request para atualização com dados reais
                     val updateRequest = InstituicaoAtualizarRequest(
                         nome = currentInstituicao.nome,
                         foto_perfil = currentInstituicao.foto_perfil,
@@ -269,22 +276,16 @@ fun PerfilScreen(
                     val response = instituicaoService.atualizar(currentInstituicao.instituicao_id, updateRequest)
 
                     if (response.isSuccessful) {
-                        // Atualiza o estado local com a nova descrição
-                        val updatedInstituicao = currentInstituicao.copy( descricao = novaDescricao)
+                        val updatedInstituicao = currentInstituicao.copy(descricao = novaDescricao)
                         instituicaoAuthDataStore.saveInstituicao(updatedInstituicao)
-
                         showEditDialog = false
                         snackbarMessage = "Descrição atualizada com sucesso!"
                         showSnackbar = true
                     } else {
-                        // Tratar erro
                         snackbarMessage = "Erro ao atualizar: ${response.code()}"
                         showSnackbar = true
-                        println("Erro ao atualizar: ${response.code()}")
-                        println("Mensagem de erro: ${response.errorBody()?.string()}")
                     }
                 } catch (e: Exception) {
-                    e.printStackTrace()
                     snackbarMessage = "Erro de conexão: ${e.message}"
                     showSnackbar = true
                 } finally {
@@ -294,9 +295,29 @@ fun PerfilScreen(
         }
     }
 
-    // Não é necessário carregar manualmente: `instituicao` vem do StateFlow reativo
-    // isLoadingData permanece false
+    // ============================================
+    // ESTADOS DE CARREGAMENTO
+    // ============================================
+    if (isLoadingData) {
+        LoadingScreen()
+        return
+    }
 
+    if (instituicao == null) {
+        LaunchedEffect(Unit) {
+            delay(3000)
+            if (instituicao == null) {
+                Log.w("PerfilScreen", "Timeout - redirecionando para login")
+                onLogout()
+            }
+        }
+        LoadingScreen(message = "Carregando perfil...")
+        return
+    }
+
+    // ============================================
+    // UI PRINCIPAL
+    // ============================================
     val gradient = Brush.horizontalGradient(
         colors = listOf(
             Color(0xFFFFA000),
@@ -304,47 +325,14 @@ fun PerfilScreen(
         )
     )
 
-    // Se os dados estiverem carregando, exibe um indicador
-    if (isLoadingData.value) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = Color(0xFFFFA000))
-        }
-        return
-    }
-
-    // Se não houver dados logados, mostra loading e aguarda
-    if (instituicao == null) {
-        // Timeout: se após 3 segundos ainda não carregar, redireciona
-        LaunchedEffect(Unit) {
-            kotlinx.coroutines.delay(3000)
-            if (instituicao == null) {
-                Log.w("PerfilScreen", "Timeout aguardando dados da instituição - redirecionando para login")
-                onLogout()
-            }
-        }
-
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CircularProgressIndicator(color = Color(0xFFFFA000))
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("Carregando perfil...", color = Color.Gray)
-            }
-        }
-        return
-    }
-
-    // Dados extraídos da variável de estado
+    // Dados da instituição
     val instituicaoNome = instituicao?.nome ?: "Instituição Não Encontrada"
     val instituicaoEmail = instituicao?.email ?: "email@exemplo.com"
 
     // Snackbar para mostrar mensagens
     if (showSnackbar) {
         LaunchedEffect(showSnackbar) {
-            // Auto-dismiss após 3 segundos
-            kotlinx.coroutines.delay(3000)
+            delay(3000)
             showSnackbar = false
         }
 
@@ -396,215 +384,189 @@ fun PerfilScreen(
             }
         }
 
-        HorizontalDivider(color = Color.LightGray, thickness = 1.5.dp)
+
+
+        Spacer(modifier = Modifier.height(60.dp))
 
         // Conteúdo principal
-        Box(
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
+                .weight(1f),
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
-            // Card branco
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.75f)
-                    .align(Alignment.BottomCenter),
-                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 90.dp)
-                ) {
-                    // Informações do perfil
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        // Nome da Instituição
-                        Text(
-                            instituicaoNome,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Black
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        // Email da Instituição
-                        Text(
-                            instituicaoEmail,
-                            fontSize = 14.sp,
-                            color = Color.Gray
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Stats (FOLLOWING)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    "127",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.Black
-                                )
-                                Text(
-                                    "FOLLOWING",
-                                    fontSize = 12.sp,
-                                    color = Color.Gray
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(32.dp))
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp),
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            // Imagem da Instituição (SEMPRE ESTÁTICA - não muda com upload)
-                            Image(
-                                painter = painterResource(id = R.drawable.instituicao),
-                                contentDescription = "Logo da Instituição",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(70.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                            )
-
-                            Spacer(modifier = Modifier.width(12.dp))
-
-                            // Descrição da Instituição com botão de editar
-                            Box(
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text(
-                                    instituicao?.descricao ?: "Nenhuma descrição disponível. Clique para editar seu perfil.",
-                                    fontSize = 14.sp,
-                                    color = Color.DarkGray,
-                                    lineHeight = 20.sp
-                                )
-
-                                // Botão de editar flutuante
-                                IconButton(
-                                    onClick = onEditDescription,
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .size(24.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Filled.Edit,
-                                        contentDescription = "Editar descrição",
-                                        tint = Color(0xFFFFA000),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(32.dp))
-
-                        // Divisor
-                        HorizontalDivider(
-                            color = Color.LightGray,
-                            thickness = 1.dp,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Spacer(modifier = Modifier.height(24.dp))
-                    }
-                }
-            }
-
-            // 🔽 IMAGEM DE PERFIL CENTRALIZADA - CARREGA DA API 🔽
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-                    .offset(y = 100.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .fillMaxSize()
+                    .padding(24.dp)
             ) {
-                Card(
-                    shape = RoundedCornerShape(70.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                // Informações do perfil
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Box(modifier = Modifier.size(150.dp)) {
-                        // Carrega imagem da URL da API ou mostra imagem padrão
-                        val fotoPerfilUrl = instituicao?.foto_perfil
+                    // Foto de Perfil da Instituição (VEM DA API)
+                    Box(
+                        modifier = Modifier.size(120.dp)
+                    ) {
+                        Card(
+                            shape = CircleShape,
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        ) {
+                            val fotoPerfilUrl = instituicao?.foto_perfil
 
-                        // DEBUG: Log sempre que renderizar
-                        Log.d("PerfilScreen_Render", "Renderizando imagem. URL: $fotoPerfilUrl")
-
-                        if (!fotoPerfilUrl.isNullOrEmpty()) {
-                            Log.d("PerfilScreen_Render", "✅ Carregando AsyncImage com URL: $fotoPerfilUrl")
-                            // Carrega imagem do servidor com cache desabilitado
-                            AsyncImage(
-                                model = ImageRequest.Builder(context)
-                                    .data(fotoPerfilUrl)
-                                    .crossfade(true)
-                                    .diskCachePolicy(CachePolicy.DISABLED)
-                                    .memoryCachePolicy(CachePolicy.DISABLED)
-                                    .build(),
-                                contentDescription = "Imagem de perfil da instituição",
-                                contentScale = ContentScale.Crop,
-                                placeholder = painterResource(id = R.drawable.perfil),
-                                error = painterResource(id = R.drawable.perfil),
-                                modifier = Modifier.fillMaxSize(),
-                                onSuccess = {
-                                    Log.d("PerfilScreen_Render", "✅ Imagem carregada com SUCESSO!")
-                                },
-                                onError = { error ->
-                                    Log.e("PerfilScreen_Render", "❌ ERRO ao carregar imagem: ${error.result.throwable.message}")
-                                }
-                            )
-                        } else {
-                            Log.d("PerfilScreen_Render", "⚠️ URL vazia, mostrando imagem padrão")
-                            // Imagem padrão quando não há foto de perfil
-                            Image(
-                                painter = painterResource(id = R.drawable.perfil),
-                                contentDescription = "Sem foto de perfil",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
+                            if (!fotoPerfilUrl.isNullOrEmpty()) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(context)
+                                        .data(fotoPerfilUrl)
+                                        .crossfade(true)
+                                        .diskCachePolicy(CachePolicy.DISABLED)
+                                        .memoryCachePolicy(CachePolicy.DISABLED)
+                                        .build(),
+                                    contentDescription = "Foto de perfil da instituição",
+                                    contentScale = ContentScale.Crop,
+                                    placeholder = painterResource(id = R.drawable.perfil),
+                                    error = painterResource(id = R.drawable.perfil),
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Image(
+                                    painter = painterResource(id = R.drawable.perfil),
+                                    contentDescription = "Foto de perfil padrão",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                         }
 
-                        // Botão de câmera flutuante para atualizar foto
+                        // Botão de câmera para alterar foto de perfil
                         FloatingActionButton(
-                            onClick = openImagePicker,
+                            onClick = { if (!isLoadingUpdate) imagePickerLauncher.launch("image/*") },
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
-                                .size(45.dp)
-                                .offset(x = (-5).dp, y = (-5).dp),
+                                .size(36.dp)
+                                .offset(x = 4.dp, y = 4.dp),
                             containerColor = Color(0xFFFFA000),
                             contentColor = Color.White,
-                            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
+                            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
                         ) {
                             if (isLoadingUpdate) {
                                 CircularProgressIndicator(
                                     color = Color.White,
-                                    modifier = Modifier.size(24.dp),
+                                    modifier = Modifier.size(18.dp),
                                     strokeWidth = 2.dp
                                 )
                             } else {
                                 Icon(
                                     imageVector = Icons.Default.CameraAlt,
-                                    contentDescription = "Atualizar foto de perfil",
-                                    modifier = Modifier.size(24.dp)
+                                    contentDescription = "Alterar foto de perfil",
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Nome da Instituição
+                    Text(
+                        instituicaoNome,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Email da Instituição
+                    Text(
+                        instituicaoEmail,
+                        fontSize = 14.sp,
+                        color = Color.Gray
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Descrição da Instituição com botão de editar
+                    Box(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            instituicao?.descricao ?: "Nenhuma descrição disponível. Clique no ícone para editar.",
+                            fontSize = 14.sp,
+                            color = Color.DarkGray,
+                            lineHeight = 20.sp,
+                            modifier = Modifier.padding(end = 32.dp)
+                        )
+
+                        // Botão de editar
+                        IconButton(
+                            onClick = onEditDescription,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .size(28.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.Edit,
+                                contentDescription = "Editar descrição",
+                                tint = Color(0xFFFFA000),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Divisor
+                    HorizontalDivider(
+                        color = Color.LightGray,
+                        thickness = 1.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Seção de Publicações (Fotos da Instituição)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Publicações",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
+                        )
+
+                        // Botão Adicionar Publicação
+                        FloatingActionButton(
+                            onClick = { showPublicacaoDialog = true },
+                            modifier = Modifier.size(48.dp),
+                            containerColor = Color(0xFFFFA000),
+                            contentColor = Color.White
+                        ) {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = "Adicionar Publicação",
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Grid de Publicações da API
+                    PublicacoesGrid(
+                        publicacoesState = publicacoesState,
+                        onDeletePublicacao = { publicacaoId ->
+                            instituicao?.let {
+                                publicacaoViewModel.deletarPublicacao(publicacaoId, it.instituicao_id)
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -661,12 +623,357 @@ fun PerfilScreen(
             }
         )
     }
+
+    // Diálogo de criar publicação
+    if (showPublicacaoDialog) {
+        CriarPublicacaoDialog(
+            descricao = publicacaoDescricao,
+            imagemSelecionada = publicacaoImageFile != null,
+            isLoading = isUploadingPublicacao,
+            onDescricaoChange = { publicacaoDescricao = it },
+            onSelecionarImagem = { publicacaoImagePickerLauncher.launch("image/*") },
+            onSalvar = {
+                if (publicacaoDescricao.trim().length >= 30 && publicacaoImageFile != null && instituicao != null) {
+                    isUploadingPublicacao = true
+                    scope.launch {
+                        try {
+                            val accountKey = com.example.Config.AzureConfig.getStorageKey()
+
+                            Log.d("PerfilScreen", "📤 Fazendo upload da imagem da publicação...")
+
+                            val imageUrl = AzureBlobRetrofit.uploadImageToAzure(
+                                publicacaoImageFile!!,
+                                com.example.Config.AzureConfig.STORAGE_ACCOUNT,
+                                accountKey,
+                                com.example.Config.AzureConfig.CONTAINER_PERFIL
+                            )
+
+                            if (imageUrl != null) {
+                                Log.d("PerfilScreen", "✅ Upload concluído: $imageUrl")
+                                Log.d("PerfilScreen", "📝 Criando publicação na API...")
+
+                                publicacaoViewModel.criarPublicacao(
+                                    descricao = publicacaoDescricao,
+                                    imagem = imageUrl,
+                                    instituicaoId = instituicao!!.instituicao_id
+                                )
+
+                                // Limpar e fechar
+                                publicacaoDescricao = ""
+                                publicacaoImageFile = null
+                                showPublicacaoDialog = false
+                            } else {
+                                snackbarMessage = "Erro ao fazer upload da imagem"
+                                showSnackbar = true
+                            }
+                        } catch (e: Exception) {
+                            Log.e("PerfilScreen", "❌ Erro ao criar publicação", e)
+                            snackbarMessage = "Erro: ${e.message}"
+                            showSnackbar = true
+                        } finally {
+                            isUploadingPublicacao = false
+                        }
+                    }
+                }
+            },
+            onDismiss = {
+                if (!isUploadingPublicacao) {
+                    showPublicacaoDialog = false
+                    publicacaoDescricao = ""
+                    publicacaoImageFile = null
+                }
+            }
+        )
+    }
 }
+
+// ============================================
+// COMPONENTES DE PUBLICAÇÕES
+// ============================================
+
+@Composable
+private fun PublicacoesGrid(
+    publicacoesState: PublicacoesState,
+    onDeletePublicacao: (Int) -> Unit
+) {
+    when (publicacoesState) {
+        is PublicacoesState.Loading -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Color(0xFFFFA000))
+            }
+        }
+        is PublicacoesState.Success -> {
+            val publicacoes = publicacoesState.publicacoes
+
+            if (publicacoes.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.CameraAlt,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = Color.LightGray
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Nenhuma publicação ainda",
+                            color = Color.Gray,
+                            fontSize = 14.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Clique no + para adicionar fotos",
+                            color = Color.LightGray,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            } else {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(publicacoes) { publicacao ->
+                        PublicacaoCard(
+                            publicacao = publicacao,
+                            onDelete = { onDeletePublicacao(publicacao.id) }
+                        )
+                    }
+                }
+            }
+        }
+        is PublicacoesState.Error -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    publicacoesState.message,
+                    color = Color.Red,
+                    fontSize = 12.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PublicacaoCard(
+    publicacao: com.example.oportunyfam.model.Publicacao,
+    onDelete: () -> Unit
+) {
+    val context = LocalContext.current
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .width(200.dp)
+            .height(220.dp),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Box {
+            Column {
+                // Imagem
+                if (!publicacao.imagem.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(publicacao.imagem)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Publicação",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp),
+                        contentScale = ContentScale.Crop,
+                        placeholder = painterResource(id = R.drawable.instituicao),
+                        error = painterResource(id = R.drawable.instituicao)
+                    )
+                }
+
+                // Descrição
+                if (!publicacao.descricao.isNullOrEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            publicacao.descricao,
+                            fontSize = 13.sp,
+                            color = Color.DarkGray,
+                            maxLines = 3,
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+            }
+
+            // Botão deletar
+            IconButton(
+                onClick = { showDeleteDialog = true },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .size(32.dp)
+                    .background(Color.White.copy(alpha = 0.8f), CircleShape)
+            ) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Deletar",
+                    tint = Color.Red,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Deletar Publicação") },
+            text = { Text("Deseja realmente deletar esta publicação?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDelete()
+                    showDeleteDialog = false
+                }) {
+                    Text("Deletar", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun CriarPublicacaoDialog(
+    descricao: String,
+    imagemSelecionada: Boolean,
+    isLoading: Boolean,
+    onDescricaoChange: (String) -> Unit,
+    onSelecionarImagem: () -> Unit,
+    onSalvar: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = { if (!isLoading) onDismiss() },
+        title = { Text("Nova Publicação", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = descricao,
+                    onValueChange = onDescricaoChange,
+                    label = { Text("Descrição * (mín. 30 caracteres)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isLoading,
+                    maxLines = 6,
+                    minLines = 4,
+                    placeholder = { Text("Descreva sua publicação em detalhes...") },
+                    isError = descricao.isNotEmpty() && descricao.trim().length < 30,
+                    supportingText = {
+                        Text(
+                            text = "${descricao.trim().length}/30",
+                            color = if (descricao.trim().length >= 30) Color.Gray else Color.Red,
+                            fontSize = 12.sp
+                        )
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = onSelecionarImagem,
+                    enabled = !isLoading,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (imagemSelecionada) Color(0xFF4CAF50) else Color(0xFFFFA000)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        Icons.Default.CameraAlt,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (imagemSelecionada) "Imagem Selecionada ✓" else "Selecionar Imagem *")
+                }
+            }
+        },
+        confirmButton = {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = Color(0xFFFFA000)
+                )
+            } else {
+                TextButton(
+                    onClick = onSalvar,
+                    enabled = descricao.trim().length >= 30 && imagemSelecionada
+                ) {
+                    Text("Publicar", color = Color(0xFFFFA000), fontWeight = FontWeight.Bold)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isLoading
+            ) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+// ============================================
+// COMPONENTE DE LOADING
+// ============================================
+
+@Composable
+private fun LoadingScreen(message: String = "Carregando...") {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            CircularProgressIndicator(color = Color(0xFFFFA000))
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = message,
+                color = Color.Gray,
+                fontSize = 14.sp
+            )
+        }
+    }
+}
+
+
+// ============================================
+// PREVIEW
+// ============================================
 
 @Preview(showSystemUi = true)
 @Composable
 fun PerfilScreenPreview() {
-    PerfilScreen(
-        navController = null
-    )
+    PerfilScreen(navController = null)
 }

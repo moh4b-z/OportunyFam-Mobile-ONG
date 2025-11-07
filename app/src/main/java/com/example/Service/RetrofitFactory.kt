@@ -118,4 +118,11 @@ class RetrofitFactory {
         return retrofitFactory.create(LoginUniversalService::class.java)
     }
 
+    /**
+     * Serviço de Publicações
+     */
+    fun getPublicacaoService(): PublicacaoService {
+        return retrofitFactory.create(PublicacaoService::class.java)
+    }
+
 }

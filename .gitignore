@@ -14,3 +14,9 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Arquivos de configuração com chaves sensíveis
+.env
+*.key
+secrets.properties
+

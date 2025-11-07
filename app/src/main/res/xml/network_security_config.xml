@@ -1,17 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <base-config cleartextTrafficPermitted="true">
+    <!-- Configuração padrão para todos os domínios -->
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
+            <!-- Certificados do sistema -->
             <certificates src="system" />
+            <!-- Certificados do app -->
             <certificates src="user" />
         </trust-anchors>
     </base-config>
 
-    <!-- Permite conexões HTTPS para Azure Storage -->
+    <!-- Configuração específica para Azure Storage -->
     <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">blob.core.windows.net</domain>
         <domain includeSubdomains="true">oportunyfamstorage.blob.core.windows.net</domain>
         <trust-anchors>
             <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+        <!-- Desabilitar pin de certificado para permitir atualizações do Azure -->
+    </domain-config>
+
+    <!-- Configuração para API backend -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">oportunyfam-back-end.onrender.com</domain>
+        <domain includeSubdomains="true">render.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
         </trust-anchors>
     </domain-config>
 </network-security-config>

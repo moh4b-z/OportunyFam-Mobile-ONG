@@ -1,6 +1,7 @@
 package com.example.Service
 
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Response
 import retrofit2.http.Headers
@@ -12,7 +13,12 @@ import retrofit2.http.Body
 import retrofit2.http.Header
 import java.io.File
 import java.io.FileInputStream
+import java.security.cert.X509Certificate
 import java.util.UUID
+import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
+import javax.net.ssl.X509TrustManager
 import kotlin.io.extension
 import kotlin.io.readBytes
 import kotlin.jvm.java
@@ -48,9 +54,39 @@ interface AzureBlobApiService {
 object AzureBlobRetrofit {
     private const val BASE_URL = "https://placeholder.blob.core.windows.net/"
 
+    /**
+     * Cria um OkHttpClient que aceita todos os certificados SSL
+     * ATENÇÃO: Isso é necessário devido a um bug do Android com certificados OCSP do Azure
+     */
+    private fun getUnsafeOkHttpClient(): OkHttpClient {
+        try {
+            // Cria um trust manager que não valida chains de certificado
+            val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
+                override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
+                override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
+                override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+            })
+
+            // Instala o trust manager
+            val sslContext = SSLContext.getInstance("TLS")
+            sslContext.init(null, trustAllCerts, java.security.SecureRandom())
+
+            return OkHttpClient.Builder()
+                .sslSocketFactory(sslContext.socketFactory, trustAllCerts[0] as X509TrustManager)
+                .hostnameVerifier { _, _ -> true }
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .writeTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .build()
+        } catch (e: Exception) {
+            throw RuntimeException(e)
+        }
+    }
+
     private val retrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
+            .client(getUnsafeOkHttpClient())
             .build()
     }
 
