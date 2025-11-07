@@ -174,8 +174,14 @@ fun PerfilScreen(
                     // Em produção, use variáveis de ambiente ou BuildConfig
                     val storageAccount = "oportunyfamstorage"
                     val accountKey = System.getenv("AZURE_STORAGE_KEY")
-                        ?: "CONFIGURE_SUA_CHAVE_AQUI" // ⚠️ Substituir pela chave real
                     val containerName = "imagens-perfil"
+
+                    if (accountKey.isNullOrBlank()) {
+                        Log.e("PerfilScreen", "❌ AZURE_STORAGE_KEY não configurada")
+                        snackbarMessage = "❌ Erro de configuração: chave do Azure não encontrada"
+                        showSnackbar = true
+                        return@launch
+                    }
 
                     Log.d("PerfilScreen", "🔍 Iniciando upload da imagem...")
 
@@ -291,8 +297,14 @@ fun PerfilScreen(
                     try {
                         val storageAccount = "oportunyfamstorage"
                         val accountKey = System.getenv("AZURE_STORAGE_KEY")
-                            ?: "CONFIGURE_SUA_CHAVE_AQUI"
                         val containerName = "imagens-perfil"
+
+                        if (accountKey.isNullOrBlank()) {
+                            Log.e("PerfilScreen", "❌ AZURE_STORAGE_KEY não configurada")
+                            snackbarMessage = "❌ Erro de configuração: chave do Azure não encontrada"
+                            showSnackbar = true
+                            return@launch
+                        }
 
                         Log.d("PerfilScreen", "🔍 Iniciando upload da imagem de publicação...")
 
@@ -973,12 +985,18 @@ fun PerfilScreen(
                     TextButton(
                         onClick = {
                             instituicao?.instituicao_id?.let { idInstituicao ->
-                                publicacaoViewModel.criarPublicacao(
-                                    titulo = publicacaoTitulo,
-                                    descricao = publicacaoDescricao,
-                                    imagem = publicacaoImagemUrl,
-                                    instituicaoId = idInstituicao
-                                )
+                                // Only call if all required fields are present
+                                val imageUrl = publicacaoImagemUrl
+                                if (publicacaoTitulo.length >= 5 && 
+                                    publicacaoDescricao.length >= 10 && 
+                                    imageUrl != null) {
+                                    publicacaoViewModel.criarPublicacao(
+                                        titulo = publicacaoTitulo,
+                                        descricao = publicacaoDescricao,
+                                        imagem = imageUrl,
+                                        instituicaoId = idInstituicao
+                                    )
+                                }
                             }
                         },
                         enabled = publicacaoTitulo.length >= 5 && 

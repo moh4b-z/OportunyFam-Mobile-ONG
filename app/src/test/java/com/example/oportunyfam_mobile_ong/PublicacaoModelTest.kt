@@ -100,11 +100,11 @@ class PublicacaoModelTest {
         val errorResponse = ErrorResponse(
             status = false,
             status_code = 400,
-            messagem = "Campo obrigatorio não colocado, ou ultrapassagem de cariteres"
+            messagem = "Campo obrigatório não colocado, ou ultrapassagem de caracteres"
         )
 
         assertFalse(errorResponse.status)
         assertEquals(400, errorResponse.status_code)
-        assertTrue(errorResponse.messagem.contains("obrigatorio"))
+        assertTrue(errorResponse.messagem.contains("obrigatório"))
     }
 }

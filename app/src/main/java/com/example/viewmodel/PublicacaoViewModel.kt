@@ -73,7 +73,7 @@ class PublicacaoViewModel : ViewModel() {
     }
 
     // Criar publicação - versão com parâmetros individuais
-    fun criarPublicacao(titulo: String, descricao: String?, imagem: String?, instituicaoId: Int) {
+    fun criarPublicacao(titulo: String, descricao: String, imagem: String, instituicaoId: Int) {
         viewModelScope.launch {
             _criarPublicacaoState.value = CriarPublicacaoState.Loading
 
@@ -87,16 +87,16 @@ class PublicacaoViewModel : ViewModel() {
             }
 
             // Validação da descrição
-            if (descricao.isNullOrBlank() || descricao.length < 10) {
+            if (descricao.isBlank() || descricao.length < 10) {
                 _criarPublicacaoState.value = CriarPublicacaoState.Error(
                     "A descrição deve ter no mínimo 10 caracteres"
                 )
-                Log.w("PublicacaoViewModel", "⚠️ Validação falhou: descrição muito curta (${descricao?.length ?: 0} chars)")
+                Log.w("PublicacaoViewModel", "⚠️ Validação falhou: descrição muito curta (${descricao.length} chars)")
                 return@launch
             }
 
             // Validação da imagem
-            if (imagem.isNullOrBlank()) {
+            if (imagem.isBlank()) {
                 _criarPublicacaoState.value = CriarPublicacaoState.Error(
                     "A imagem é obrigatória"
                 )
