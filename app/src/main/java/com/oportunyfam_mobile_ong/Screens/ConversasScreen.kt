@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.oportunyfam_mobile_ong.Components.BarraTarefas
-import com.example.oportunyfam_mobile_ong.R
+import com.oportunyfam_mobile_ong.R
 import com.oportunyfam_mobile_ong.viewmodel.ChatViewModel
 import com.oportunyfam_mobile_ong.viewmodel.ConversaUI
 

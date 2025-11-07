@@ -43,7 +43,7 @@ import com.oportunyfam_mobile_ong.MainActivity.NavRoutes
 import com.oportunyfam_mobile_ong.Service.AzureBlobRetrofit
 import com.oportunyfam_mobile_ong.data.InstituicaoAuthDataStore
 import com.oportunyfam_mobile_ong.model.getRealPathFromURI
-import com.oportunyfam_mobile_ong.oportunyfam.Service.RetrofitFactory
+import com.oportunyfam_mobile_ong.Service.RetrofitFactory
 import com.oportunyfam_mobile_ong.viewmodel.PublicacaoViewModel
 import com.oportunyfam_mobile_ong.viewmodel.PublicacoesState
 import com.oportunyfam_mobile_ong.viewmodel.CriarPublicacaoState

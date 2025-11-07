@@ -1,4 +1,4 @@
-package com.oportunyfam_mobile_ong.oportunyfam.model
+package com.oportunyfam_mobile_ong.model
 
 // Response para atividade simples (após cadastro)
 data class AtividadeCriadaResponse(

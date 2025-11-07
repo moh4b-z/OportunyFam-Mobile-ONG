@@ -1,4 +1,4 @@
-package com.oportunyfam_mobile_ong.oportunyfam.Service
+package com.oportunyfam_mobile_ong.Service
 
 import com.oportunyfam_mobile.model.InstituicaoAtualizarRequest
 import com.oportunyfam_mobile.model.InstituicaoRequest

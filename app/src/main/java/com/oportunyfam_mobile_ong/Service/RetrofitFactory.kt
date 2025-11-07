@@ -1,10 +1,5 @@
-package com.oportunyfam_mobile_ong.oportunyfam.Service
+package com.oportunyfam_mobile_ong.Service
 
-import com.oportunyfam_mobile_ong.Service.EnderecoService
-import com.oportunyfam_mobile_ong.Service.LoginUniversalService
-import com.oportunyfam_mobile_ong.Service.TipoInstituicaoService
-import com.oportunyfam_mobile_ong.oportunyfam.model.ResultData
-import com.oportunyfam_mobile_ong.oportunyfam.model.ResultDataDeserializer
 import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -34,7 +29,6 @@ class RetrofitFactory {
      */
     private val gson = GsonBuilder()
         .setLenient()
-        .registerTypeAdapter(ResultData::class.java, ResultDataDeserializer())
         .create()
 
     /**
@@ -123,6 +117,20 @@ class RetrofitFactory {
      */
     fun getPublicacaoService(): PublicacaoService {
         return retrofitFactory.create(PublicacaoService::class.java)
+    }
+
+    /**
+     * Serviço de Mensagens
+     */
+    fun getMensagemService(): MensagemService {
+        return retrofitFactory.create(MensagemService::class.java)
+    }
+
+    /**
+     * Serviço de Conversas
+     */
+    fun getConversaService(): ConversaService {
+        return retrofitFactory.create(ConversaService::class.java)
     }
 
 }

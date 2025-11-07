@@ -1,7 +1,7 @@
-package com.oportunyfam_mobile_ong.oportunyfam.Service
+package com.oportunyfam_mobile_ong.Service
 
-import com.oportunyfam_mobile_ong.oportunyfam.model.LoginRequest
-import com.oportunyfam_mobile_ong.oportunyfam.model.LoginResponse
+import com.oportunyfam_mobile_ong.model.LoginRequest
+import com.oportunyfam_mobile_ong.model.LoginResponse
 import retrofit2.Call
 import retrofit2.http.Body
 import retrofit2.http.Headers

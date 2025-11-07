@@ -1,4 +1,4 @@
-package com.oportunyfam_mobile_ong.oportunyfam.Telas
+package com.oportunyfam_mobile_ong.Screens
 
 import android.util.Log
 import androidx.compose.foundation.Image

@@ -1,4 +1,4 @@
-package com.oportunyfam_mobile_ong.oportunyfam.model
+package com.oportunyfam_mobile_ong.model
 
 /**
  * AulaCriadaResponse - Resposta da criação/atualização de uma aula

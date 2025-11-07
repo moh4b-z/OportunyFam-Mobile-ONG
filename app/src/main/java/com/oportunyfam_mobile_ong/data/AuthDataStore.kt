@@ -1,10 +1,10 @@
-package com.oportunyfam_mobile_ong.oportunyfam_mobile_ong.data
+package com.oportunyfam_mobile_ong.data
 
 import android.content.Context
 import androidx.room.*
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
-import com.oportunyfam_mobile_ong.oportunyfam_mobile_ong.model.Instituicao
+import com.oportunyfam_mobile_ong.model.Instituicao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

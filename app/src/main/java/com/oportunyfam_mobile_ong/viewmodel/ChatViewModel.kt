@@ -6,10 +6,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.oportunyfam_mobile_ong.Service.FirebaseMensagemService
 import com.oportunyfam_mobile_ong.Service.MensagemService
-import com.oportunyfam_mobile_ong.model.Mensagem
-import com.oportunyfam_mobile_ong.model.MensagemRequest
 import com.oportunyfam_mobile_ong.Service.InstituicaoService
 import com.oportunyfam_mobile_ong.Service.RetrofitFactory
+import com.oportunyfam_mobile_ong.model.Mensagem
+import com.oportunyfam_mobile_ong.model.MensagemRequest
 import com.oportunyfam_mobile_ong.data.InstituicaoAuthDataStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -97,7 +97,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                             nome = conversa.outro_participante.nome,
                             ultimaMensagem = conversa.ultima_mensagem?.descricao ?: "Sem mensagens",
                             hora = formatarHora(conversa.ultima_mensagem?.data_envio),
-                            imagem = com.example.oportunyfam_mobile_ong.R.drawable.perfil,
+                            imagem = com.oportunyfam_mobile_ong.R.drawable.perfil,
                             online = false,
                             mensagensNaoLidas = 0,
                             pessoaId = conversa.outro_participante.id

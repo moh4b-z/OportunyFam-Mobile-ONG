@@ -1,5 +1,7 @@
 package com.oportunyfam_mobile.model
 
+import com.oportunyfam_mobile_ong.model.ConversaInstituicao
+
 /**
  * InstituicaoResponse - Resposta padrão da API para operações com instituição
  */
@@ -28,7 +30,7 @@ data class Instituicao(
     val endereco: Endereco?,
     val tipos_instituicao: List<TipoInstituicao> = emptyList(),
     val publicacoes: List<Any> = emptyList(),
-    val conversas: List<Any> = emptyList(),
+    val conversas: List<ConversaInstituicao> = emptyList(),
     val atividades: List<Any> = emptyList(),
     val logo: String? = null,
     val telefone: String? = null

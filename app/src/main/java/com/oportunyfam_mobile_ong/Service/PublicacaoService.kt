@@ -1,6 +1,6 @@
-package com.oportunyfam_mobile_ong.oportunyfam.Service
+package com.oportunyfam_mobile_ong.Service
 
-import com.oportunyfam_mobile_ong.oportunyfam.model.*
+import com.oportunyfam_mobile_ong.model.*
 import retrofit2.Call
 import retrofit2.http.*
 

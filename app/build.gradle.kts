@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "com.oportunyfam_mobile_ong.oportunyfam_mobile_ong"
+    namespace = "com.oportunyfam_mobile_ong"
     compileSdk = 35
 
     defaultConfig {

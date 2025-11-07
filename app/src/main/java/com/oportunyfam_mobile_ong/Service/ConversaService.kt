@@ -19,6 +19,10 @@ interface ConversaService {
     suspend fun listarTodas(): Response<ConversasResponse>
 
     // GET - Buscar conversa por ID
+    @GET("conversas/pessoa/{id}")
+    suspend fun buscarPorIdPessoa(@Path("id") id: Int): Response<ConversaResponse>
+
+    // GET - Buscar conversa por ID
     @GET("conversas/{id}")
     suspend fun buscarPorId(@Path("id") id: Int): Response<ConversaResponse>
 
