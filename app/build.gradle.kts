@@ -4,14 +4,15 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     id("com.google.devtools.ksp")
     alias(libs.plugins.androidx.room)
+    id("com.google.gms.google-services")
 }
 
 android {
-    namespace = "com.example.oportunyfam_mobile_ong"
+    namespace = "com.oportunyfam_mobile_ong.oportunyfam_mobile_ong"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.oportunyfam_mobile_ong"
+        applicationId = "com.oportunyfam_mobile_ong"
         minSdk = 24
         targetSdk = 35
         versionCode = 1
@@ -102,6 +103,24 @@ dependencies {
     implementation("com.google.maps.android:maps-compose:2.11.4")
     implementation("org.osmdroid:osmdroid-android:6.1.18")
     implementation("com.google.android.gms:play-services-location:21.3.0")
+
+    // ----------------------------
+    // 🔥 Firebase
+    // ----------------------------
+    // Import the Firebase BoM (gerencia todas as versões)
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+
+    // Firebase Analytics (sem versão - gerenciado pelo BoM)
+    implementation("com.google.firebase:firebase-analytics-ktx")
+
+    // Firebase Realtime Database (sem versão - gerenciado pelo BoM)
+    implementation("com.google.firebase:firebase-database-ktx")
+
+    // Firebase Coroutines (para usar com Kotlin Coroutines)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+
 }
 
 // ----------------------------

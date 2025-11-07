@@ -115,11 +115,11 @@ class OportunyFamApplication : Application(), ImageLoaderFactory {
 **Arquivo:** `app/src/main/AndroidManifest.xml`
 
 Adicionado:
+
 ```xml
-<application
-    android:name="com.example.OportunyFamApplication"
-    android:networkSecurityConfig="@xml/network_security_config"
-    ...>
+
+<application android:name="com.oportunyfam_mobile_ong.OportunyFamApplication"
+    android:networkSecurityConfig="@xml/network_security_config"...>
 ```
 
 ---
