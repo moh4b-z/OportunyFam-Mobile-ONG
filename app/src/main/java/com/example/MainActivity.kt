@@ -7,10 +7,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.Telas.ConversasScreen
+import com.example.Screens.ConversasScreen
 import com.example.oportunyfam.SplashScreen
-import com.example.Telas.PerfilScreen
-import com.example.Telas.RegistroScreen
+import com.example.Screens.PerfilScreen
+import com.example.Screens.RegistroScreen
 import com.example.oportunyfam.Telas.AtividadesScreen
 import com.example.oportunyfam.Telas.HomeScreen
 import com.example.theme.OportunyFamMobileONGTheme

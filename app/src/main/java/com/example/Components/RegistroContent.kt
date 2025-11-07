@@ -21,8 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.oportunyfam.Service.InstituicaoService
-import com.example.Telas.PrimaryColor
-import com.example.Telas.RegistroOutlinedTextField
+import com.example.Screens.PrimaryColor
+import com.example.Screens.RegistroOutlinedTextField
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import retrofit2.Response

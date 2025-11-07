@@ -13,8 +13,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.model.TipoInstituicao
-import com.example.Telas.PrimaryColor
-import com.example.Telas.RegistroOutlinedTextField
+import com.example.Screens.PrimaryColor
+import com.example.Screens.RegistroOutlinedTextField
 import com.example.oportunyfam_mobile_ong.R
 import com.example.oportunyfam.Service.RetrofitFactory
 import kotlinx.coroutines.launch

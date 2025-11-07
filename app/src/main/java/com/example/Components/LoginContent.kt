@@ -22,8 +22,8 @@ import com.example.oportunyfam.model.LoginRequest
 import com.example.oportunyfam.model.LoginResponse
 import com.example.oportunyfam.model.ResultData
 import com.example.oportunyfam_mobile_ong.R
-import com.example.Telas.PrimaryColor
-import com.example.Telas.RegistroOutlinedTextField
+import com.example.Screens.PrimaryColor
+import com.example.Screens.RegistroOutlinedTextField
 import com.oportunyfam_mobile.model.Instituicao
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch

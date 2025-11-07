@@ -1,4 +1,4 @@
-package com.example.Telas
+package com.example.Screens
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
