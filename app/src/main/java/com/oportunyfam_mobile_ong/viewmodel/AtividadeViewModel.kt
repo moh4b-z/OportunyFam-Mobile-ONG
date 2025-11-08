@@ -3,9 +3,9 @@ package com.oportunyfam_mobile_ong.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.oportunyfam_mobile_ong.oportunyfam.Service.RetrofitFactory
-import com.oportunyfam_mobile_ong.oportunyfam.model.AtividadeResponse
-import com.oportunyfam_mobile_ong.oportunyfam.model.AtividadesListResponse
+import com.oportunyfam_mobile_ong.Service.RetrofitFactory
+import com.oportunyfam_mobile_ong.model.AtividadeResponse
+import com.oportunyfam_mobile_ong.model.AtividadesListResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

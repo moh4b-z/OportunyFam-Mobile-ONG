@@ -1,4 +1,4 @@
-package com.oportunyfam_mobile_ong.oportunyfam.model
+package com.oportunyfam_mobile_ong.model
 
 data class OSMResultado(
     val id: Long, // ID do OSM

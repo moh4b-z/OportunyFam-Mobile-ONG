@@ -1,6 +1,4 @@
-package com.oportunyfam_mobile.model
-
-import com.oportunyfam_mobile_ong.model.ConversaInstituicao
+package com.oportunyfam_mobile_ong.model
 
 /**
  * InstituicaoResponse - Resposta padrão da API para operações com instituição
@@ -50,14 +48,6 @@ data class Endereco(
     val longitude: Double? = 0.0,
     val logradouro: String,
     val complemento: String?
-)
-
-/**
- * TipoInstituicao - Tipo de instituição (ONG, Escola, etc.)
- */
-data class TipoInstituicao(
-    val id: Int,
-    val nome: String
 )
 
 /**

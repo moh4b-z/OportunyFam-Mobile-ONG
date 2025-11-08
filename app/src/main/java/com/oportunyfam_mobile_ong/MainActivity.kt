@@ -8,11 +8,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.oportunyfam_mobile_ong.Screens.ConversasScreen
-import com.oportunyfam_mobile_ong.oportunyfam.SplashScreen
+import com.oportunyfam_mobile_ong.Screens.SplashScreen
 import com.oportunyfam_mobile_ong.Screens.PerfilScreen
 import com.oportunyfam_mobile_ong.Screens.RegistroScreen
-import com.oportunyfam_mobile_ong.oportunyfam.Telas.AtividadesScreen
-import com.oportunyfam_mobile_ong.oportunyfam.Telas.HomeScreen
+import com.oportunyfam_mobile_ong.Screens.AtividadesScreen
+import com.oportunyfam_mobile_ong.Screens.HomeScreen
 import com.oportunyfam_mobile_ong.theme.OportunyFamMobileONGTheme
 
 /**

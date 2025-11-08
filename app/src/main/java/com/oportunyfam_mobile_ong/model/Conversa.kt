@@ -29,6 +29,17 @@ data class ConversasResponse(
     val conversas: List<Conversa>?
 )
 
+/**
+ * Resposta do endpoint /conversas/pessoa/:id
+ * Retorna conversas formatadas com informações do outro participante
+ */
+data class ConversasPessoaResponse(
+    val status: Boolean,
+    val status_code: Int,
+    val messagem: String,
+    val conversas: List<ConversaInstituicao>?
+)
+
 data class ConversaRequest(
     val participantes: List<Int>
 )

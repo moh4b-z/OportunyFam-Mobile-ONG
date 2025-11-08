@@ -1,4 +1,4 @@
-package com.oportunyfam_mobile_ong.oportunyfam.model
+package com.oportunyfam_mobile_ong.model
 
 // Request para criar/atualizar atividade
 data class AtividadeRequest(

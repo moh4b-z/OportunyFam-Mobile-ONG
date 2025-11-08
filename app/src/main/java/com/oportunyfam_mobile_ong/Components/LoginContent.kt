@@ -18,15 +18,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.oportunyfam_mobile_ong.Service.LoginUniversalService
-import com.oportunyfam_mobile_ong.oportunyfam.model.LoginRequest
-import com.oportunyfam_mobile_ong.oportunyfam.model.LoginResponse
-import com.oportunyfam_mobile_ong.oportunyfam.model.ResultData
+import com.oportunyfam_mobile_ong.model.LoginRequest
+import com.oportunyfam_mobile_ong.model.LoginResponse
+import com.oportunyfam_mobile_ong.model.ResultData
 import com.oportunyfam_mobile_ong.Screens.PrimaryColor
 import com.oportunyfam_mobile_ong.Screens.RegistroOutlinedTextField
-import com.oportunyfam_mobile.model.Instituicao
+import com.oportunyfam_mobile_ong.model.Instituicao
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import retrofit2.Response
+import com.oportunyfam_mobile_ong.R
 
 @Composable
 fun LoginContent(

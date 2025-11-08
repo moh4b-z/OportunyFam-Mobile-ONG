@@ -1,8 +1,8 @@
 package com.oportunyfam_mobile_ong.Service
 
-import com.oportunyfam_mobile.model.InstituicaoAtualizarRequest
-import com.oportunyfam_mobile.model.InstituicaoRequest
-import com.oportunyfam_mobile.model.InstituicaoResponse
+import com.oportunyfam_mobile_ong.model.InstituicaoAtualizarRequest
+import com.oportunyfam_mobile_ong.model.InstituicaoRequest
+import com.oportunyfam_mobile_ong.model.InstituicaoResponse
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.http.*

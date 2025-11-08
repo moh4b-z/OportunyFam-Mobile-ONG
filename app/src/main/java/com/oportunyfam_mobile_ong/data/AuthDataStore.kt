@@ -5,6 +5,7 @@ import androidx.room.*
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import com.oportunyfam_mobile_ong.model.Instituicao
+import com.oportunyfam_mobile_ong.model.ConversaInstituicao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -23,6 +24,19 @@ data class InstituicaoAuthEntity(
     @ColumnInfo(name = "instituicao_json")
     val instituicaoJson: String
     // Não precisamos de user_type, pois só há um tipo (Instituicao)
+)
+
+/**
+ * Entidade para armazenar cache de conversas
+ */
+@Entity(tableName = "conversas_cache")
+data class ConversasCacheEntity(
+    @PrimaryKey(autoGenerate = false)
+    val pessoaId: Int,
+    @ColumnInfo(name = "conversas_json")
+    val conversasJson: String,
+    @ColumnInfo(name = "ultima_atualizacao")
+    val ultimaAtualizacao: Long = System.currentTimeMillis()
 )
 
 // =================================================================
@@ -51,13 +65,45 @@ interface InstituicaoAuthDao {
     suspend fun clearAuth()
 }
 
+@Dao
+interface ConversasCacheDao {
+    /**
+     * Insere ou substitui o cache de conversas para uma pessoa
+     */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertConversasCache(entity: ConversasCacheEntity)
+
+    /**
+     * Busca o cache de conversas de uma pessoa específica
+     */
+    @Query("SELECT * FROM conversas_cache WHERE pessoaId = :pessoaId")
+    suspend fun getConversasCache(pessoaId: Int): ConversasCacheEntity?
+
+    /**
+     * Limpa o cache de conversas de uma pessoa
+     */
+    @Query("DELETE FROM conversas_cache WHERE pessoaId = :pessoaId")
+    suspend fun clearConversasCache(pessoaId: Int)
+
+    /**
+     * Limpa todo o cache de conversas
+     */
+    @Query("DELETE FROM conversas_cache")
+    suspend fun clearAllCache()
+}
+
 // =================================================================
 // 3. DATABASE ROOM
 // =================================================================
 
-@Database(entities = [InstituicaoAuthEntity::class], version = 1, exportSchema = false)
+@Database(
+    entities = [InstituicaoAuthEntity::class, ConversasCacheEntity::class],
+    version = 2,
+    exportSchema = false
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun instituicaoAuthDao(): InstituicaoAuthDao
+    abstract fun conversasCacheDao(): ConversasCacheDao
 
     companion object {
         @Volatile
@@ -71,7 +117,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     DATABASE_NAME
-                ).build()
+                )
+                    .fallbackToDestructiveMigration() // Permite recriar DB em mudanças de versão
+                    .build()
                 INSTANCE = instance
                 instance
             }
@@ -91,6 +139,7 @@ class InstituicaoAuthDataStore(context: Context) {
 
     // Inicializa o DAO através da instância única do banco de dados
     private val authDao = AppDatabase.getDatabase(context).instituicaoAuthDao()
+    private val conversasDao = AppDatabase.getDatabase(context).conversasCacheDao()
     private val gson = Gson()
 
     /**
@@ -138,5 +187,49 @@ class InstituicaoAuthDataStore(context: Context) {
      */
     suspend fun logout() = withContext(Dispatchers.IO) {
         authDao.clearAuth()
+    }
+
+    /**
+     * Salva o cache de conversas para uma pessoa.
+     */
+    suspend fun saveConversasCache(pessoaId: Int, conversas: List<ConversaInstituicao>) = withContext(Dispatchers.IO) {
+        val json = gson.toJson(conversas)
+        val entity = ConversasCacheEntity(
+            pessoaId = pessoaId,
+            conversasJson = json
+        )
+        conversasDao.insertConversasCache(entity)
+    }
+
+    /**
+     * Carrega o cache de conversas para uma pessoa.
+     */
+    suspend fun loadConversasCache(pessoaId: Int): List<ConversaInstituicao>? = withContext(Dispatchers.IO) {
+        val cacheEntity = conversasDao.getConversasCache(pessoaId) ?: return@withContext null
+        val json = cacheEntity.conversasJson
+
+        return@withContext try {
+            // Deserializa o JSON para a lista de ConversaInstituicao
+            gson.fromJson(json, Array<ConversaInstituicao>::class.java)?.toList()
+        } catch (e: JsonSyntaxException) {
+            e.printStackTrace()
+            // Em caso de erro, limpa o cache corrompido
+            conversasDao.clearConversasCache(pessoaId)
+            null
+        }
+    }
+
+    /**
+     * Limpa o cache de conversas de uma pessoa.
+     */
+    suspend fun clearConversasCache(pessoaId: Int) = withContext(Dispatchers.IO) {
+        conversasDao.clearConversasCache(pessoaId)
+    }
+
+    /**
+     * Limpa todo o cache de conversas.
+     */
+    suspend fun clearAllConversasCache() = withContext(Dispatchers.IO) {
+        conversasDao.clearAllCache()
     }
 }

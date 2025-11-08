@@ -1,4 +1,4 @@
-package com.oportunyfam_mobile_ong.oportunyfam.Telas
+package com.oportunyfam_mobile_ong.Screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -30,12 +30,13 @@ import com.oportunyfam_mobile_ong.Components.BarraTarefas
 import com.oportunyfam_mobile_ong.Components.CardAviso
 import com.oportunyfam_mobile_ong.MainActivity.NavRoutes
 import com.oportunyfam_mobile_ong.model.CriancaRaw
-import com.oportunyfam_mobile_ong.oportunyfam.Service.RetrofitFactory
+import com.oportunyfam_mobile_ong.Service.RetrofitFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import com.oportunyfam_mobile_ong.R
 
 /**
  * HomeScreen - Tela principal do aplicativo

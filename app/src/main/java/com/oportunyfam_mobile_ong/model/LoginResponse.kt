@@ -3,7 +3,6 @@ package com.oportunyfam_mobile_ong.model
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
-import com.oportunyfam_mobile.model.Instituicao
 import com.oportunyfam_mobile.model.Usuario
 import java.lang.reflect.Type
 

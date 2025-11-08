@@ -6,7 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.oportunyfam_mobile_ong.Service.FirebaseMensagemService
 import com.oportunyfam_mobile_ong.Service.MensagemService
-import com.oportunyfam_mobile_ong.Service.InstituicaoService
+import com.oportunyfam_mobile_ong.Service.ConversaService
 import com.oportunyfam_mobile_ong.Service.RetrofitFactory
 import com.oportunyfam_mobile_ong.model.Mensagem
 import com.oportunyfam_mobile_ong.model.MensagemRequest
@@ -28,7 +28,7 @@ data class ConversaUI(
 )
 
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
-    private val instituicaoService: InstituicaoService = RetrofitFactory().getInstituicaoService()
+    private val conversaService: ConversaService = RetrofitFactory().getConversaService()
     private val mensagemService: MensagemService = RetrofitFactory().getMensagemService()
     private val firebaseMensagemService: FirebaseMensagemService = FirebaseMensagemService()
     private val authDataStore = InstituicaoAuthDataStore(application)
@@ -45,24 +45,46 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    // ID da instituição logada (carregado do AuthDataStore)
-    private val _instituicaoId = MutableStateFlow<Int?>(null)
-    val instituicaoId: StateFlow<Int?> = _instituicaoId.asStateFlow()
+    // ID da pessoa logada (pessoa_id da instituição)
+    private val _pessoaId = MutableStateFlow<Int?>(null)
+    val pessoaId: StateFlow<Int?> = _pessoaId.asStateFlow()
 
     // Flag para controlar se já carregou conversas
     private var conversasCarregadas = false
 
     init {
-        // Carrega o ID da instituição ao inicializar o ViewModel
+        // Carrega o ID da pessoa ao inicializar o ViewModel
         viewModelScope.launch {
             val instituicao = authDataStore.loadInstituicao()
-            _instituicaoId.value = instituicao?.instituicao_id
-            Log.d("ChatViewModel", "Instituição logada: ID=${instituicao?.instituicao_id}, Nome=${instituicao?.nome}")
+            _pessoaId.value = instituicao?.pessoa_id
+            Log.d("ChatViewModel", "Pessoa logada: ID=${instituicao?.pessoa_id}, Nome=${instituicao?.nome}")
+
+            // Carrega conversas do cache offline primeiro (se existir)
+            instituicao?.pessoa_id?.let { id ->
+                val conversasCache = authDataStore.loadConversasCache(id)
+                if (!conversasCache.isNullOrEmpty()) {
+                    _conversas.value = conversasCache.map { conversa ->
+                        ConversaUI(
+                            id = conversa.id_conversa,
+                            nome = conversa.outro_participante.nome,
+                            ultimaMensagem = conversa.ultima_mensagem?.descricao ?: "Sem mensagens",
+                            hora = formatarHora(conversa.ultima_mensagem?.data_envio),
+                            imagem = com.oportunyfam_mobile_ong.R.drawable.perfil,
+                            online = false,
+                            mensagensNaoLidas = 0,
+                            pessoaId = conversa.outro_participante.id
+                        )
+                    }
+                    Log.d("ChatViewModel", "✅ Conversas carregadas do CACHE: ${_conversas.value.size}")
+                }
+            }
         }
     }
 
     /**
-     * Carrega conversas apenas na primeira vez que entra na tela
+     * Carrega conversas da API usando o endpoint /conversas/pessoa/:id
+     * Com cache offline: primeiro carrega do cache, depois atualiza da API
+     * Se falhar (sem internet), mantém o cache
      */
     fun carregarConversas(forcarRecarregar: Boolean = false) {
         if (conversasCarregadas && !forcarRecarregar) {
@@ -73,24 +95,24 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val instId = _instituicaoId.value
-                if (instId == null) {
+                val pessoaId = _pessoaId.value
+                if (pessoaId == null) {
                     _errorMessage.value = "Usuário não está logado"
-                    Log.e("ChatViewModel", "Instituição não está logada")
+                    Log.e("ChatViewModel", "Pessoa não está logada")
                     _isLoading.value = false
                     return@launch
                 }
 
-                Log.d("ChatViewModel", "Carregando conversas para instituição ID=$instId")
+                Log.d("ChatViewModel", "🔄 Carregando conversas da API para pessoa ID=$pessoaId")
 
                 val response = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    instituicaoService.buscarPorId(instId).execute()
+                    conversaService.buscarPorIdPessoa(pessoaId)
                 }
 
                 if (response.isSuccessful) {
-                    val instituicao = response.body()?.instituicao
-                    val conversasInstituicao = instituicao?.conversas ?: emptyList()
+                    val conversasInstituicao = response.body()?.conversas ?: emptyList()
 
+                    // Atualiza as conversas na UI
                     _conversas.value = conversasInstituicao.map { conversa ->
                         ConversaUI(
                             id = conversa.id_conversa,
@@ -103,15 +125,25 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                             pessoaId = conversa.outro_participante.id
                         )
                     }
+
+                    // Salva no cache para uso offline
+                    authDataStore.saveConversasCache(pessoaId, conversasInstituicao)
+
                     conversasCarregadas = true
-                    Log.d("ChatViewModel", "✅ Conversas carregadas: ${_conversas.value.size}")
+                    Log.d("ChatViewModel", "✅ Conversas carregadas da API: ${_conversas.value.size}")
                 } else {
                     _errorMessage.value = "Erro ao carregar conversas: ${response.message()}"
-                    Log.e("ChatViewModel", "Erro: ${response.errorBody()?.string()}")
+                    Log.e("ChatViewModel", "❌ Erro API: ${response.errorBody()?.string()}")
+
+                    // Se falhar, mantém o cache existente (já carregado no init)
+                    Log.d("ChatViewModel", "📦 Mantendo conversas do cache offline")
                 }
             } catch (e: Exception) {
-                _errorMessage.value = "Erro ao conectar: ${e.message}"
-                Log.e("ChatViewModel", "Erro ao carregar conversas", e)
+                _errorMessage.value = "Sem conexão. Mostrando conversas salvas."
+                Log.e("ChatViewModel", "❌ Erro ao conectar: ${e.message}", e)
+
+                // Se falhar, mantém o cache existente (já carregado no init)
+                Log.d("ChatViewModel", "📦 Mantendo conversas do cache offline")
             } finally {
                 _isLoading.value = false
             }

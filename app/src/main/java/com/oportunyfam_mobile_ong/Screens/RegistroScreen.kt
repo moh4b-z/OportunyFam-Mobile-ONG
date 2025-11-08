@@ -26,13 +26,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.oportunyfam_mobile_ong.MainActivity.NavRoutes
-import com.oportunyfam_mobile_ong.oportunyfam.Service.RetrofitFactory
+import com.oportunyfam_mobile_ong.Service.RetrofitFactory
 import androidx.compose.ui.text.input.VisualTransformation
 import com.oportunyfam_mobile_ong.Components.LoginContent
 import com.oportunyfam_mobile_ong.Components.RegistroContent
 import com.oportunyfam_mobile_ong.data.InstituicaoAuthDataStore
-import com.oportunyfam_mobile.model.Instituicao
+import com.oportunyfam_mobile_ong.model.Instituicao
 import kotlinx.coroutines.launch
+import com.oportunyfam_mobile_ong.R
 
 val PrimaryColor = Color(0xFFFFA500)
 val BackgroundGray = Color(0xFFE0E0E0)

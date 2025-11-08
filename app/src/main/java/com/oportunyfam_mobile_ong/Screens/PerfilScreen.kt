@@ -47,10 +47,12 @@ import com.oportunyfam_mobile_ong.Service.RetrofitFactory
 import com.oportunyfam_mobile_ong.viewmodel.PublicacaoViewModel
 import com.oportunyfam_mobile_ong.viewmodel.PublicacoesState
 import com.oportunyfam_mobile_ong.viewmodel.CriarPublicacaoState
-import com.oportunyfam_mobile.model.InstituicaoAtualizarRequest
+import com.oportunyfam_mobile_ong.model.InstituicaoAtualizarRequest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
+import com.oportunyfam_mobile_ong.R
+import com.oportunyfam_mobile_ong.model.Instituicao
 
 // ============================================
 // SCREEN PRINCIPAL
@@ -66,8 +68,15 @@ fun PerfilScreen(navController: NavHostController?) {
     val context = LocalContext.current
     val instituicaoAuthDataStore = remember { InstituicaoAuthDataStore(context) }
     val scope = rememberCoroutineScope()
+    var instituicaoId by remember { mutableStateOf<Int?>(null) }
+    var instituicao by remember { mutableStateOf<Instituicao?>(null) }
 
-    val instituicao by instituicaoAuthDataStore.instituicaoStateFlow().collectAsState(initial = null)
+    // Carregar instituição logada
+    LaunchedEffect(Unit) {
+        instituicao = instituicaoAuthDataStore.loadInstituicao()
+        instituicaoId = instituicao?.instituicao_id
+        Log.d("PerfilScreen", "Instituição carregada: ID=$instituicaoId, Nome=${instituicao?.nome}")
+    }
 
     // ViewModel de Publicações
     val publicacaoViewModel: PublicacaoViewModel = viewModel()
@@ -768,7 +777,7 @@ private fun PublicacoesGrid(
 
 @Composable
 private fun PublicacaoCard(
-    publicacao: com.oportunyfam_mobile_ong.oportunyfam.model.Publicacao,
+    publicacao: com.oportunyfam_mobile_ong.model.Publicacao,
     onDelete: () -> Unit
 ) {
     val context = LocalContext.current
@@ -963,11 +972,6 @@ private fun LoadingScreen(message: String = "Carregando...") {
         }
     }
 }
-
-
-// ============================================
-// PREVIEW
-// ============================================
 
 @Preview(showSystemUi = true)
 @Composable

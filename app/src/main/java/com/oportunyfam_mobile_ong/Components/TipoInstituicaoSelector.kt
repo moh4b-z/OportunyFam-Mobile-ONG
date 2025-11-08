@@ -15,13 +15,14 @@ import androidx.compose.ui.unit.dp
 import com.oportunyfam_mobile_ong.model.TipoInstituicao
 import com.oportunyfam_mobile_ong.Screens.PrimaryColor
 import com.oportunyfam_mobile_ong.Screens.RegistroOutlinedTextField
-import com.oportunyfam_mobile_ong.oportunyfam.Service.RetrofitFactory
+import com.oportunyfam_mobile_ong.Service.RetrofitFactory
 import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import com.oportunyfam_mobile_ong.model.TipoInstituicaoResponse
 import android.util.Log // Importação necessária para logging
+import com.oportunyfam_mobile_ong.R
 
 private const val TAG = "TipoInstituicaoSelector" // Tag para identificação no Logcat
 

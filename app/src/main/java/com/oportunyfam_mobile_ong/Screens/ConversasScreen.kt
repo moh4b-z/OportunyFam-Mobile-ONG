@@ -37,11 +37,11 @@ fun ConversasScreen(
     val conversas by viewModel.conversas.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
-    val instituicaoId by viewModel.instituicaoId.collectAsState()
+    val pessoaId by viewModel.pessoaId.collectAsState()
 
-    // ✅ AGUARDA o ID estar disponível antes de carregar conversas
-    LaunchedEffect(instituicaoId) {
-        if (instituicaoId != null) {
+    // ✅ AGUARDA o ID da pessoa estar disponível antes de carregar conversas
+    LaunchedEffect(pessoaId) {
+        if (pessoaId != null) {
             viewModel.carregarConversas()
         }
     }
@@ -121,9 +121,9 @@ fun ConversasScreen(
                     ConversaListPremium(
                         conversas = conversas,
                         onConversaClick = { conversa ->
-                            // ✅ CORRIGIDO: Passa o ID da instituição logada, não o ID da outra pessoa
-                            val instId = instituicaoId ?: 0
-                            navController?.navigate("ChatScreen/${conversa.id}/${conversa.nome}/$instId")
+                            // ✅ Passa o ID da pessoa logada (pessoa_id da instituição)
+                            val pId = pessoaId ?: 0
+                            navController?.navigate("ChatScreen/${conversa.id}/${conversa.nome}/$pId")
                         }
                     )
                 }

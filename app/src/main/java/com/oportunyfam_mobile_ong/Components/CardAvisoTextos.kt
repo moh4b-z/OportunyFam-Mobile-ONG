@@ -1,4 +1,4 @@
-package com.oportunyfam_mobile_ong.oportunyfam.Components
+package com.oportunyfam_mobile_ong.Components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*

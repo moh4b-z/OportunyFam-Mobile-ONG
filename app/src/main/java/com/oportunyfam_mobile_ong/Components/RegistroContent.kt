@@ -20,15 +20,16 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.oportunyfam_mobile_ong.oportunyfam.Service.InstituicaoService
+import com.oportunyfam_mobile_ong.Service.InstituicaoService
 import com.oportunyfam_mobile_ong.Screens.PrimaryColor
 import com.oportunyfam_mobile_ong.Screens.RegistroOutlinedTextField
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import retrofit2.Response
-import com.oportunyfam_mobile.model.Instituicao
-import com.oportunyfam_mobile.model.InstituicaoRequest
-import com.oportunyfam_mobile.model.InstituicaoResponse
+import com.oportunyfam_mobile_ong.model.Instituicao
+import com.oportunyfam_mobile_ong.model.InstituicaoRequest
+import com.oportunyfam_mobile_ong.model.InstituicaoResponse
+import com.oportunyfam_mobile_ong.R
 
 // REMOVIDO: import com.example.data.AuthDataStore
 
