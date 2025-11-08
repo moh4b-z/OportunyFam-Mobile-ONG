@@ -1,5 +1,6 @@
 package com.oportunyfam_mobile_ong.Screens
 
+import android.net.Uri
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -24,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.oportunyfam_mobile_ong.Components.BarraTarefas
+import com.oportunyfam_mobile_ong.MainActivity.NavRoutes
 import com.oportunyfam_mobile_ong.R
 import com.oportunyfam_mobile_ong.viewmodel.ChatViewModel
 import com.oportunyfam_mobile_ong.viewmodel.ConversaUI
@@ -121,9 +123,10 @@ fun ConversasScreen(
                     ConversaListPremium(
                         conversas = conversas,
                         onConversaClick = { conversa ->
-                            // ✅ Passa o ID da pessoa logada (pessoa_id da instituição)
+                            // ✅ Codifica o nome para evitar problemas com espaços e caracteres especiais
+                            val nomeEncoded = Uri.encode(conversa.nome)
                             val pId = pessoaId ?: 0
-                            navController?.navigate("ChatScreen/${conversa.id}/${conversa.nome}/$pId")
+                            navController?.navigate("${NavRoutes.CHAT}/${conversa.id}/$nomeEncoded/$pId")
                         }
                     )
                 }

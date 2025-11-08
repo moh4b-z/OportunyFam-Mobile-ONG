@@ -90,25 +90,43 @@ fun LoginContent(
                     if (response.isSuccessful && (body?.status_code == 200 || body?.status == true)) {
                         when (val result = body?.result) {
                             is ResultData.InstituicaoResult -> {
+                                android.util.Log.d("LoginContent", "Login de instituição bem-sucedido: ${result.data.nome}")
                                 onAuthSuccess(result.data)
                             }
                             is ResultData.UsuarioResult -> {
-                                errorMessage.value = "Login de usuário ainda não implementado nesta tela"
+                                errorMessage.value = "Esta aplicação é apenas para instituições"
+                                android.util.Log.w("LoginContent", "Tentativa de login de usuário na aplicação de instituição")
                                 isLoading.value = false
                             }
                             null -> {
-                                errorMessage.value = "Erro: Dados não retornados"
+                                errorMessage.value = "Erro ao processar dados de login"
+                                android.util.Log.e("LoginContent", "Resultado do login é nulo")
                                 isLoading.value = false
                             }
                         }
                     } else {
-                        val errorBody = response.errorBody()?.string() ?: response.message()
-                        errorMessage.value = "Falha no Login. Verifique suas credenciais. Erro: $errorBody"
+                        val errorBody = response.errorBody()?.string()
+                        errorMessage.value = when (response.code()) {
+                            401 -> "Email ou senha incorretos"
+                            404 -> "Conta não encontrada"
+                            500 -> "Erro no servidor. Tente novamente mais tarde"
+                            else -> "Falha no login. Verifique suas credenciais"
+                        }
+                        android.util.Log.e("LoginContent", "Erro no login - Código: ${response.code()}, Mensagem: ${errorBody ?: response.message()}")
                         isLoading.value = false
                     }
 
+                } catch (e: java.net.UnknownHostException) {
+                    errorMessage.value = "Sem conexão com a internet"
+                    android.util.Log.e("LoginContent", "Erro de conexão: Sem internet", e)
+                    isLoading.value = false
+                } catch (e: java.net.SocketTimeoutException) {
+                    errorMessage.value = "Tempo de conexão esgotado. Tente novamente"
+                    android.util.Log.e("LoginContent", "Erro de conexão: Timeout", e)
+                    isLoading.value = false
                 } catch (e: Exception) {
-                    errorMessage.value = "Erro ao conectar com o servidor: ${e.message}"
+                    errorMessage.value = "Erro ao conectar com o servidor"
+                    android.util.Log.e("LoginContent", "Erro inesperado no login: ${e.message}", e)
                     isLoading.value = false
                 }
             }

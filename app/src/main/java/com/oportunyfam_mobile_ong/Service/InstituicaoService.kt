@@ -1,5 +1,6 @@
 package com.oportunyfam_mobile_ong.Service
 
+import com.oportunyfam_mobile_ong.model.AlunosResponse
 import com.oportunyfam_mobile_ong.model.InstituicaoAtualizarRequest
 import com.oportunyfam_mobile_ong.model.InstituicaoRequest
 import com.oportunyfam_mobile_ong.model.InstituicaoResponse
@@ -39,4 +40,12 @@ interface InstituicaoService {
         @Query("pagina") pagina: Int?,
         @Query("tamanho") tamanho: Int?
     ): Call<Any>
+
+    // GET - Busca com filtros e paginação
+    @GET("instituicoes/alunos/")
+    fun buscarAlunos(
+        @Query("instituicao_id") instituicao_id: Int?,
+        @Query("atividade_id") atividade_id: Int?,
+        @Query("status_id") status_id: Int?
+    ): Call<AlunosResponse>
 }

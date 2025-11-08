@@ -12,27 +12,57 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.oportunyfam_mobile_ong.MainActivity.NavRoutes
 import com.oportunyfam_mobile_ong.R
+import com.oportunyfam_mobile_ong.data.InstituicaoAuthDataStore
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * SplashScreen - Tela de abertura do aplicativo
  *
- * Exibe o logo com animação de escala e redireciona para a tela de registro
- * após um breve período.
+ * Exibe o logo com animação de escala e verifica se há usuário logado:
+ * - Se houver usuário logado, redireciona para a tela Home
+ * - Se não houver usuário logado, redireciona para a tela de Login/Registro
  *
  * @param navController Controlador de navegação para redirecionar após a animação
  */
 @Composable
 fun SplashScreen(navController: NavController) {
+    val context = LocalContext.current
+    val authDataStore = remember { InstituicaoAuthDataStore(context) }
+
     SplashScreenContent(
         onAnimationEnd = {
-            navController.navigate("tela_registro") {
-                popUpTo("tela_splash") { inclusive = true }
+            // Verifica se há usuário logado de forma assíncrona
+            kotlinx.coroutines.MainScope().launch {
+                try {
+                    val isLoggedIn = authDataStore.isUserLoggedIn()
+                    android.util.Log.d("SplashScreen", "Verificando login: $isLoggedIn")
+
+                    if (isLoggedIn) {
+                        android.util.Log.d("SplashScreen", "Usuário logado, navegando para HOME")
+                        navController.navigate(NavRoutes.HOME) {
+                            popUpTo(NavRoutes.SPLASH) { inclusive = true }
+                        }
+                    } else {
+                        android.util.Log.d("SplashScreen", "Usuário não logado, navegando para REGISTRO")
+                        navController.navigate(NavRoutes.REGISTRO) {
+                            popUpTo(NavRoutes.SPLASH) { inclusive = true }
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("SplashScreen", "Erro ao verificar login: ${e.message}", e)
+                    // Em caso de erro, vai para tela de registro
+                    navController.navigate(NavRoutes.REGISTRO) {
+                        popUpTo(NavRoutes.SPLASH) { inclusive = true }
+                    }
+                }
             }
         }
     )

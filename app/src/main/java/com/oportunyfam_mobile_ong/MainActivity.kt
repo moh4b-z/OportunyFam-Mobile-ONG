@@ -7,6 +7,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import androidx.navigation.NavType
+import com.oportunyfam_mobile_ong.Screens.ChatScreen
 import com.oportunyfam_mobile_ong.Screens.ConversasScreen
 import com.oportunyfam_mobile_ong.Screens.SplashScreen
 import com.oportunyfam_mobile_ong.Screens.PerfilScreen
@@ -64,6 +67,27 @@ class MainActivity : ComponentActivity() {
                     composable(NavRoutes.CONVERSAS) {
                         ConversasScreen(navController)
                     }
+
+                    // Tela de Chat
+                    composable(
+                        route = "${NavRoutes.CHAT}/{conversaId}/{nomeContato}/{pessoaIdAtual}",
+                        arguments = listOf(
+                            navArgument("conversaId") { type = NavType.IntType },
+                            navArgument("nomeContato") { type = NavType.StringType },
+                            navArgument("pessoaIdAtual") { type = NavType.IntType }
+                        )
+                    ) { backStackEntry ->
+                        val conversaId = backStackEntry.arguments?.getInt("conversaId") ?: 0
+                        val nomeContato = backStackEntry.arguments?.getString("nomeContato") ?: ""
+                        val pessoaIdAtual = backStackEntry.arguments?.getInt("pessoaIdAtual") ?: 0
+
+                        ChatScreen(
+                            navController = navController,
+                            conversaId = conversaId,
+                            nomeContato = nomeContato,
+                            pessoaIdAtual = pessoaIdAtual
+                        )
+                    }
                 }
             }
         }
@@ -79,5 +103,6 @@ class MainActivity : ComponentActivity() {
         const val HOME = "HomeScreen"
         const val ATIVIDADES = "AtividadesScreen"
         const val CONVERSAS = "ConversasScreen"
+        const val CHAT = "ChatScreen"
     }
 }

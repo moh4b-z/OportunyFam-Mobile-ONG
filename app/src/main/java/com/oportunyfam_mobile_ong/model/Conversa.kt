@@ -37,8 +37,12 @@ data class ConversasPessoaResponse(
     val status: Boolean,
     val status_code: Int,
     val messagem: String,
-    val conversas: List<ConversaInstituicao>?
-)
+    val conversa: List<ConversaInstituicao>? = null, // API retorna "conversa" (singular)
+    val conversas: List<ConversaInstituicao>? = null // Suporte para "conversas" (plural)
+) {
+    // Helper para pegar as conversas independente do nome do campo
+    fun getConversasList(): List<ConversaInstituicao> = conversa ?: conversas ?: emptyList()
+}
 
 data class ConversaRequest(
     val participantes: List<Int>

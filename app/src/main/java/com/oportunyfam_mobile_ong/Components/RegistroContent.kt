@@ -419,27 +419,43 @@ fun RegistroContent(
                                         )
 
                                         val response: Response<InstituicaoResponse> = instituicaoService.criar(request)
-
                                         val body = response.body()
-                                        // Acessando propriedades da Response
+
                                         if (response.isSuccessful && body?.status_code == 201) {
                                             val instituicaoLogada = body.instituicao
 
                                             if (instituicaoLogada != null) {
+                                                android.util.Log.d("RegistroContent", "Cadastro bem-sucedido: ${instituicaoLogada.nome}")
                                                 onAuthSuccess(instituicaoLogada)
                                             } else {
-                                                errorMessage.value = "Erro: instituição não retornada"
+                                                errorMessage.value = "Erro ao processar dados do cadastro"
+                                                android.util.Log.e("RegistroContent", "Instituição não retornada após cadastro")
                                                 isLoading.value = false
                                             }
 
                                         } else {
-                                            val errorBody = response.errorBody()?.string() ?: response.message()
-                                            errorMessage.value = context.getString(R.string.error_registration_failed) + errorBody
-                                            isLoading.value = false // Para o loading em caso de erro
+                                            val errorBody = response.errorBody()?.string()
+                                            errorMessage.value = when (response.code()) {
+                                                400 -> "Dados inválidos. Verifique as informações"
+                                                409 -> "Email ou CNPJ já cadastrado"
+                                                500 -> "Erro no servidor. Tente novamente mais tarde"
+                                                else -> "Falha no cadastro. Tente novamente"
+                                            }
+                                            android.util.Log.e("RegistroContent", "Erro no cadastro - Código: ${response.code()}, Mensagem: ${errorBody ?: response.message()}")
+                                            isLoading.value = false
                                         }
+                                    } catch (e: java.net.UnknownHostException) {
+                                        errorMessage.value = "Sem conexão com a internet"
+                                        android.util.Log.e("RegistroContent", "Erro de conexão: Sem internet", e)
+                                        isLoading.value = false
+                                    } catch (e: java.net.SocketTimeoutException) {
+                                        errorMessage.value = "Tempo de conexão esgotado. Tente novamente"
+                                        android.util.Log.e("RegistroContent", "Erro de conexão: Timeout", e)
+                                        isLoading.value = false
                                     } catch (e: Exception) {
-                                        errorMessage.value = context.getString(R.string.error_connection_failed) + e.message
-                                        isLoading.value = false // Para o loading em caso de exceção
+                                        errorMessage.value = "Erro ao conectar com o servidor"
+                                        android.util.Log.e("RegistroContent", "Erro inesperado no cadastro: ${e.message}", e)
+                                        isLoading.value = false
                                     }
                                 }
                             },
