@@ -33,43 +33,54 @@ sealed class ResultData {
 }
 
 /**
- * ResultDataDeserializer - Deserializador customizado para ResultData
+ * LoginResponseDeserializer - Deserializador customizado para LoginResponse
  *
- * Atualizado para lidar com a estrutura real da API onde:
- * - O campo 'tipo' indica se é "instituicao" ou "usuario"
- * - Os dados estão diretamente no campo 'result'
+ * Lida com a estrutura da API onde o tipo determina se é instituição ou usuário
  */
-class ResultDataDeserializer : JsonDeserializer<ResultData> {
+class LoginResponseDeserializer : JsonDeserializer<LoginResponse> {
     override fun deserialize(
         json: JsonElement,
         typeOfT: Type,
         context: JsonDeserializationContext
-    ): ResultData {
+    ): LoginResponse {
         val jsonObject = json.asJsonObject
 
-        // Obtém o tipo do contexto pai (deve ser injetado)
-        // Como não temos acesso ao contexto pai aqui, vamos verificar pelos campos
-        return try {
-            when {
-                // Verifica se tem campos específicos de instituição
-                jsonObject.has("instituicao_id") -> {
-                    val instituicao = context.deserialize<Instituicao>(json, Instituicao::class.java)
-                    ResultData.InstituicaoResult(instituicao)
+        val status = jsonObject.get("status").asBoolean
+        val statusCode = jsonObject.get("status_code").asInt
+        val messagem = jsonObject.get("messagem").asString
+        val tipo = jsonObject.get("tipo").asString
+        val accessToken = jsonObject.get("accessToken")?.asString
+
+        val resultData: ResultData? = if (jsonObject.has("result") && !jsonObject.get("result").isJsonNull) {
+            val resultElement = jsonObject.get("result")
+            try {
+                when (tipo) {
+                    "instituicao" -> {
+                        val instituicao = context.deserialize<Instituicao>(resultElement, Instituicao::class.java)
+                        ResultData.InstituicaoResult(instituicao)
+                    }
+                    "usuario" -> {
+                        val usuario = context.deserialize<Usuario>(resultElement, Usuario::class.java)
+                        ResultData.UsuarioResult(usuario)
+                    }
+                    else -> null
                 }
-                // Verifica se tem campos específicos de usuário
-                jsonObject.has("usuario_id") -> {
-                    val usuario = context.deserialize<Usuario>(json, Usuario::class.java)
-                    ResultData.UsuarioResult(usuario)
-                }
-                // Se não conseguir identificar, tenta instituição primeiro
-                else -> {
-                    val instituicao = context.deserialize<Instituicao>(json, Instituicao::class.java)
-                    ResultData.InstituicaoResult(instituicao)
-                }
+            } catch (e: Exception) {
+                android.util.Log.e("LoginResponseDeserializer", "Erro ao deserializar result: ${e.message}", e)
+                null
             }
-        } catch (e: Exception) {
-            throw IllegalArgumentException("Não foi possível deserializar os dados do resultado: ${e.message}", e)
+        } else {
+            null
         }
+
+        return LoginResponse(
+            status = status,
+            status_code = statusCode,
+            messagem = messagem,
+            tipo = tipo,
+            result = resultData,
+            accessToken = accessToken
+        )
     }
 }
 

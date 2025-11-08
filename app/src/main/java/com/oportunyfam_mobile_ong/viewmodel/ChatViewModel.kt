@@ -110,7 +110,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 if (response.isSuccessful) {
-                    val conversasInstituicao = response.body()?.conversas ?: emptyList()
+                    val conversasInstituicao = response.body()?.getConversasList() ?: emptyList()
 
                     // Atualiza as conversas na UI
                     _conversas.value = conversasInstituicao.map { conversa ->
@@ -186,10 +186,19 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 _isLoading.value = false
 
                 // Agora escuta mudanças em tempo real do Firebase
-                firebaseMensagemService.observarMensagens(conversaId).collect { mensagensAtualizadas ->
-                    if (mensagensAtualizadas.isNotEmpty()) {
-                        _mensagens.value = mensagensAtualizadas
-                        Log.d("ChatViewModel", "📱 Mensagens atualizadas EM TEMPO REAL: ${mensagensAtualizadas.size}")
+                firebaseMensagemService.observarMensagens(conversaId).collect { mensagensFirebase ->
+                    if (mensagensFirebase.isNotEmpty()) {
+                        // MERGE: Combina mensagens do backend com as novas do Firebase
+                        val mensagensExistentes = _mensagens.value
+                        val idsExistentes = mensagensExistentes.map { it.id }.toSet()
+
+                        // Adiciona apenas mensagens novas que não existem
+                        val mensagensNovas = mensagensFirebase.filter { it.id !in idsExistentes }
+
+                        if (mensagensNovas.isNotEmpty()) {
+                            _mensagens.value = mensagensExistentes + mensagensNovas
+                            Log.d("ChatViewModel", "📱 ${mensagensNovas.size} mensagem(ns) nova(s) adicionada(s). Total: ${_mensagens.value.size}")
+                        }
                     }
                 }
             } catch (e: Exception) {

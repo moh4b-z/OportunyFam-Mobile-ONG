@@ -1,6 +1,8 @@
 package com.oportunyfam_mobile_ong.Service
 
 import com.google.gson.GsonBuilder
+import com.oportunyfam_mobile_ong.model.LoginResponse
+import com.oportunyfam_mobile_ong.model.LoginResponseDeserializer
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -29,6 +31,7 @@ class RetrofitFactory {
      */
     private val gson = GsonBuilder()
         .setLenient()
+        .registerTypeAdapter(LoginResponse::class.java, LoginResponseDeserializer())
         .create()
 
     /**
