@@ -28,6 +28,9 @@ import androidx.navigation.compose.rememberNavController
 import com.oportunyfam_mobile_ong.model.Mensagem
 import com.oportunyfam_mobile_ong.viewmodel.ChatViewModel
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -121,17 +124,30 @@ fun ChatScreen(
                         }
                     }
                     else -> {
+                        // Agrupar mensagens por data e manter ordem cronológica
+                        val mensagensAgrupadas = mensagens
+                            .sortedBy { it.criado_em } // Ordena do mais antigo para o mais recente
+                            .groupBy { extrairData(it.criado_em) }
+
                         LazyColumn(
                             state = listState,
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            items(mensagens) { mensagem ->
-                                ChatMessage(
-                                    mensagem = mensagem,
-                                    isUser = mensagem.id_pessoa == pessoaIdAtual
-                                )
+                            mensagensAgrupadas.forEach { (data, mensagensDoDia) ->
+                                // Separador de data
+                                item(key = "date_$data") {
+                                    DateSeparator(data = data)
+                                }
+
+                                // Mensagens do dia (já ordenadas)
+                                items(mensagensDoDia, key = { it.id }) { mensagem ->
+                                    ChatMessage(
+                                        mensagem = mensagem,
+                                        isUser = mensagem.id_pessoa == pessoaIdAtual
+                                    )
+                                }
                             }
                         }
                     }
@@ -311,6 +327,61 @@ fun ChatInputField(
                 )
             }
         }
+    }
+}
+
+@Composable
+fun DateSeparator(data: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            color = Color(0xFFE0E0E0),
+            shape = RoundedCornerShape(12.dp),
+            shadowElevation = 1.dp
+        ) {
+            Text(
+                text = formatarDataSeparador(data),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF616161)
+            )
+        }
+    }
+}
+
+private fun extrairData(dataHora: String): String {
+    return try {
+        // Formato: "2025-11-08T21:45:33.000Z"
+        dataHora.substring(0, 10) // Retorna "2025-11-08"
+    } catch (e: Exception) {
+        "Hoje"
+    }
+}
+
+private fun formatarDataSeparador(data: String): String {
+    return try {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val date = sdf.parse(data) ?: return data
+
+        val hoje = Date()
+        val ontem = Date(hoje.time - 24 * 60 * 60 * 1000)
+
+        val dataFormatada = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(date)
+        val hojeFormatada = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(hoje)
+        val ontemFormatada = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(ontem)
+
+        when (dataFormatada) {
+            hojeFormatada -> "Hoje"
+            ontemFormatada -> "Ontem"
+            else -> SimpleDateFormat("dd 'de' MMMM", Locale("pt", "BR")).format(date)
+        }
+    } catch (e: Exception) {
+        data
     }
 }
 

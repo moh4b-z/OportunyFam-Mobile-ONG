@@ -86,10 +86,12 @@ fun HomeScreen(navController: NavHostController?) {
 
             if (response.isSuccessful) {
                 listaAlunos = response.body()?.alunos ?: emptyList()
+                errorMessage = null // Limpa erro se sucesso
                 Log.d("HomeScreen", "✅ Alunos carregados: ${listaAlunos.size}")
             } else if (response.code() == 404) {
-                // 404 significa que não há alunos, não é um erro
+                // 404 significa que não há alunos cadastrados
                 listaAlunos = emptyList()
+                errorMessage = null // Não é erro, apenas não tem alunos
                 Log.d("HomeScreen", "ℹ️ Nenhum aluno encontrado")
             } else {
                 errorMessage = "Erro ao buscar alunos"
