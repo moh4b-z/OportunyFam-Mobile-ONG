@@ -41,16 +41,6 @@ interface AzureBlobApiService {
 }
 
 
-
-
-
-
-
-
-
-
-
-
 object AzureBlobRetrofit {
     private const val BASE_URL = "https://placeholder.blob.core.windows.net/"
 
@@ -217,6 +207,7 @@ object AzureBlobRetrofit {
 
     /**
      * Gera a assinatura Shared Key para autenticação no Azure Storage
+     * Formato correto: https://docs.microsoft.com/en-us/rest/api/storageservices/authorize-with-shared-key
      */
     private fun generateSharedKeyAuth(
         storageAccount: String,
@@ -228,32 +219,50 @@ object AzureBlobRetrofit {
         version: String,
         canonicalizedResource: String
     ): String {
+        // Ajusta Content-Length conforme recomendação Azure: vazio se 0
+        val adjustedContentLength = if (contentLength == "0") "" else contentLength
+        val cleanCanonicalResource = canonicalizedResource.trim()
+
         val stringToSign = buildString {
-            append("$method\n")           // HTTP Verb
-            append("\n")                   // Content-Encoding
-            append("\n")                   // Content-Language
-            append("$contentLength\n")     // Content-Length
-            append("\n")                   // Content-MD5
-            append("$contentType\n")       // Content-Type
-            append("\n")                   // Date
-            append("\n")                   // If-Modified-Since
-            append("\n")                   // If-Match
-            append("\n")                   // If-None-Match
-            append("\n")                   // If-Unmodified-Since
-            append("\n")                   // Range
-            append("x-ms-blob-type:BlockBlob\n") // CanonicalizedHeaders
+            append("$method\n")
+            append("\n") // Content-Encoding
+            append("\n") // Content-Language
+            append("$adjustedContentLength\n") // Content-Length
+            append("\n") // Content-MD5
+            append("$contentType\n") // Content-Type
+            append("\n") // Date (usando x-ms-date)
+            append("\n") // If-Modified-Since
+            append("\n") // If-Match
+            append("\n") // If-None-Match
+            append("\n") // If-Unmodified-Since
+            append("\n") // Range
+            append("x-ms-blob-type:BlockBlob\n")
             append("x-ms-date:$date\n")
             append("x-ms-version:$version\n")
-            append(canonicalizedResource)  // CanonicalizedResource
+            append(cleanCanonicalResource)
         }
 
-        val mac = Mac.getInstance("HmacSHA256")
-        val secretKey = SecretKeySpec(Base64.decode(accountKey, Base64.DEFAULT), "HmacSHA256")
-        mac.init(secretKey)
+        println("📝 String to sign:")
+        println(stringToSign)
+        println("---")
 
-        val signature = Base64.encodeToString(mac.doFinal(stringToSign.toByteArray(Charsets.UTF_8)), Base64.NO_WRAP)
-
-        return "SharedKey $storageAccount:$signature"
+        try {
+            val mac = javax.crypto.Mac.getInstance("HmacSHA256")
+            // Usa NO_WRAP para evitar caracteres de nova linha invisíveis
+            val decodedKey = Base64.decode(accountKey.trim(), Base64.NO_WRAP)
+            val secretKey = javax.crypto.spec.SecretKeySpec(decodedKey, "HmacSHA256")
+            mac.init(secretKey)
+            val signature = Base64.encodeToString(
+                mac.doFinal(stringToSign.toByteArray(Charsets.UTF_8)),
+                Base64.NO_WRAP
+            )
+            println("🔐 Tamanho da assinatura Base64: ${signature.length}")
+            return "SharedKey $storageAccount:$signature"
+        } catch (e: Exception) {
+            println("❌ Erro ao gerar assinatura: ${e.message}")
+            e.printStackTrace()
+            throw e
+        }
     }
 
     /**
@@ -277,20 +286,6 @@ object AzureBlobRetrofit {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
