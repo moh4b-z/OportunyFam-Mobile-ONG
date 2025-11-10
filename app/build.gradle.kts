@@ -120,7 +120,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
     // ----------------------------
-    // 🔥 Firebase
+    // Firebase
     // ----------------------------
     // Import the Firebase BoM (gerencia todas as versões)
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
