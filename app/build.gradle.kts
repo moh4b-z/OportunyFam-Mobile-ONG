@@ -111,13 +111,21 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
 
-    // ----------------------------
-    // 🗺️ Mapas e localização
-    // ----------------------------
-    implementation("com.google.android.gms:play-services-maps:19.0.0")
-    implementation("com.google.maps.android:maps-compose:2.11.4")
-    implementation("org.osmdroid:osmdroid-android:6.1.18")
-    implementation("com.google.android.gms:play-services-location:21.3.0")
+    //mapa
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.maps.android:maps-compose:4.3.3") // integração com Jetpack Compose
+
+    implementation("com.google.android.gms:play-services-location:21.0.1")//Para obter a posição atual do usuário
+
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+    implementation("com.google.android.gms:play-services-location:21.1.0")
+    implementation("com.google.accompanist:accompanist-permissions:0.30.1")
+    implementation("com.google.android.libraries.places:places:3.5.0")
+
+    // Remover dependências OSM
+    // implementation("org.osmdroid:osmdroid-android:6.1.18")
+    // implementation("org.osmdroid:osmdroid-mapsforge:6.1.18")
+    // implementation("androidx.preference:preference-ktx:1.2.1")
 
     // ----------------------------
     // Firebase
