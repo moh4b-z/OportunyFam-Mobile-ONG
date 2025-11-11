@@ -77,15 +77,33 @@ data class AulaDetalhada(
     val vagas_total: Int,
     val vagas_disponiveis: Int,
     val status_aula: String?, // "Futura", "Hoje", "Encerrada"
-    val iram_participar: List<Participante>?,
-    val foram: List<Participante>?,
-    val ausentes: List<Participante>?,
+    val iram_participar: List<ParticipanteAula>?,
+    val foram: List<ParticipanteAula>?,
+    val ausentes: List<ParticipanteAula>?,
     val nome_atividade: String? = null, // Presente ao buscar aulas por instituição
     val instituicao_nome: String? = null // Presente ao buscar aulas por instituição
-)
-
-// Participante de uma aula (já definido em Atividade.kt mas replicado aqui para referência)
-// data class Participante definido em Atividade.kt
+) {
+    /**
+     * Converte AulaDetalhada para AulaDetalhe (modelo usado nos cards)
+     */
+    fun toAulaDetalhe(): AulaDetalhe {
+        return AulaDetalhe(
+            status_aula = status_aula,
+            aula_id = aula_id,
+            hora_fim = hora_fim,
+            data = data_aula,
+            data_aula = data_aula,
+            hora_inicio = hora_inicio,
+            vagas_total = vagas_total,
+            vagas_disponiveis = vagas_disponiveis,
+            iram_participar = iram_participar,
+            foram = foram,
+            ausentes = ausentes,
+            nome_atividade = nome_atividade,
+            instituicao_nome = instituicao_nome
+        )
+    }
+}
 
 /**
  * Modelo de Aluno - Representa uma criança inscrita em uma atividade da instituição
