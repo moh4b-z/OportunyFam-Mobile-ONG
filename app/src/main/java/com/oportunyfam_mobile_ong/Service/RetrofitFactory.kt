@@ -136,4 +136,16 @@ class RetrofitFactory {
         return retrofitFactory.create(ConversaService::class.java)
     }
 
+    fun getMatriculaService(): MatriculaService {
+        return retrofitFactory.create(MatriculaService::class.java)
+    }
+
+    fun getInscricaoService(): InscricaoService {
+        return retrofitFactory.create(InscricaoService::class.java)
+    }
+
+    fun getCategoriaService(): CategoriaService {
+        return retrofitFactory.create(CategoriaService::class.java)
+    }
+
 }

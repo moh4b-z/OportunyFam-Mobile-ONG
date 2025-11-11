@@ -1,24 +1,25 @@
 package com.oportunyfam_mobile_ong.Service
 
 import com.oportunyfam_mobile_ong.model.*
-import com.oportunyfam_mobile_ong.model.AtividadeRequest
-import com.oportunyfam_mobile_ong.model.AulaLoteRequest
 import retrofit2.Call
 import retrofit2.http.*
 
 interface AtividadeService {
 
-    // --- ROTAS DE ATIVIDADE ---
+    // ============ ROTAS DE ATIVIDADE ============
 
-    // POST /atividades/ - Criar atividade
+    // POST /atividades - Criar atividade
     @Headers("Content-Type: application/json")
     @POST("atividades")
     fun criarAtividade(@Body atividade: AtividadeRequest): Call<AtividadeCriadaResponse>
 
-    // GET /atividades/ - Buscar todas as atividades
+    // GET /atividades - Buscar todas as atividades
     @GET("atividades")
     fun buscarTodasAtividades(): Call<AtividadesListResponse>
 
+    // GET /atividades/:id - Buscar atividade por ID
+    @GET("atividades/{id}")
+    fun buscarAtividadePorId(@Path("id") id: Int): Call<AtividadeUnicaResponse>
 
     // GET /atividades/instituicao/:idInstituicao - Buscar atividades por instituição
     @GET("atividades/instituicao/{idInstituicao}")
@@ -33,27 +34,36 @@ interface AtividadeService {
     @DELETE("atividades/{id}")
     fun deletarAtividade(@Path("id") id: Int): Call<Unit>
 
-    // --- ROTAS DE AULAS ---
+    // ============ ROTAS DE AULAS ============
 
-    // GET /v1/atividades/:id (Busca por ID)
-    @GET("atividades/{id}")
-    fun buscarAtividadePorId(@Path("id") id: Int): Call<AtividadeResponse>
+    // POST /atividades/aulas - Criar uma aula
+    @Headers("Content-Type: application/json")
+    @POST("atividades/aulas")
+    fun criarAula(@Body aula: AulaRequest): Call<AulaCriadaResponse>
 
-    // POST /aulas/lote - Criar várias aulas de uma vez
+    // POST /atividades/aulas/lote - Criar várias aulas de uma vez
     @Headers("Content-Type: application/json")
     @POST("atividades/aulas/lote")
     fun criarAulasLote(@Body aulaLote: AulaLoteRequest): Call<AulaLoteResponse>
 
-    // GET /aulas/:id - Buscar aula por ID
-    @GET("atividades/aulas/{id}")
-    fun buscarAulaPorId(@Path("id") id: Int): Call<AulaCriadaResponse>
+    // GET /atividades/aulas - Buscar todas as aulas
+    @GET("atividades/aulas")
+    fun buscarTodasAulas(): Call<AulasListResponse>
 
-    // PUT /aulas/:id - Atualizar aula
+    // GET /atividades/aulas/:id - Buscar aula por ID
+    @GET("atividades/aulas/{id}")
+    fun buscarAulaPorId(@Path("id") id: Int): Call<AulaUnicaResponse>
+
+    // GET /atividades/aulas/instituicao/:idInstituicao - Buscar todas as aulas de uma instituição
+    @GET("atividades/aulas/instituicao/{idInstituicao}")
+    fun buscarAulasPorInstituicao(@Path("idInstituicao") idInstituicao: Int): Call<AulasListResponse>
+
+    // PUT /atividades/aulas/:id - Atualizar aula
     @Headers("Content-Type: application/json")
     @PUT("atividades/aulas/{id}")
     fun atualizarAula(@Path("id") id: Int, @Body aula: AulaRequest): Call<AulaCriadaResponse>
 
-    // DELETE /aulas/:id - Deletar aula
+    // DELETE /atividades/aulas/:id - Deletar aula
     @DELETE("atividades/aulas/{id}")
     fun deletarAula(@Path("id") id: Int): Call<Unit>
 }

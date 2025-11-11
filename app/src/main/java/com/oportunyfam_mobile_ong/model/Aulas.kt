@@ -1,69 +1,91 @@
 package com.oportunyfam_mobile_ong.model
 
+// ============ MODELOS PARA AULAS ============
 
-import java.time.LocalTime
-
-data class HorarioDetalhe(
-    val id: Int,
-    val dia_semana: Int,
-    val inicio: LocalTime, // Mapeia para 'inicio' no JSON_OBJECT da View
-    val fim: LocalTime,    // Mapeia para 'fim' no JSON_OBJECT da View
-    val vagas_total: Int,
-    val vagas_disponiveis: Int
-)
-// Esta classe é a estrutura do array JSON retornado pelo backend
-data class AulaResponse(
-    val id: Int,
-    val id_atividade: Int,
-    val dia_semana: Int,
-    val hora_inicio: LocalTime,
-    val hora_fim: LocalTime,
-    val vagas_total: Int,
-    val vagas_disponiveis: Int,
-    val ativo: Boolean
-)
-
+// Request para criar uma aula individual
 data class AulaRequest(
-    val id: Int? = null, // Para PUT
-    val id_atividade: Int, // Chave estrangeira obrigatória
-    val dia_semana: Int, // 1=Dom, 2=Seg, ...
-    val hora_inicio: LocalTime,
-    val hora_fim: LocalTime,
-    val vagas_total: Int,
-    val vagas_disponiveis: Int, // Opcional, pode ser calculado no backend
-    val ativo: Boolean = true
-)
-
-data class AulaLoteResponse(
-    val status: Boolean,
-    val status_code: Int,
-    val message: String,
-    val aulas_criadas: List<AulaResponse>?
-)
-
-data class AulaLoteRequest(
     val id_atividade: Int,
-    val aulas: List<AulaItemRequest>
-)
-
-/**
- * AulaItemRequest - Item individual de aula para criação em lote
- */
-data class AulaItemRequest(
-    val dia_semana: Int,
-    val hora_inicio: LocalTime,
-    val hora_fim: LocalTime,
+    val data_aula: String, // Formato: "YYYY-MM-DD"
+    val hora_inicio: String, // Formato: "HH:MM:SS"
+    val hora_fim: String, // Formato: "HH:MM:SS"
     val vagas_total: Int,
     val vagas_disponiveis: Int? = null,
     val ativo: Boolean = true
 )
 
+// Response para aula criada
 data class AulaCriadaResponse(
     val status: Boolean,
     val status_code: Int,
-    val message: String,
-    val aula: AulaResponse?
+    val messagem: String,
+    val aula: AulaSimples?
 )
+
+// Aula simples (após criação)
+data class AulaSimples(
+    val id: Int,
+    val id_atividade: Int,
+    val data_aula: String,
+    val hora_inicio: String,
+    val hora_fim: String,
+    val vagas_total: Int,
+    val vagas_disponiveis: Int
+)
+
+// Request para criar várias aulas de uma vez (lote)
+data class AulaLoteRequest(
+    val id_atividade: Int,
+    val hora_inicio: String, // Formato: "HH:MM:SS"
+    val hora_fim: String, // Formato: "HH:MM:SS"
+    val vagas_total: Int,
+    val datas: List<String> // Lista de datas no formato "YYYY-MM-DD"
+)
+
+// Response para criação de aulas em lote
+data class AulaLoteResponse(
+    val status: Boolean,
+    val status_code: Int,
+    val messagem: String,
+    val aulas_inseridas: List<AulaSimples>?,
+    val total_inseridas: Int?,
+    val erros: Any?
+)
+
+// Response para todas as aulas
+data class AulasListResponse(
+    val status: Boolean,
+    val status_code: Int,
+    val messagem: String,
+    val aulas: List<AulaDetalhada>?
+)
+
+// Response para aula única
+data class AulaUnicaResponse(
+    val status: Boolean,
+    val status_code: Int,
+    val messagem: String,
+    val aula: AulaDetalhada?
+)
+
+// Aula com todos os detalhes (incluindo participantes)
+data class AulaDetalhada(
+    val aula_id: Int,
+    val id_atividade: Int,
+    val data_aula: String,
+    val hora_inicio: String,
+    val hora_fim: String,
+    val vagas_total: Int,
+    val vagas_disponiveis: Int,
+    val status_aula: String?, // "Futura", "Hoje", "Encerrada"
+    val iram_participar: List<Participante>?,
+    val foram: List<Participante>?,
+    val ausentes: List<Participante>?,
+    val nome_atividade: String? = null, // Presente ao buscar aulas por instituição
+    val instituicao_nome: String? = null // Presente ao buscar aulas por instituição
+)
+
+// Participante de uma aula (já definido em Atividade.kt mas replicado aqui para referência)
+// data class Participante definido em Atividade.kt
 
 /**
  * Modelo de Aluno - Representa uma criança inscrita em uma atividade da instituição

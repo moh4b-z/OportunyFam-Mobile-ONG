@@ -70,11 +70,25 @@ data class AtividadeResponse(
 
 // Detalhes de uma aula dentro da atividade
 data class AulaDetalhe(
-    val status: String, // "Futura" ou "Encerrada"
+    val status_aula: String? = null, // "Futura", "Encerrada", "Hoje"
     val aula_id: Int,
     val hora_fim: String,
-    val data_aula: String,
+    val data: String? = null, // Usado em listas de atividades
+    val data_aula: String? = null, // Usado em detalhes de aula
     val hora_inicio: String,
     val vagas_total: Int,
-    val vagas_disponiveis: Int
+    val vagas_disponiveis: Int,
+    val iram_participar: List<ParticipanteAula>? = null,
+    val foram: List<ParticipanteAula>? = null,
+    val ausentes: List<ParticipanteAula>? = null,
+    val nome_atividade: String? = null, // Presente ao buscar aulas por instituição
+    val instituicao_nome: String? = null // Presente ao buscar aulas por instituição
+)
+
+// Participante de uma aula
+data class ParticipanteAula(
+    val nome: String,
+    val pessoa_id: Int,
+    val crianca_id: Int,
+    val foto_perfil: String?
 )
