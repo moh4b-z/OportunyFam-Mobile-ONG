@@ -9,7 +9,8 @@ data class AtividadeRequest(
     val faixa_etaria_max: Int,
     val gratuita: Boolean = true,
     val preco: Double = 0.0,
-    val ativo: Boolean = true
+    val ativo: Boolean = true,
+    val foto: String? = null  // URL da foto da atividade (opcional - para futuro)
 )
 
 // Response para atividade simples (após cadastro)
@@ -65,7 +66,10 @@ data class AtividadeResponse(
     val instituicao_foto: String?,
     val cidade: String,
     val estado: String,
-    val aulas: List<AulaDetalhe>
+    val aulas: List<AulaDetalhe>,
+    val foto: String? = null,  // ✅ Foto da atividade (vem da API)
+    // Foto local (fallback se API não tiver)
+    var atividade_foto: String? = null
 )
 
 // Detalhes de uma aula dentro da atividade

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
@@ -40,6 +41,7 @@ import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.oportunyfam_mobile_ong.Components.BarraTarefas
 import com.oportunyfam_mobile_ong.Components.CriarPublicacaoDialog
+import com.oportunyfam_mobile_ong.Components.EditarPublicacaoDialog
 import com.oportunyfam_mobile_ong.Components.PublicacoesGrid
 import com.oportunyfam_mobile_ong.MainActivity.NavRoutes
 import com.oportunyfam_mobile_ong.Service.AzureBlobRetrofit
@@ -49,6 +51,8 @@ import com.oportunyfam_mobile_ong.Service.RetrofitFactory
 import com.oportunyfam_mobile_ong.viewmodel.PublicacaoViewModel
 import com.oportunyfam_mobile_ong.viewmodel.PublicacoesState
 import com.oportunyfam_mobile_ong.viewmodel.CriarPublicacaoState
+import com.oportunyfam_mobile_ong.viewmodel.EditarPublicacaoState
+import com.oportunyfam_mobile_ong.model.Publicacao
 import com.oportunyfam_mobile_ong.model.InstituicaoAtualizarRequest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -70,22 +74,24 @@ fun PerfilScreen(navController: NavHostController?) {
     val context = LocalContext.current
     val instituicaoAuthDataStore = remember { InstituicaoAuthDataStore(context) }
     val scope = rememberCoroutineScope()
-    var instituicaoId by remember { mutableStateOf<Int?>(null) }
+    var instituicaoId by remember { mutableIntStateOf(0) }
     var instituicao by remember { mutableStateOf<Instituicao?>(null) }
+    var reloadTrigger by remember { mutableIntStateOf(0) } // Trigger para forçar reload
 
     // Carregar instituição logada
-    LaunchedEffect(Unit) {
+    LaunchedEffect(reloadTrigger) {
+        Log.d("PerfilScreen", "🔄 Carregando instituição (trigger=$reloadTrigger)...")
         instituicao = instituicaoAuthDataStore.loadInstituicao()
-        instituicaoId = instituicao?.instituicao_id
-        Log.d("PerfilScreen", "Instituição carregada: ID=$instituicaoId, Nome=${instituicao?.nome}")
+        instituicaoId = instituicao?.instituicao_id ?: 0
+        Log.d("PerfilScreen", "✅ Instituição carregada: ID=$instituicaoId, Nome=${instituicao?.nome}, Foto=${instituicao?.foto_perfil}")
     }
 
     // ViewModel de Publicações
     val publicacaoViewModel: PublicacaoViewModel = viewModel()
     val publicacoesState by publicacaoViewModel.publicacoesState.collectAsState()
     val criarPublicacaoState by publicacaoViewModel.criarPublicacaoState.collectAsState()
+    val editarPublicacaoState by publicacaoViewModel.editarPublicacaoState.collectAsState()
 
-    var isLoadingData by remember { mutableStateOf(false) }
     var isLoadingUpdate by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     var novaDescricao by remember { mutableStateOf("") }
@@ -93,34 +99,27 @@ fun PerfilScreen(navController: NavHostController?) {
     var snackbarMessage by remember { mutableStateOf("") }
     var tempImageFile by remember { mutableStateOf<File?>(null) }
 
-    // Estados para publicação
+    // Estados para criar publicação
     var showPublicacaoDialog by remember { mutableStateOf(false) }
     var publicacaoDescricao by remember { mutableStateOf("") }
     var publicacaoImageFile by remember { mutableStateOf<File?>(null) }
     var isUploadingPublicacao by remember { mutableStateOf(false) }
 
+    // Estados para editar publicação
+    var showEditarPublicacaoDialog by remember { mutableStateOf(false) }
+    var publicacaoParaEditar by remember { mutableStateOf<Publicacao?>(null) }
+    var editarPublicacaoDescricao by remember { mutableStateOf("") }
+    var isEditingPublicacao by remember { mutableStateOf(false) }
+
 
     // ============================================
-    // CARREGAMENTO INICIAL
+    // CARREGAMENTO INICIAL E RECARREGAMENTO
     // ============================================
-    LaunchedEffect(Unit) {
-        if (instituicao == null) {
-            Log.d("PerfilScreen", "Carregando dados da instituição...")
-            isLoadingData = true
-            try {
-                instituicaoAuthDataStore.loadInstituicao()
-            } catch (e: Exception) {
-                Log.e("PerfilScreen", "Erro ao carregar dados: ${e.message}", e)
-            } finally {
-                isLoadingData = false
-            }
-        }
-    }
-
     // Carregar publicações quando instituição estiver disponível
     LaunchedEffect(instituicao) {
         instituicao?.let {
             Log.d("PerfilScreen", "🔍 Carregando publicações da instituição: ${it.instituicao_id}")
+            Log.d("PerfilScreen", "📸 URL da foto atual: ${it.foto_perfil}")
             publicacaoViewModel.buscarPublicacoesPorInstituicao(it.instituicao_id)
         }
     }
@@ -129,14 +128,47 @@ fun PerfilScreen(navController: NavHostController?) {
     LaunchedEffect(criarPublicacaoState) {
         when (criarPublicacaoState) {
             is CriarPublicacaoState.Success -> {
+                Log.d("PerfilScreen", "✅ Publicação criada com sucesso - limpando estado do diálogo")
                 snackbarMessage = "Publicação criada com sucesso!"
                 showSnackbar = true
+                // Limpar estado do diálogo
+                publicacaoDescricao = ""
+                publicacaoImageFile = null
+                showPublicacaoDialog = false
+                isUploadingPublicacao = false
                 publicacaoViewModel.limparEstadoCriacao()
             }
             is CriarPublicacaoState.Error -> {
+                Log.e("PerfilScreen", "❌ Erro ao criar publicação: ${(criarPublicacaoState as CriarPublicacaoState.Error).message}")
                 snackbarMessage = (criarPublicacaoState as CriarPublicacaoState.Error).message
                 showSnackbar = true
+                isUploadingPublicacao = false
                 publicacaoViewModel.limparEstadoCriacao()
+            }
+            else -> {}
+        }
+    }
+
+    // Observar estado de edição de publicação
+    LaunchedEffect(editarPublicacaoState) {
+        when (editarPublicacaoState) {
+            is EditarPublicacaoState.Success -> {
+                Log.d("PerfilScreen", "✅ Publicação editada com sucesso")
+                snackbarMessage = "Publicação editada com sucesso!"
+                showSnackbar = true
+                // Limpar estado do diálogo
+                editarPublicacaoDescricao = ""
+                publicacaoParaEditar = null
+                showEditarPublicacaoDialog = false
+                isEditingPublicacao = false
+                publicacaoViewModel.limparEstadoEdicao()
+            }
+            is EditarPublicacaoState.Error -> {
+                Log.e("PerfilScreen", "❌ Erro ao editar publicação: ${(editarPublicacaoState as EditarPublicacaoState.Error).message}")
+                snackbarMessage = (editarPublicacaoState as EditarPublicacaoState.Error).message
+                showSnackbar = true
+                isEditingPublicacao = false
+                publicacaoViewModel.limparEstadoEdicao()
             }
             else -> {}
         }
@@ -189,16 +221,26 @@ fun PerfilScreen(navController: NavHostController?) {
 
                         when {
                             response.isSuccessful -> {
-                                Log.d("PerfilScreen", "Foto de perfil atualizada com sucesso!")
+                                Log.d("PerfilScreen", "✅ Foto de perfil atualizada com sucesso!")
                                 val updatedInstituicao = currentInstituicao.copy(foto_perfil = versionedUrl)
                                 instituicaoAuthDataStore.saveInstituicao(updatedInstituicao)
+                                // Aguardar para garantir que o DataStore salvou
+                                delay(200)
+                                // Incrementar trigger para forçar LaunchedEffect a recarregar
+                                reloadTrigger++
+                                Log.d("PerfilScreen", "🔄 Trigger de reload incrementado para: $reloadTrigger")
                                 snackbarMessage = "Foto de perfil atualizada com sucesso!"
                                 showSnackbar = true
                             }
                             response.code() == 429 -> {
-                                Log.w("PerfilScreen", "Rate limit - salvando localmente")
+                                Log.w("PerfilScreen", "⚠️ Rate limit - salvando localmente")
                                 val updatedInstituicao = currentInstituicao.copy(foto_perfil = versionedUrl)
                                 instituicaoAuthDataStore.saveInstituicao(updatedInstituicao)
+                                // Aguardar para garantir que o DataStore salvou
+                                delay(200)
+                                // Incrementar trigger para forçar LaunchedEffect a recarregar
+                                reloadTrigger++
+                                Log.d("PerfilScreen", "🔄 Trigger de reload incrementado para: $reloadTrigger")
                                 snackbarMessage = "Foto salva! Servidor ocupado, sincronizará depois."
                                 showSnackbar = true
                             }
@@ -294,6 +336,9 @@ fun PerfilScreen(navController: NavHostController?) {
                     if (response.isSuccessful) {
                         val updatedInstituicao = currentInstituicao.copy(descricao = novaDescricao)
                         instituicaoAuthDataStore.saveInstituicao(updatedInstituicao)
+                        delay(200)
+                        // Incrementar trigger para forçar reload
+                        reloadTrigger++
                         showEditDialog = false
                         snackbarMessage = "Descrição atualizada com sucesso!"
                         showSnackbar = true
@@ -314,11 +359,6 @@ fun PerfilScreen(navController: NavHostController?) {
     // ============================================
     // ESTADOS DE CARREGAMENTO
     // ============================================
-    if (isLoadingData) {
-        LoadingScreen()
-        return
-    }
-
     if (instituicao == null) {
         LaunchedEffect(Unit) {
             delay(3000)
@@ -432,21 +472,26 @@ fun PerfilScreen(navController: NavHostController?) {
                             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                         ) {
                             val fotoPerfilUrl = instituicao?.foto_perfil
+                            Log.d("PerfilScreen", "🖼️ Renderizando foto: $fotoPerfilUrl (trigger=$reloadTrigger)")
 
                             if (!fotoPerfilUrl.isNullOrEmpty()) {
-                                AsyncImage(
-                                    model = ImageRequest.Builder(context)
-                                        .data(fotoPerfilUrl)
-                                        .crossfade(true)
-                                        .diskCachePolicy(CachePolicy.DISABLED)
-                                        .memoryCachePolicy(CachePolicy.DISABLED)
-                                        .build(),
-                                    contentDescription = "Foto de perfil da instituição",
-                                    contentScale = ContentScale.Crop,
-                                    placeholder = painterResource(id = R.drawable.perfil),
-                                    error = painterResource(id = R.drawable.perfil),
-                                    modifier = Modifier.fillMaxSize()
-                                )
+                                // key() com URL e trigger força recomposição quando qualquer um mudar
+                                key(fotoPerfilUrl, reloadTrigger) {
+                                    Log.d("PerfilScreen", "🔄 AsyncImage sendo recomposta com key: $fotoPerfilUrl")
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(context)
+                                            .data(fotoPerfilUrl)
+                                            .crossfade(true)
+                                            .diskCachePolicy(CachePolicy.DISABLED)
+                                            .memoryCachePolicy(CachePolicy.DISABLED)
+                                            .build(),
+                                        contentDescription = "Foto de perfil da instituição",
+                                        contentScale = ContentScale.Crop,
+                                        placeholder = painterResource(id = R.drawable.perfil),
+                                        error = painterResource(id = R.drawable.perfil),
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
                             } else {
                                 Image(
                                     painter = painterResource(id = R.drawable.perfil),
@@ -502,6 +547,46 @@ fun PerfilScreen(navController: NavHostController?) {
                         fontSize = 14.sp,
                         color = Color.Gray
                     )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Endereço da Instituição
+                    instituicao?.endereco?.let { endereco ->
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LocationOn,
+                                    contentDescription = "Localização",
+                                    tint = Color(0xFFFFA000),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    buildString {
+                                        append(endereco.logradouro)
+                                        if (!endereco.numero.isNullOrEmpty()) {
+                                            append(", ${endereco.numero}")
+                                        }
+                                    },
+                                    fontSize = 13.sp,
+                                    color = Color.DarkGray,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                "${endereco.bairro} - ${endereco.cidade}, ${endereco.estado}",
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(20.dp))
 
@@ -581,6 +666,12 @@ fun PerfilScreen(navController: NavHostController?) {
                             instituicao?.let {
                                 publicacaoViewModel.deletarPublicacao(publicacaoId, it.instituicao_id)
                             }
+                        },
+                        onEditPublicacao = { publicacao ->
+                            Log.d("PerfilScreen", "✏️ Iniciando edição da publicação: ${publicacao.id}")
+                            publicacaoParaEditar = publicacao
+                            editarPublicacaoDescricao = publicacao.descricao ?: ""
+                            showEditarPublicacaoDialog = true
                         }
                     )
                 }
@@ -655,7 +746,6 @@ fun PerfilScreen(navController: NavHostController?) {
                         try {
                             // Verifica se Azure está configurado
                             if (!com.oportunyfam_mobile_ong.Config.AzureConfig.isConfigured()) {
-                                val errorMessage = "Upload de imagens não está configurado"
                                 android.util.Log.w("PerfilScreen", "⚠️ Azure Storage não configurado. Upload de publicações desabilitado.")
                                 isUploadingPublicacao = false
                                 return@launch
@@ -669,32 +759,34 @@ fun PerfilScreen(navController: NavHostController?) {
                                 publicacaoImageFile!!,
                                 com.oportunyfam_mobile_ong.Config.AzureConfig.STORAGE_ACCOUNT,
                                 accountKey,
-                                com.oportunyfam_mobile_ong.Config.AzureConfig.CONTAINER_PERFIL
+                                com.oportunyfam_mobile_ong.Config.AzureConfig.CONTAINER_PUBLICACOES
                             )
 
                             if (imageUrl != null) {
                                 Log.d("PerfilScreen", "✅ Upload concluído: $imageUrl")
                                 Log.d("PerfilScreen", "📝 Criando publicação na API...")
 
+                                // Add cache-busting parameter to image URL
+                                val versionedImageUrl = "$imageUrl?v=${System.currentTimeMillis()}"
+                                Log.d("PerfilScreen", "🔄 URL com cache-busting: $versionedImageUrl")
+
                                 publicacaoViewModel.criarPublicacao(
                                     descricao = publicacaoDescricao,
-                                    imagem = imageUrl,
+                                    imagem = versionedImageUrl,
                                     instituicaoId = instituicao!!.instituicao_id
                                 )
 
-                                // Limpar e fechar
-                                publicacaoDescricao = ""
-                                publicacaoImageFile = null
-                                showPublicacaoDialog = false
+                                // Don't clean up here - let LaunchedEffect handle it based on API response
+                                Log.d("PerfilScreen", "⏳ Aguardando resposta da API...")
                             } else {
                                 snackbarMessage = "Erro ao fazer upload da imagem"
                                 showSnackbar = true
+                                isUploadingPublicacao = false
                             }
                         } catch (e: Exception) {
                             Log.e("PerfilScreen", "❌ Erro ao criar publicação", e)
                             snackbarMessage = "Erro: ${e.message}"
                             showSnackbar = true
-                        } finally {
                             isUploadingPublicacao = false
                         }
                     }
@@ -705,6 +797,46 @@ fun PerfilScreen(navController: NavHostController?) {
                     showPublicacaoDialog = false
                     publicacaoDescricao = ""
                     publicacaoImageFile = null
+                }
+            }
+        )
+    }
+
+    // Diálogo de editar publicação
+    if (showEditarPublicacaoDialog && publicacaoParaEditar != null) {
+        EditarPublicacaoDialog(
+            publicacao = publicacaoParaEditar!!,
+            descricao = editarPublicacaoDescricao,
+            isLoading = isEditingPublicacao,
+            onDescricaoChange = { editarPublicacaoDescricao = it },
+            onSalvar = {
+                if (editarPublicacaoDescricao.trim().length >= 30 && instituicao != null && publicacaoParaEditar != null) {
+                    isEditingPublicacao = true
+                    Log.d("PerfilScreen", "💾 Salvando edição da publicação ID: ${publicacaoParaEditar!!.id}")
+
+                    // Usar a imagem existente com novo cache-busting
+                    val imageUrl = publicacaoParaEditar!!.imagem
+                    val versionedImageUrl = if (imageUrl != null) {
+                        // Remove antigo cache-busting se existir
+                        val cleanUrl = imageUrl.split("?")[0]
+                        "$cleanUrl?v=${System.currentTimeMillis()}"
+                    } else {
+                        null
+                    }
+
+                    publicacaoViewModel.editarPublicacao(
+                        publicacaoId = publicacaoParaEditar!!.id,
+                        descricao = editarPublicacaoDescricao,
+                        imagem = versionedImageUrl,
+                        instituicaoId = instituicao!!.instituicao_id
+                    )
+                }
+            },
+            onDismiss = {
+                if (!isEditingPublicacao) {
+                    showEditarPublicacaoDialog = false
+                    publicacaoParaEditar = null
+                    editarPublicacaoDescricao = ""
                 }
             }
         )

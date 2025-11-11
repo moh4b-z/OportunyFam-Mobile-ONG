@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.oportunyfam_mobile_ong.R
 import com.oportunyfam_mobile_ong.model.AtividadeResponse
@@ -50,12 +51,16 @@ fun AtividadeCardAPI(atividade: AtividadeResponse, onClick: () -> Unit) {
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Imagem da atividade
-            if (!atividade.instituicao_foto.isNullOrEmpty()) {
+            // Imagem da atividade (prioridade: foto API > atividade_foto local > instituicao_foto > ícone padrão)
+            val fotoUrl = atividade.foto ?: atividade.atividade_foto ?: atividade.instituicao_foto
+
+            if (!fotoUrl.isNullOrEmpty() && fotoUrl != "null") {
                 AsyncImage(
                     model = ImageRequest.Builder(context)
-                        .data(atividade.instituicao_foto)
+                        .data(fotoUrl)
                         .crossfade(true)
+                        .diskCachePolicy(CachePolicy.ENABLED)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
                         .build(),
                     contentDescription = atividade.titulo,
                     modifier = Modifier
@@ -66,6 +71,7 @@ fun AtividadeCardAPI(atividade: AtividadeResponse, onClick: () -> Unit) {
                     error = painterResource(id = R.drawable.instituicao)
                 )
             } else {
+                // Ícone padrão quando não há foto
                 Image(
                     painter = painterResource(id = R.drawable.instituicao),
                     contentDescription = atividade.titulo,

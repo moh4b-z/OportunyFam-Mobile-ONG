@@ -232,7 +232,7 @@ private fun FiltrosAlunos(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(1.dp)
         ) {
             // Botão "Todos"
             FilterChip(

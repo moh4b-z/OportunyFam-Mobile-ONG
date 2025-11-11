@@ -1,10 +1,12 @@
 package com.oportunyfam_mobile_ong.Components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -17,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -55,7 +58,8 @@ import com.oportunyfam_mobile_ong.viewmodel.PublicacoesState
 @Composable
 fun PublicacoesGrid(
     publicacoesState: PublicacoesState,
-    onDeletePublicacao: (Int) -> Unit
+    onDeletePublicacao: (Int) -> Unit,
+    onEditPublicacao: (com.oportunyfam_mobile_ong.model.Publicacao) -> Unit
 ) {
     when (publicacoesState) {
         is PublicacoesState.Loading -> {
@@ -107,7 +111,8 @@ fun PublicacoesGrid(
                     items(publicacoes) { publicacao ->
                         PublicacaoCard(
                             publicacao = publicacao,
-                            onDelete = { onDeletePublicacao(publicacao.id) }
+                            onDelete = { onDeletePublicacao(publicacao.id) },
+                            onEdit = { onEditPublicacao(publicacao) }
                         )
                     }
                 }
@@ -133,10 +138,12 @@ fun PublicacoesGrid(
 @Composable
 fun PublicacaoCard(
     publicacao: com.oportunyfam_mobile_ong.model.Publicacao,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onEdit: () -> Unit
 ) {
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showActionButtons by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier
@@ -147,21 +154,39 @@ fun PublicacaoCard(
     ) {
         Box {
             Column {
-                // Imagem
+                // Imagem (clicável para mostrar/ocultar botões)
                 if (!publicacao.imagem.isNullOrEmpty()) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data(publicacao.imagem)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = "Publicação",
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(150.dp),
-                        contentScale = ContentScale.Crop,
-                        placeholder = painterResource(id = R.drawable.instituicao),
-                        error = painterResource(id = R.drawable.instituicao)
-                    )
+                            .height(150.dp)
+                    ) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(publicacao.imagem)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Publicação",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(150.dp)
+                                .clickable {
+                                    showActionButtons = !showActionButtons
+                                },
+                            contentScale = ContentScale.Crop,
+                            placeholder = painterResource(id = R.drawable.instituicao),
+                            error = painterResource(id = R.drawable.instituicao)
+                        )
+
+                        // Overlay escuro quando botões estão visíveis
+                        if (showActionButtons) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.3f))
+                            )
+                        }
+                    }
                 }
 
                 // Descrição
@@ -182,21 +207,50 @@ fun PublicacaoCard(
                 }
             }
 
-            // Botão deletar
-            IconButton(
-                onClick = { showDeleteDialog = true },
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp)
-                    .size(32.dp)
-                    .background(Color.White.copy(alpha = 0.8f), CircleShape)
-            ) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "Deletar",
-                    tint = Color.Red,
-                    modifier = Modifier.size(20.dp)
-                )
+            // Botões de ação no topo (visíveis apenas quando clicado)
+            if (showActionButtons) {
+                androidx.compose.foundation.layout.Row(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // Botão editar
+                    IconButton(
+                        onClick = {
+                            showActionButtons = false
+                            onEdit()
+                        },
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(Color.White.copy(alpha = 0.95f), CircleShape)
+                    ) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = "Editar",
+                            tint = Color(0xFFFFA000),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    // Botão deletar
+                    IconButton(
+                        onClick = {
+                            showActionButtons = false
+                            showDeleteDialog = true
+                        },
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(Color.White.copy(alpha = 0.95f), CircleShape)
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Deletar",
+                            tint = Color.Red,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
             }
         }
     }
@@ -302,3 +356,105 @@ fun CriarPublicacaoDialog(
         }
     )
 }
+
+@Composable
+fun EditarPublicacaoDialog(
+    publicacao: com.oportunyfam_mobile_ong.model.Publicacao,
+    descricao: String,
+    isLoading: Boolean,
+    onDescricaoChange: (String) -> Unit,
+    onSalvar: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = { if (!isLoading) onDismiss() },
+        title = { Text("Editar Publicação", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                // Mostrar imagem atual
+                if (!publicacao.imagem.isNullOrEmpty()) {
+                    Text(
+                        "Imagem atual:",
+                        fontSize = 12.sp,
+                        color = Color.Gray,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Card(
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp)
+                    ) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(publicacao.imagem)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Imagem atual",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                            placeholder = painterResource(id = R.drawable.instituicao),
+                            error = painterResource(id = R.drawable.instituicao)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                OutlinedTextField(
+                    value = descricao,
+                    onValueChange = onDescricaoChange,
+                    label = { Text("Descrição * (mín. 30 caracteres)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isLoading,
+                    maxLines = 6,
+                    minLines = 4,
+                    placeholder = { Text("Descreva sua publicação em detalhes...") },
+                    isError = descricao.isNotEmpty() && descricao.trim().length < 30,
+                    supportingText = {
+                        Text(
+                            text = "${descricao.trim().length}/30",
+                            color = if (descricao.trim().length >= 30) Color.Gray else Color.Red,
+                            fontSize = 12.sp
+                        )
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    "Nota: A imagem não pode ser alterada na edição",
+                    fontSize = 11.sp,
+                    color = Color.Gray,
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                )
+            }
+        },
+        confirmButton = {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = Color(0xFFFFA000)
+                )
+            } else {
+                TextButton(
+                    onClick = onSalvar,
+                    enabled = descricao.trim().length >= 30
+                ) {
+                    Text("Salvar", color = Color(0xFFFFA000), fontWeight = FontWeight.Bold)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isLoading
+            ) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+

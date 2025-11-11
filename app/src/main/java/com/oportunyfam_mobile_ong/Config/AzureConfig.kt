@@ -8,22 +8,34 @@ import android.util.Log
  * Use variáveis de ambiente ou arquivo local.properties
  */
 object AzureConfig {
+    // ⚠️ ATENÇÃO: Chave configurada diretamente no código
+    // IMPORTANTE: Remova antes de fazer commit no Git!
+    private const val AZURE_STORAGE_KEY = "1dY9IPE70NwBbpOqW1SJjehC5CMrvUK1oGJz+OXuwPCqwDmhsFkPcft+sshOOZgs+0urC07pJ2Vf+AStxbVybw=="
+
     /**
      * Obtém a chave de acesso do Azure Storage
      * Prioridade:
-     * 1. BuildConfig (carregado do local.properties)
-     * 2. Variável de ambiente AZURE_STORAGE_KEY
-     * 3. Propriedade do sistema azure.storage.key
+     * 1. Chave configurada no código (AZURE_STORAGE_KEY)
+     * 2. BuildConfig (carregado do local.properties)
+     * 3. Variável de ambiente AZURE_STORAGE_KEY
+     * 4. Propriedade do sistema azure.storage.key
      *
      * @return A chave de acesso ou null se não configurada
      */
     fun getStorageKey(): String? {
+        // Retorna a chave configurada diretamente
+        if (AZURE_STORAGE_KEY.isNotBlank()) {
+            Log.d("AzureConfig", "✅ Usando chave configurada diretamente no código")
+            return AZURE_STORAGE_KEY
+        }
+
         // Tenta obter do BuildConfig (só funciona após Gradle sync)
         try {
             val buildConfigClass = Class.forName("com.oportunyfam_mobile_ong.BuildConfig")
             val field = buildConfigClass.getField("AZURE_STORAGE_KEY")
             val key = field.get(null) as? String
             if (!key.isNullOrBlank()) {
+                Log.d("AzureConfig", "✅ Usando chave do BuildConfig")
                 return key
             }
         } catch (e: Exception) {
@@ -34,12 +46,14 @@ object AzureConfig {
         // Tenta obter da variável de ambiente
         val envKey = System.getenv("AZURE_STORAGE_KEY")
         if (!envKey.isNullOrBlank()) {
+            Log.d("AzureConfig", "✅ Usando chave da variável de ambiente")
             return envKey
         }
 
         // Tenta obter da propriedade do sistema
         val sysKey = System.getProperty("azure.storage.key")
         if (!sysKey.isNullOrBlank()) {
+            Log.d("AzureConfig", "✅ Usando chave da propriedade do sistema")
             return sysKey
         }
 

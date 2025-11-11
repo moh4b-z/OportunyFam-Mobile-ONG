@@ -32,6 +32,10 @@ class PublicacaoViewModel : ViewModel() {
     private val _criarPublicacaoState = MutableStateFlow<CriarPublicacaoState>(CriarPublicacaoState.Idle)
     val criarPublicacaoState: StateFlow<CriarPublicacaoState> = _criarPublicacaoState.asStateFlow()
 
+    // Estado de edição de publicação
+    private val _editarPublicacaoState = MutableStateFlow<EditarPublicacaoState>(EditarPublicacaoState.Idle)
+    val editarPublicacaoState: StateFlow<EditarPublicacaoState> = _editarPublicacaoState.asStateFlow()
+
     /**
      * Buscar publicações por instituição
      */
@@ -104,6 +108,14 @@ class PublicacaoViewModel : ViewModel() {
             return
         }
 
+        // Validação de tamanho máximo (provavelmente 500 caracteres no backend)
+        if (descricaoLimpa.length > 500) {
+            _criarPublicacaoState.value = CriarPublicacaoState.Error(
+                "A descrição não pode ter mais de 500 caracteres (atual: ${descricaoLimpa.length})"
+            )
+            return
+        }
+
         // Log de debug
         Log.d("PublicacaoViewModel", "Validação OK - Descrição: ${descricaoLimpa.length} chars")
 
@@ -131,8 +143,17 @@ class PublicacaoViewModel : ViewModel() {
         Log.d("PublicacaoViewModel", "📝 Criando publicação")
         Log.d("PublicacaoViewModel", "📋 Dados do request:")
         Log.d("PublicacaoViewModel", "  ➤ Descrição: '${request.descricao}' (${request.descricao.length} chars)")
-        Log.d("PublicacaoViewModel", "  ➤ Imagem: ${if (request.imagem?.isNotEmpty() == true) "✅" else "❌"}")
+        Log.d("PublicacaoViewModel", "  ➤ Imagem: ${if (request.imagem?.isNotEmpty() == true) "✅ ${request.imagem}" else "❌"}")
         Log.d("PublicacaoViewModel", "  ➤ Instituição ID: ${request.instituicaoId}")
+
+        // Log JSON payload
+        try {
+            val gson = com.google.gson.Gson()
+            val json = gson.toJson(request)
+            Log.d("PublicacaoViewModel", "📦 JSON payload: $json")
+        } catch (e: Exception) {
+            Log.e("PublicacaoViewModel", "Erro ao serializar JSON", e)
+        }
 
         viewModelScope.launch {
             try {
@@ -216,10 +237,118 @@ class PublicacaoViewModel : ViewModel() {
     }
 
     /**
+     * Editar publicação existente
+     */
+    fun editarPublicacao(publicacaoId: Int, descricao: String, imagem: String?, instituicaoId: Int) {
+        // Limpar espaços extras
+        val descricaoLimpa = descricao.trim()
+
+        // Validação de tamanho mínimo
+        if (descricaoLimpa.length < 30) {
+            _editarPublicacaoState.value = EditarPublicacaoState.Error(
+                "A descrição deve ter no mínimo 30 caracteres detalhados"
+            )
+            return
+        }
+
+        // Validação de tamanho máximo
+        if (descricaoLimpa.length > 500) {
+            _editarPublicacaoState.value = EditarPublicacaoState.Error(
+                "A descrição não pode ter mais de 500 caracteres (atual: ${descricaoLimpa.length})"
+            )
+            return
+        }
+
+        if (imagem.isNullOrBlank()) {
+            _editarPublicacaoState.value = EditarPublicacaoState.Error(
+                "É necessário ter uma imagem"
+            )
+            return
+        }
+
+        _editarPublicacaoState.value = EditarPublicacaoState.Loading
+
+        Log.d("PublicacaoViewModel", "✏️ Editando publicação ID: $publicacaoId")
+        Log.d("PublicacaoViewModel", "📋 Dados do request:")
+        Log.d("PublicacaoViewModel", "  ➤ Descrição: '${descricaoLimpa}' (${descricaoLimpa.length} chars)")
+        Log.d("PublicacaoViewModel", "  ➤ Imagem: ${if (imagem.isNotEmpty()) "✅ $imagem" else "❌"}")
+
+        val request = PublicacaoRequest(
+            descricao = descricaoLimpa,
+            imagem = imagem,
+            instituicaoId = instituicaoId
+        )
+
+        // Log JSON payload
+        try {
+            val gson = com.google.gson.Gson()
+            val json = gson.toJson(request)
+            Log.d("PublicacaoViewModel", "📦 JSON payload: $json")
+        } catch (e: Exception) {
+            Log.e("PublicacaoViewModel", "Erro ao serializar JSON", e)
+        }
+
+        viewModelScope.launch {
+            try {
+                publicacaoService.atualizarPublicacao(publicacaoId, request).enqueue(object : Callback<PublicacaoCriadaResponse> {
+                    override fun onResponse(
+                        call: Call<PublicacaoCriadaResponse>,
+                        response: Response<PublicacaoCriadaResponse>
+                    ) {
+                        when {
+                            response.isSuccessful && response.body() != null -> {
+                                Log.d("PublicacaoViewModel", "✅ Publicação editada com sucesso!")
+                                _editarPublicacaoState.value = EditarPublicacaoState.Success(
+                                    response.body()!!.publicacao_instituicao
+                                )
+                                // Recarregar lista
+                                buscarPublicacoesPorInstituicao(instituicaoId)
+                            }
+                            else -> {
+                                val errorBody = response.errorBody()?.string()
+                                Log.e("PublicacaoViewModel", "❌ Erro ao editar: $errorBody")
+
+                                val mensagemErro = try {
+                                    val jsonError = com.google.gson.Gson().fromJson(
+                                        errorBody,
+                                        ErrorResponse::class.java
+                                    )
+                                    jsonError?.messagem ?: "Erro ao editar publicação (${response.code()})"
+                                } catch (e: Exception) {
+                                    "Erro ao editar publicação (${response.code()})"
+                                }
+
+                                _editarPublicacaoState.value = EditarPublicacaoState.Error(mensagemErro)
+                            }
+                        }
+                    }
+
+                    override fun onFailure(call: Call<PublicacaoCriadaResponse>, t: Throwable) {
+                        Log.e("PublicacaoViewModel", "❌ Falha ao editar", t)
+                        _editarPublicacaoState.value = EditarPublicacaoState.Error(
+                            "Erro de conexão: ${t.message}"
+                        )
+                    }
+                })
+            } catch (e: Exception) {
+                Log.e("PublicacaoViewModel", "❌ Exceção ao editar", e)
+                _editarPublicacaoState.value = EditarPublicacaoState.Error("Erro: ${e.message}")
+            }
+        }
+    }
+
+    /**
      * Limpar estado de criação
      */
     fun limparEstadoCriacao() {
         _criarPublicacaoState.value = CriarPublicacaoState.Idle
+    }
+
+    /**
+     * Limpar estado de edição
+     */
+    fun limparEstadoEdicao() {
+        _editarPublicacaoState.value = EditarPublicacaoState.Idle
     }
 
     /**
@@ -277,5 +406,15 @@ sealed class CriarPublicacaoState {
     object Loading : CriarPublicacaoState()
     data class Success(val publicacao: Publicacao?) : CriarPublicacaoState()
     data class Error(val message: String) : CriarPublicacaoState()
+}
+
+/**
+ * Estados possíveis para editar publicação
+ */
+sealed class EditarPublicacaoState {
+    object Idle : EditarPublicacaoState()
+    object Loading : EditarPublicacaoState()
+    data class Success(val publicacao: Publicacao?) : EditarPublicacaoState()
+    data class Error(val message: String) : EditarPublicacaoState()
 }
 

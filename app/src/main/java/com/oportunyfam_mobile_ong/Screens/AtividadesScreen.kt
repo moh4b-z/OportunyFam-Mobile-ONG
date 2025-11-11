@@ -8,6 +8,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.oportunyfam_mobile_ong.data.InstituicaoAuthDataStore
 import com.oportunyfam_mobile_ong.viewmodel.AtividadeViewModel
+import com.oportunyfam_mobile_ong.viewmodel.InscricaoViewModel
 
 // ==================== ENUMS E ESTADOS ====================
 
@@ -42,7 +43,11 @@ fun AtividadesScreen(navController: NavHostController?) {
     val instituicaoAuthDataStore = remember { InstituicaoAuthDataStore(context) }
     var instituicaoId by remember { mutableStateOf<Int?>(null) }
 
-    val viewModel: AtividadeViewModel = viewModel()
+    // Criar ViewModel com contexto para suportar fotos individuais por atividade
+    val viewModel: AtividadeViewModel = viewModel(
+        factory = com.oportunyfam_mobile_ong.viewmodel.AtividadeViewModelFactory(context)
+    )
+    val inscricaoViewModel: InscricaoViewModel = viewModel()
     var telaAtual by remember { mutableStateOf(TelaAtividade.LISTA) }
     var atividadeSelecionadaId by remember { mutableStateOf<Int?>(null) }
 
@@ -81,6 +86,10 @@ fun AtividadesScreen(navController: NavHostController?) {
                     atividadeId = id,
                     onBack = {
                         viewModel.limparDetalhe()
+                        // Recarregar lista de atividades ao voltar
+                        instituicaoId?.let { instId ->
+                            viewModel.buscarAtividadesPorInstituicao(instId)
+                        }
                         telaAtual = TelaAtividade.LISTA
                     },
                     onVerAlunos = { telaAtual = TelaAtividade.ALUNOS },
@@ -93,7 +102,8 @@ fun AtividadesScreen(navController: NavHostController?) {
             atividadeSelecionadaId?.let { id ->
                 GerenciarAlunosScreen(
                     atividadeId = id,
-                    onBack = { telaAtual = TelaAtividade.DETALHES }
+                    onBack = { telaAtual = TelaAtividade.DETALHES },
+                    viewModel = inscricaoViewModel
                 )
             }
         }

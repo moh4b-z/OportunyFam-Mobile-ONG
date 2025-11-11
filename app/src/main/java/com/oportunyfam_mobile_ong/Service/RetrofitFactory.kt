@@ -66,16 +66,8 @@ class RetrofitFactory {
         return retrofitFactory.create(InstituicaoService::class.java)
     }
 
-    /**
-     * Serviço de Autenticação
-     */
-    fun getAuthService(): AuthService {
-        return retrofitFactory.create(AuthService::class.java)
-    }
 
-    /**
-     * Serviço de Usuários
-     */
+
     fun getUsuarioService(): UsuarioService {
         return retrofitFactory.create(UsuarioService::class.java)
     }
