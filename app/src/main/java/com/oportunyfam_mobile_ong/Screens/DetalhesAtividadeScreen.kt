@@ -28,8 +28,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.oportunyfam_mobile_ong.Components.Cards.ResumoAtividadeCardAPI
 import com.oportunyfam_mobile_ong.Components.OpcaoGerenciamento
-import com.oportunyfam_mobile_ong.Components.ResumoAtividadeCardAPI
 import com.oportunyfam_mobile_ong.viewmodel.AtividadeDetalheState
 import com.oportunyfam_mobile_ong.viewmodel.AtividadeViewModel
 import com.oportunyfam_mobile_ong.R

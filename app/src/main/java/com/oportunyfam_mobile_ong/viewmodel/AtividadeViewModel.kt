@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.oportunyfam_mobile_ong.Service.RetrofitFactory
 import com.oportunyfam_mobile_ong.model.AtividadeResponse
 import com.oportunyfam_mobile_ong.model.AtividadesListResponse
+import com.oportunyfam_mobile_ong.model.AtividadeUnicaResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -132,13 +133,13 @@ class AtividadeViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                atividadeService.buscarAtividadePorId(atividadeId).enqueue(object : Callback<AtividadeResponse> {
+                atividadeService.buscarAtividadePorId(atividadeId).enqueue(object : Callback<AtividadeUnicaResponse> {
                     override fun onResponse(
-                        call: Call<AtividadeResponse>,
-                        response: Response<AtividadeResponse>
+                        call: Call<AtividadeUnicaResponse>,
+                        response: Response<AtividadeUnicaResponse>
                     ) {
                         if (response.isSuccessful && response.body() != null) {
-                            val atividade = response.body()!!
+                            val atividade = response.body()!!.atividade
                             Log.d("AtividadeViewModel", "Atividade carregada: ${atividade.titulo}")
                             _atividadeDetalheState.value = AtividadeDetalheState.Success(atividade)
                         } else {
@@ -147,7 +148,7 @@ class AtividadeViewModel : ViewModel() {
                         }
                     }
 
-                    override fun onFailure(call: Call<AtividadeResponse>, t: Throwable) {
+                    override fun onFailure(call: Call<AtividadeUnicaResponse>, t: Throwable) {
                         Log.e("AtividadeViewModel", "Falha na requisição", t)
                         _atividadeDetalheState.value = AtividadeDetalheState.Error("Erro de conexão: ${t.message}")
                     }

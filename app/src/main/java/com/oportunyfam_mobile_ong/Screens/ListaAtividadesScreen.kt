@@ -24,8 +24,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.oportunyfam_mobile_ong.Components.AtividadeCardAPI
 import com.oportunyfam_mobile_ong.Components.BarraTarefas
+import com.oportunyfam_mobile_ong.Components.Cards.AtividadeCardAPI
 import com.oportunyfam_mobile_ong.MainActivity
 import com.oportunyfam_mobile_ong.viewmodel.AtividadeViewModel
 import com.oportunyfam_mobile_ong.viewmodel.AtividadesState

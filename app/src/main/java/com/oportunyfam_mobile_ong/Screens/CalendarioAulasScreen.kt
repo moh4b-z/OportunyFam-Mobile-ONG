@@ -30,7 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.oportunyfam_mobile_ong.Components.CardAulaAPI
+import com.oportunyfam_mobile_ong.Components.Cards.CardAulaAPI
 import com.oportunyfam_mobile_ong.viewmodel.AtividadeDetalheState
 import com.oportunyfam_mobile_ong.viewmodel.AtividadeViewModel
 import com.oportunyfam_mobile_ong.R
