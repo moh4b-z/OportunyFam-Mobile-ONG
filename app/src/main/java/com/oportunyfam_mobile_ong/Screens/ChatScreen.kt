@@ -52,6 +52,13 @@ fun ChatScreen(
     LaunchedEffect(conversaId) {
         viewModel.iniciarEscutaMensagens(conversaId)
     }
+    // depois do LaunchedEffect(conversaId) que chama iniciarEscutaMensagens:
+    DisposableEffect(conversaId) {
+        onDispose {
+            viewModel.pararEscutaMensagens()
+        }
+    }
+
 
     // Scroll automático para a última mensagem
     LaunchedEffect(mensagens.size) {

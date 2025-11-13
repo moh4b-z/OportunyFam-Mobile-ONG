@@ -40,58 +40,48 @@ class FirebaseMensagemService {
         Log.d(TAG, "📱 Firebase configurado para projeto: oportunyfamong")
     }
 
-    /**
-     * Escuta mensagens em tempo real de uma conversa
-     * Retorna um Flow que emite a lista atualizada sempre que há mudanças
-     */
-    fun observarMensagens(conversaId: Int): Flow<List<Mensagem>> = callbackFlow {
-        val conversaRef = database.child("conversas").child(conversaId.toString()).child("mensagens")
+    fun observarMensagensEventos(conversaId: Int) = callbackFlow {
+        val ref = database
+            .child("conversas")
+            .child(conversaId.toString())
+            .child("mensagens")
 
-        val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val mensagens = mutableListOf<Mensagem>()
-
-                for (mensagemSnapshot in snapshot.children) {
-                    try {
-                        val mensagem = mensagemSnapshot.getValue(MensagemFirebase::class.java)
-                        mensagem?.let {
-                            mensagens.add(
-                                Mensagem(
-                                    id = it.id,
-                                    descricao = it.descricao,
-                                    visto = it.visto,
-                                    criado_em = it.criado_em,
-                                    atualizado_em = it.atualizado_em,
-                                    id_conversa = it.id_conversa,
-                                    id_pessoa = it.id_pessoa
-                                )
-                            )
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Erro ao converter mensagem", e)
-                    }
-                }
-
-                // Ordenar por data de criação
-                mensagens.sortBy { it.criado_em }
-
-                trySend(mensagens)
-                Log.d(TAG, "Mensagens atualizadas: ${mensagens.size}")
+        val listener = object : com.google.firebase.database.ChildEventListener {
+            override fun onChildAdded(snapshot: DataSnapshot, previousChildName: String?) {
+                val mf = snapshot.getValue(MensagemFirebase::class.java) ?: return
+                trySend(FirebaseEvent("added", mf.toMensagem()))
             }
-
+            override fun onChildChanged(snapshot: DataSnapshot, previousChildName: String?) {
+                val mf = snapshot.getValue(MensagemFirebase::class.java) ?: return
+                trySend(FirebaseEvent("changed", mf.toMensagem()))
+            }
+            override fun onChildRemoved(snapshot: DataSnapshot) {
+                val mf = snapshot.getValue(MensagemFirebase::class.java) ?: return
+                trySend(FirebaseEvent("removed", mf.toMensagem()))
+            }
+            override fun onChildMoved(snapshot: DataSnapshot, previousChildName: String?) { /* raramente usado */ }
             override fun onCancelled(error: DatabaseError) {
-                Log.e(TAG, "Erro ao escutar mensagens: ${error.message}")
                 close(error.toException())
             }
         }
 
-        conversaRef.addValueEventListener(listener)
-
+        ref.addChildEventListener(listener)
         awaitClose {
-            conversaRef.removeEventListener(listener)
-            Log.d(TAG, "Listener de mensagens removido para conversa $conversaId")
+            ref.removeEventListener(listener)
         }
     }
+
+    // Helper para converter MensagemFirebase -> Mensagem
+    private fun MensagemFirebase.toMensagem() = Mensagem(
+        id = id,
+        descricao = descricao,
+        visto = visto,
+        criado_em = criado_em,
+        atualizado_em = atualizado_em,
+        id_conversa = id_conversa,
+        id_pessoa = id_pessoa
+    )
+
 
     /**
      * Envia uma nova mensagem para o Firebase
@@ -155,31 +145,29 @@ class FirebaseMensagemService {
                 .child(conversaId.toString())
                 .child("mensagens")
 
-            // Limpa mensagens antigas
-            conversaRef.removeValue().await()
-
-            // Adiciona todas as mensagens
-            mensagens.forEach { mensagem ->
-                val mensagemFirebase = MensagemFirebase(
-                    id = mensagem.id,
-                    descricao = mensagem.descricao,
-                    visto = mensagem.visto,
-                    criado_em = mensagem.criado_em,
-                    atualizado_em = mensagem.atualizado_em,
-                    id_conversa = mensagem.id_conversa,
-                    id_pessoa = mensagem.id_pessoa
+            // Constrói um map de updates { "id": MensagemFirebase }
+            val updates = mutableMapOf<String, Any?>()
+            mensagens.forEach { m ->
+                updates[m.id.toString()] = MensagemFirebase(
+                    id = m.id,
+                    descricao = m.descricao,
+                    visto = m.visto,
+                    criado_em = m.criado_em,
+                    atualizado_em = m.atualizado_em,
+                    id_conversa = m.id_conversa,
+                    id_pessoa = m.id_pessoa
                 )
-
-                conversaRef.child(mensagem.id.toString()).setValue(mensagemFirebase).await()
             }
 
-            Log.d(TAG, "Sincronizadas ${mensagens.size} mensagens para conversa $conversaId")
+            // Atualiza os nós sem remover outros
+            conversaRef.updateChildren(updates).await()
+
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "Erro ao sincronizar mensagens", e)
             Result.failure(e)
         }
     }
+
 }
 
 /**
@@ -194,3 +182,7 @@ data class MensagemFirebase(
     val id_conversa: Int = 0,
     val id_pessoa: Int = 0
 )
+
+// dentro de FirebaseMensagemService.kt
+data class FirebaseEvent(val type: String, val mensagem: Mensagem)
+

@@ -150,64 +150,70 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /**
-     * Inicia escuta em tempo real do Firebase para uma conversa
-     * Primeiro carrega do backend, depois mantém sincronização em tempo real
-     */
-    fun iniciarEscutaMensagens(conversaId: Int) {
-        viewModelScope.launch {
-            try {
-                _isLoading.value = true
+    private var firebaseJob: kotlinx.coroutines.Job? = null
+    private var firebaseConversaObservadaId: Int? = null
 
-                // Primeiro, carrega mensagens do backend
+    fun iniciarEscutaMensagens(conversaId: Int) {
+        // evita abrir múltiplas escutas para mesma conversa
+        if (firebaseConversaObservadaId == conversaId && firebaseJob?.isActive == true) return
+
+        // cancela qualquer escuta anterior
+        pararEscutaMensagens()
+        firebaseConversaObservadaId = conversaId
+
+        firebaseJob = viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                // 1) Carrega do backend (fonte da verdade)
                 val response = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     mensagemService.listarPorConversa(conversaId)
                 }
 
                 if (response.isSuccessful) {
                     val mensagensBackend = response.body()?.mensagens ?: emptyList()
-                    _mensagens.value = mensagensBackend
-                    Log.d("ChatViewModel", "Mensagens carregadas do backend: ${mensagensBackend.size}")
-
-                    // Sincroniza com Firebase em background (não bloqueia a UI)
+                    _mensagens.value = mensagensBackend.sortedBy { it.criado_em }
+                    // Sincroniza com firebase (sem apagar) em background
                     launch(kotlinx.coroutines.Dispatchers.IO) {
-                        try {
-                            firebaseMensagemService.sincronizarMensagens(conversaId, mensagensBackend)
-                            Log.d("ChatViewModel", "Mensagens sincronizadas com Firebase: ${mensagensBackend.size}")
-                        } catch (e: Exception) {
-                            Log.e("ChatViewModel", "Erro ao sincronizar mensagens", e)
-                        }
+                        firebaseMensagemService.sincronizarMensagens(conversaId, mensagensBackend)
                     }
-                } else {
-                    _errorMessage.value = "Erro ao carregar mensagens"
-                    Log.e("ChatViewModel", "Erro: ${response.errorBody()?.string()}")
                 }
 
                 _isLoading.value = false
 
-                // Agora escuta mudanças em tempo real do Firebase
-                firebaseMensagemService.observarMensagens(conversaId).collect { mensagensFirebase ->
-                    if (mensagensFirebase.isNotEmpty()) {
-                        // MERGE: Combina mensagens do backend com as novas do Firebase
-                        val mensagensExistentes = _mensagens.value
-                        val idsExistentes = mensagensExistentes.map { it.id }.toSet()
-
-                        // Adiciona apenas mensagens novas que não existem
-                        val mensagensNovas = mensagensFirebase.filter { it.id !in idsExistentes }
-
-                        if (mensagensNovas.isNotEmpty()) {
-                            _mensagens.value = mensagensExistentes + mensagensNovas
-                            Log.d("ChatViewModel", "📱 ${mensagensNovas.size} mensagem(ns) nova(s) adicionada(s). Total: ${_mensagens.value.size}")
-                        }
+                // 2) Escuta eventos incrementais do Firebase
+                firebaseMensagemService.observarMensagensEventos(conversaId).collect { event ->
+                    when (event.type) {
+                        "added" -> addOrUpdateMensagem(event.mensagem)
+                        "changed" -> addOrUpdateMensagem(event.mensagem)
+                        "removed" -> removeMensagem(event.mensagem.id)
                     }
                 }
+
             } catch (e: Exception) {
                 _errorMessage.value = "Erro ao carregar mensagens: ${e.message}"
-                Log.e("ChatViewModel", "Erro ao iniciar escuta de mensagens", e)
+            } finally {
                 _isLoading.value = false
             }
         }
     }
+
+    fun pararEscutaMensagens() {
+        firebaseJob?.cancel()
+        firebaseJob = null
+        firebaseConversaObservadaId = null
+    }
+
+    private fun addOrUpdateMensagem(m: Mensagem) {
+        // mantém unicidade por ID e ordena por criado_em
+        val map = _mensagens.value.associateBy { it.id }.toMutableMap()
+        map[m.id] = m
+        _mensagens.value = map.values.sortedBy { it.criado_em }
+    }
+
+    private fun removeMensagem(mensagemId: Int) {
+        _mensagens.value = _mensagens.value.filterNot { it.id == mensagemId }
+    }
+
 
     /**
      * Envia mensagem: primeiro salva no backend, depois no Firebase
