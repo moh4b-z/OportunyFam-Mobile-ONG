@@ -118,7 +118,11 @@ data class Aluno(
     val crianca_foto: String?,
     val status_id: Int,
     val status_inscricao: String,
-    val data_inscricao: String
+    val data_inscricao: String,
+    val inscricao_id: Int? = null,
+    val id_responsavel: Int? = null,
+    val responsavel_id_pessoa: Int? = null,
+    val crianca_id_pessoa: Int? = null
 )
 
 /**

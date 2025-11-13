@@ -35,6 +35,7 @@ import com.oportunyfam_mobile_ong.data.InstituicaoAuthDataStore
 import com.oportunyfam_mobile_ong.model.Aluno
 import com.oportunyfam_mobile_ong.model.StatusInscricao
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -56,6 +57,7 @@ fun HomeScreen(navController: NavHostController?) {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var instituicaoId by remember { mutableStateOf<Int?>(null) }
+    var pessoaId by remember { mutableStateOf<Int?>(null) } // ✅ Adiciona pessoa_id
 
     // Filtros
     var statusFiltro by remember { mutableStateOf<Int?>(null) }
@@ -65,6 +67,8 @@ fun HomeScreen(navController: NavHostController?) {
     LaunchedEffect(Unit) {
         val instituicao = authDataStore.loadInstituicao()
         instituicaoId = instituicao?.instituicao_id
+        pessoaId = instituicao?.pessoa_id // ✅ Carrega pessoa_id também
+        Log.d("HomeScreen", "🏫 Instituição ID=$instituicaoId, Pessoa ID=$pessoaId")
     }
 
     // Carrega a lista de alunos da API
@@ -85,9 +89,22 @@ fun HomeScreen(navController: NavHostController?) {
             }
 
             if (response.isSuccessful) {
-                listaAlunos = response.body()?.alunos ?: emptyList()
+                val todosAlunos = response.body()?.alunos ?: emptyList()
+
+                // ✅ Agrupar por crianca_id para evitar duplicatas
+                // (mesma criança em múltiplas atividades)
+                listaAlunos = todosAlunos
+                    .groupBy { it.crianca_id }
+                    .map { (_, alunosGrupo) ->
+                        // Pega a primeira inscrição de cada criança
+                        // (ou pode escolher a mais recente, aprovada, etc)
+                        alunosGrupo.first()
+                    }
+
+                Log.d("HomeScreen", "✅ API retornou ${todosAlunos.size} inscrições")
+                Log.d("HomeScreen", "✅ Agrupado em ${listaAlunos.size} aluno(s) único(s)")
+
                 errorMessage = null // Limpa erro se sucesso
-                Log.d("HomeScreen", "✅ Alunos carregados: ${listaAlunos.size}")
             } else if (response.code() == 404) {
                 // 404 significa que não há alunos cadastrados
                 listaAlunos = emptyList()
@@ -97,6 +114,10 @@ fun HomeScreen(navController: NavHostController?) {
                 errorMessage = "Erro ao buscar alunos"
                 Log.e("HomeScreen", "❌ Erro ${response.code()}: ${response.errorBody()?.string()}")
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // ✅ Coroutine cancelada por navegação - NÃO é erro
+            Log.d("HomeScreen", "⏹️ Carregamento de alunos cancelado (navegação)")
+            // Não re-throw aqui porque estamos em um LaunchedEffect
         } catch (e: Exception) {
             errorMessage = "Sem conexão com a internet"
             Log.e("HomeScreen", "❌ Erro ao buscar alunos: ${e.message}", e)
@@ -159,7 +180,12 @@ fun HomeScreen(navController: NavHostController?) {
                 }
 
                 else -> items(listaAlunos) { aluno ->
-                    AlunoCard(aluno = aluno)
+                    AlunoCard(
+                        aluno = aluno,
+                        navController = navController,
+                        instituicaoId = instituicaoId,
+                        pessoaId = pessoaId // ✅ Passa pessoaId
+                    )
                 }
             }
         }
@@ -335,7 +361,12 @@ private fun EmptyStateMessage() {
  * Card de Aluno com informações da inscrição
  */
 @Composable
-fun AlunoCard(aluno: Aluno) {
+fun AlunoCard(
+    aluno: Aluno,
+    navController: NavHostController?,
+    instituicaoId: Int?,
+    pessoaId: Int? // ✅ Adiciona pessoaId
+) {
     var showDialog by remember { mutableStateOf(false) }
 
     Card(
@@ -422,6 +453,9 @@ fun AlunoCard(aluno: Aluno) {
     if (showDialog) {
         DetalhesAlunoDialog(
             aluno = aluno,
+            navController = navController,
+            instituicaoId = instituicaoId,
+            pessoaId = pessoaId, // ✅ Passa pessoaId também
             onDismiss = { showDialog = false }
         )
     }
@@ -433,8 +467,15 @@ fun AlunoCard(aluno: Aluno) {
 @Composable
 fun DetalhesAlunoDialog(
     aluno: Aluno,
+    navController: NavHostController?,
+    instituicaoId: Int?,
+    pessoaId: Int?, // ✅ Adiciona pessoaId como parâmetro
     onDismiss: () -> Unit
 ) {
+    var isLoadingConversa by remember { mutableStateOf(false) }
+    var errorMensagem by remember { mutableStateOf<String?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
@@ -486,7 +527,118 @@ fun DetalhesAlunoDialog(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Mensagem de erro
+                errorMensagem?.let { erro ->
+                    Text(
+                        text = erro,
+                        color = Color.Red,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                // Botão de Mensagem (sempre disponível se houver crianca_id)
+                if (pessoaId != null) {
+                    Button(
+                        onClick = {
+                            coroutineScope.launch {
+                                isLoadingConversa = true
+                                errorMensagem = null
+
+                                try {
+                                    // 1️⃣ Buscar a criança para obter o pessoa_id
+                                    val criancaService = RetrofitFactory().getCriancaService()
+                                    val criancaResponse = withContext(Dispatchers.IO) {
+                                        criancaService.buscarPorId(aluno.crianca_id).execute()
+                                    }
+
+                                    if (!criancaResponse.isSuccessful || criancaResponse.body()?.crianca == null) {
+                                        errorMensagem = "Erro ao buscar dados da criança"
+                                        return@launch
+                                    }
+
+                                    val criancaPessoaId = criancaResponse.body()!!.crianca!!.pessoa_id
+                                    val conversaService = RetrofitFactory().getConversaService()
+
+                                    Log.d("DetalhesAlunoDialog", "🔍 Buscando conversa existente entre pessoa $pessoaId e criança $criancaPessoaId")
+
+                                    // 2️⃣ PRIMEIRO: Buscar conversas existentes do perfil logado
+                                    val buscarResponse = withContext(Dispatchers.IO) {
+                                        conversaService.buscarPorIdPessoa(pessoaId)
+                                    }
+
+                                    if (buscarResponse.isSuccessful) {
+                                        val conversas = buscarResponse.body()?.getConversasList()
+                                        val conversaExistente = conversas?.find { conversa ->
+                                            conversa.outro_participante.id == criancaPessoaId
+                                        }
+
+                                        if (conversaExistente != null) {
+                                            // ✅ Conversa JÁ EXISTE - Reutilizar
+                                            Log.d("DetalhesAlunoDialog", "✅ Conversa existente encontrada: ID=${conversaExistente.id_conversa}")
+                                            navController?.navigate(
+                                                "${NavRoutes.CHAT}/${conversaExistente.id_conversa}/${aluno.crianca_nome}/$pessoaId"
+                                            )
+                                            onDismiss()
+                                            return@launch
+                                        }
+                                    }
+
+                                    // 3️⃣ NÃO EXISTE: Criar nova conversa
+                                    Log.d("DetalhesAlunoDialog", "➕ Conversa não existe. Criando nova...")
+                                    val criarRequest = com.oportunyfam_mobile_ong.model.ConversaRequest(
+                                        participantes = listOf(pessoaId, criancaPessoaId)
+                                    )
+
+                                    val criarResponse = withContext(Dispatchers.IO) {
+                                        conversaService.criar(criarRequest)
+                                    }
+
+                                    if (criarResponse.isSuccessful) {
+                                        val conversaId = criarResponse.body()?.conversa?.id
+                                        if (conversaId != null) {
+                                            Log.d("DetalhesAlunoDialog", "✅ Nova conversa criada: ID=$conversaId")
+                                            navController?.navigate(
+                                                "${NavRoutes.CHAT}/$conversaId/${aluno.crianca_nome}/$pessoaId"
+                                            )
+                                            onDismiss()
+                                        } else {
+                                            errorMensagem = "Erro ao criar conversa"
+                                        }
+                                    } else {
+                                        errorMensagem = "Erro ao criar conversa: ${criarResponse.code()}"
+                                        Log.e("DetalhesAlunoDialog", "❌ Erro: ${criarResponse.errorBody()?.string()}")
+                                    }
+                                } catch (e: Exception) {
+                                    errorMensagem = "Erro: ${e.message}"
+                                    Log.e("DetalhesAlunoDialog", "❌ Exceção ao criar conversa", e)
+                                } finally {
+                                    isLoadingConversa = false
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isLoadingConversa,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF4CAF50)
+                        )
+                    ) {
+                        if (isLoadingConversa) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text("💬 Enviar Mensagem")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
 
                 // Botão Fechar
                 Button(

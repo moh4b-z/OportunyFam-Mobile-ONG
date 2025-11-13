@@ -41,15 +41,19 @@ fun ConversasScreen(
     val errorMessage by viewModel.errorMessage.collectAsState()
     val pessoaId by viewModel.pessoaId.collectAsState()
 
-    // ✅ AGUARDA o ID da pessoa estar disponível antes de carregar conversas
-    LaunchedEffect(pessoaId) {
-        if (pessoaId != null) {
-            viewModel.carregarConversas()
-        }
+    // ✅ Carrega conversas sempre que a tela aparece
+    LaunchedEffect(Unit) {
+        viewModel.carregarConversas(forcarRecarregar = true)
     }
 
     Scaffold(
-        topBar = { ConversasTopBarPremium() },
+        topBar = {
+            ConversasTopBarPremium(
+                onRefreshClick = {
+                    viewModel.carregarConversas(forcarRecarregar = true)
+                }
+            )
+        },
         bottomBar = { BarraTarefas(navController, "ConversasScreen") },
         floatingActionButton = {
             FloatingActionButton(
@@ -69,7 +73,11 @@ fun ConversasScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(color = Color(0xFFFF6F00))
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(color = Color(0xFFFF6F00))
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("Carregando conversas...", color = Color.Gray)
+                        }
                     }
                 }
                 errorMessage != null -> {
@@ -86,7 +94,7 @@ fun ConversasScreen(
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { viewModel.carregarConversas() }) {
+                        Button(onClick = { viewModel.carregarConversas(forcarRecarregar = true) }) {
                             Text("Tentar novamente")
                         }
                     }
@@ -117,6 +125,10 @@ fun ConversasScreen(
                             fontSize = 14.sp,
                             color = Color.Gray
                         )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = { viewModel.carregarConversas(forcarRecarregar = true) }) {
+                            Text("Atualizar")
+                        }
                     }
                 }
                 else -> {
@@ -137,7 +149,7 @@ fun ConversasScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ConversasTopBarPremium() {
+fun ConversasTopBarPremium(onRefreshClick: () -> Unit = {}) {
     val gradient = Brush.horizontalGradient(
         colors = listOf(Color(0xFFFFA726), Color(0xFFF57C00))
     )
@@ -151,10 +163,10 @@ fun ConversasTopBarPremium() {
             .background(gradient)
             .fillMaxWidth(),
         actions = {
-            IconButton(onClick = { /* ação */ }) {
+            IconButton(onClick = onRefreshClick) {
                 Icon(
                     painter = painterResource(id = R.drawable.logo),
-                    contentDescription = "Logo",
+                    contentDescription = "Atualizar",
                     tint = Color.White
                 )
             }

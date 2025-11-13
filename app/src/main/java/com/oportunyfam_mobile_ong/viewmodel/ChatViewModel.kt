@@ -94,11 +94,23 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             _isLoading.value = true
+            _errorMessage.value = null // Limpa erro anterior
+
             try {
-                val pessoaId = _pessoaId.value
+                // ✅ Aguarda a pessoa estar carregada (pode estar sendo carregado do DataStore)
+                var pessoaId = _pessoaId.value
+
+                // Se ainda não carregou, aguarda um pouco (máximo 2 segundos)
+                var tentativas = 0
+                while (pessoaId == null && tentativas < 20) {
+                    kotlinx.coroutines.delay(100) // Aguarda 100ms
+                    pessoaId = _pessoaId.value
+                    tentativas++
+                }
+
                 if (pessoaId == null) {
-                    _errorMessage.value = "Usuário não está logado"
-                    Log.e("ChatViewModel", "Pessoa não está logada")
+                    _errorMessage.value = "Erro ao carregar dados do usuário. Faça login novamente."
+                    Log.e("ChatViewModel", "❌ Pessoa não carregada após aguardar")
                     _isLoading.value = false
                     return@launch
                 }
@@ -112,8 +124,41 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 if (response.isSuccessful) {
                     val conversasInstituicao = response.body()?.getConversasList() ?: emptyList()
 
-                    // Atualiza as conversas na UI
-                    _conversas.value = conversasInstituicao.map { conversa ->
+                    Log.d("ChatViewModel", "📋 API retornou ${conversasInstituicao.size} conversas")
+
+                    // Log detalhado de cada conversa
+                    conversasInstituicao.forEachIndexed { index, conversa ->
+                        Log.d("ChatViewModel", "  [$index] ID conversa=${conversa.id_conversa}, " +
+                                "Pessoa=${conversa.outro_participante.nome} (ID=${conversa.outro_participante.id}), " +
+                                "Última msg: ${conversa.ultima_mensagem?.descricao ?: "sem mensagens"}")
+                    }
+
+                    // ✅ FILTRAR: Mostrar TODAS as conversas únicas (diferentes pessoas OU diferentes IDs de conversa)
+                    // Se duas pessoas têm o mesmo nome, mantém ambas as conversas mais recentes
+                    val conversasUnicas = conversasInstituicao
+                        .groupBy { it.outro_participante.id } // Agrupa pelo ID da pessoa
+                        .flatMap { (pessoaId, conversasGrupo) ->
+                            Log.d("ChatViewModel", "  📂 Grupo pessoa_id=$pessoaId: ${conversasGrupo.size} conversa(s)")
+
+                            // Se tem mais de uma conversa com a mesma pessoa, pega só a mais recente
+                            if (conversasGrupo.size > 1) {
+                                val maisRecente = conversasGrupo.maxByOrNull { conversa ->
+                                    conversa.ultima_mensagem?.data_envio ?: "1970-01-01 00:00:00"
+                                }
+                                Log.d("ChatViewModel", "    ⚠️ ${conversasGrupo.size} duplicatas! Mantendo apenas ID=${maisRecente?.id_conversa}")
+                                listOfNotNull(maisRecente)
+                            } else {
+                                conversasGrupo
+                            }
+                        }
+
+                    Log.d("ChatViewModel", "🔹 Após remover duplicatas: ${conversasUnicas.size} conversas únicas")
+                    conversasUnicas.forEach { conversa ->
+                        Log.d("ChatViewModel", "  ✅ ID=${conversa.id_conversa}, ${conversa.outro_participante.nome} (pessoa_id=${conversa.outro_participante.id})")
+                    }
+
+                    // Atualiza as conversas na UI (apenas únicas)
+                    _conversas.value = conversasUnicas.map { conversa ->
                         ConversaUI(
                             id = conversa.id_conversa,
                             nome = conversa.outro_participante.nome,
@@ -126,11 +171,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
 
-                    // Salva no cache para uso offline
-                    authDataStore.saveConversasCache(pessoaId, conversasInstituicao)
+                    // Salva no cache para uso offline (conversas únicas)
+                    authDataStore.saveConversasCache(pessoaId, conversasUnicas)
 
                     conversasCarregadas = true
-                    Log.d("ChatViewModel", "✅ Conversas carregadas da API: ${_conversas.value.size}")
+                    Log.d("ChatViewModel", "✅ Conversas carregadas e filtradas: ${_conversas.value.size}")
                 } else {
                     _errorMessage.value = "Erro ao carregar conversas: ${response.message()}"
                     Log.e("ChatViewModel", "❌ Erro API: ${response.errorBody()?.string()}")
@@ -158,29 +203,45 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
+                _errorMessage.value = null
 
-                // Primeiro, carrega mensagens do backend
+                // ✅ SEMPRE carrega mensagens do backend (fonte da verdade)
+                Log.d("ChatViewModel", "🔄 Carregando mensagens da API (conversa $conversaId)...")
+                Log.d("ChatViewModel", "📍 Endpoint: GET /v1/oportunyfam/conversas/$conversaId/mensagens")
+
                 val response = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     mensagemService.listarPorConversa(conversaId)
                 }
 
+                Log.d("ChatViewModel", "📡 Resposta API: code=${response.code()}, success=${response.isSuccessful}")
+
                 if (response.isSuccessful) {
                     val mensagensBackend = response.body()?.mensagens ?: emptyList()
                     _mensagens.value = mensagensBackend
-                    Log.d("ChatViewModel", "Mensagens carregadas do backend: ${mensagensBackend.size}")
+                    Log.d("ChatViewModel", "✅ ${mensagensBackend.size} mensagens carregadas do backend")
+
+                    // Log detalhado das mensagens
+                    mensagensBackend.forEachIndexed { index, msg ->
+                        Log.d("ChatViewModel", "  [$index] ID=${msg.id}, de pessoa=${msg.id_pessoa}, texto='${msg.descricao}'")
+                    }
 
                     // Sincroniza com Firebase em background (não bloqueia a UI)
                     launch(kotlinx.coroutines.Dispatchers.IO) {
                         try {
                             firebaseMensagemService.sincronizarMensagens(conversaId, mensagensBackend)
-                            Log.d("ChatViewModel", "Mensagens sincronizadas com Firebase: ${mensagensBackend.size}")
+                            Log.d("ChatViewModel", "📱 Mensagens sincronizadas com Firebase")
                         } catch (e: Exception) {
-                            Log.e("ChatViewModel", "Erro ao sincronizar mensagens", e)
+                            Log.e("ChatViewModel", "⚠️ Erro ao sincronizar Firebase (não crítico)", e)
                         }
                     }
+                } else if (response.code() == 404) {
+                    // ✅ Conversa nova sem mensagens - NÃO é erro!
+                    _mensagens.value = emptyList()
+                    Log.d("ChatViewModel", "✅ Conversa nova (404). Iniciando sem mensagens.")
                 } else {
                     _errorMessage.value = "Erro ao carregar mensagens"
-                    Log.e("ChatViewModel", "Erro: ${response.errorBody()?.string()}")
+                    val errorBody = response.errorBody()?.string()
+                    Log.e("ChatViewModel", "❌ Erro API (${response.code()}): $errorBody")
                 }
 
                 _isLoading.value = false
@@ -197,14 +258,46 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
                         if (mensagensNovas.isNotEmpty()) {
                             _mensagens.value = mensagensExistentes + mensagensNovas
-                            Log.d("ChatViewModel", "📱 ${mensagensNovas.size} mensagem(ns) nova(s) adicionada(s). Total: ${_mensagens.value.size}")
+                            Log.d("ChatViewModel", "📱 ${mensagensNovas.size} mensagem(ns) nova(s) do Firebase. Total: ${_mensagens.value.size}")
                         }
                     }
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // ✅ Coroutine cancelada por navegação - NÃO é erro
+                Log.d("ChatViewModel", "⏹️ Carregamento de mensagens cancelado (navegação)")
+                throw e // Re-throw para propagar o cancelamento corretamente
             } catch (e: Exception) {
                 _errorMessage.value = "Erro ao carregar mensagens: ${e.message}"
-                Log.e("ChatViewModel", "Erro ao iniciar escuta de mensagens", e)
+                Log.e("ChatViewModel", "❌ Erro crítico ao carregar mensagens", e)
                 _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Recarrega mensagens da API (útil para refresh manual)
+     */
+    fun recarregarMensagens(conversaId: Int) {
+        viewModelScope.launch {
+            try {
+                Log.d("ChatViewModel", "🔄 Recarregando mensagens da API...")
+
+                val response = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    mensagemService.listarPorConversa(conversaId)
+                }
+
+                if (response.isSuccessful) {
+                    val mensagensBackend = response.body()?.mensagens ?: emptyList()
+                    _mensagens.value = mensagensBackend
+                    Log.d("ChatViewModel", "✅ ${mensagensBackend.size} mensagens recarregadas")
+                } else if (response.code() == 404) {
+                    _mensagens.value = emptyList()
+                    Log.d("ChatViewModel", "✅ Nenhuma mensagem na conversa")
+                } else {
+                    Log.e("ChatViewModel", "❌ Erro ao recarregar: ${response.errorBody()?.string()}")
+                }
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "❌ Erro ao recarregar mensagens", e)
             }
         }
     }
@@ -212,6 +305,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Envia mensagem: primeiro salva no backend, depois no Firebase
      * O Firebase notifica todos os listeners automaticamente
+     * Após enviar, atualiza a lista de conversas
      */
     fun enviarMensagem(conversaId: Int, pessoaId: Int, texto: String) {
         viewModelScope.launch {
@@ -228,14 +322,28 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     val mensagemCriada = response.body()?.mensagem
 
                     if (mensagemCriada != null) {
-                        // 2. Envia para o Firebase (notifica em tempo real)
+                        // 2. Adiciona mensagem localmente para aparecer imediatamente
+                        val mensagensAtuais = _mensagens.value.toMutableList()
+                        mensagensAtuais.add(mensagemCriada)
+                        _mensagens.value = mensagensAtuais
+                        Log.d("ChatViewModel", "✅ Mensagem enviada e adicionada: ${mensagemCriada.id}")
+
+                        // 3. Envia para o Firebase (notifica em tempo real)
                         firebaseMensagemService.enviarMensagem(mensagemCriada)
-                        Log.d("ChatViewModel", "✅ Mensagem enviada: ${mensagemCriada.id}")
+
+                        // 4. Atualiza a lista de conversas em background
+                        launch {
+                            carregarConversas(forcarRecarregar = true)
+                        }
                     }
                 } else {
                     _errorMessage.value = "Erro ao enviar mensagem"
                     Log.e("ChatViewModel", "Erro: ${response.errorBody()?.string()}")
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // ✅ Coroutine cancelada - NÃO é erro
+                Log.d("ChatViewModel", "⏹️ Envio de mensagem cancelado")
+                throw e // Re-throw para propagar o cancelamento
             } catch (e: Exception) {
                 _errorMessage.value = "Erro ao enviar: ${e.message}"
                 Log.e("ChatViewModel", "Erro ao enviar mensagem", e)
