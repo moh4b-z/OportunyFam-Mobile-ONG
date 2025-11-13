@@ -125,7 +125,7 @@ fun DetalhesAtividadeScreen(
                                 id_instituicao = atividade.instituicao_id,
                                 id_categoria = 1, // TODO: pegar categoria real
                                 titulo = atividade.titulo,
-                                descricao = atividade.descricao,
+                                descricao = atividade.descricao ?: "", // Handle nullable descricao
                                 faixa_etaria_min = atividade.faixa_etaria_min,
                                 faixa_etaria_max = atividade.faixa_etaria_max,
                                 gratuita = atividade.gratuita == 1,

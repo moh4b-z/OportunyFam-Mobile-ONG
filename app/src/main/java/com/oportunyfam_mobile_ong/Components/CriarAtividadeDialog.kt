@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.oportunyfam_mobile_ong.model.Categoria
 
 /**
  * Diálogo para criar nova atividade
@@ -31,37 +32,31 @@ fun CriarAtividadeDialog(
         gratuita: Boolean,
         preco: Double
     ) -> Unit,
+    categorias: List<Categoria> = emptyList(), // ✅ Categorias da API
     isLoading: Boolean = false
 ) {
     var titulo by remember { mutableStateOf("") }
     var descricao by remember { mutableStateOf("") }
-    var categoriaId by remember { mutableStateOf(1) } // Padrão: categoria 1
+    var categoriaId by remember { mutableStateOf(if (categorias.isNotEmpty()) categorias[0].id else 1) }
     var faixaEtariaMin by remember { mutableStateOf("") }
     var faixaEtariaMax by remember { mutableStateOf("") }
     var gratuita by remember { mutableStateOf(true) }
     var preco by remember { mutableStateOf("") }
     var expandedCategorias by remember { mutableStateOf(false) }
 
-    // Categorias disponíveis (fixas por enquanto - pode buscar da API depois)
-    val categorias = listOf(
-        1 to "Esportes",
-        2 to "Artes",
-        3 to "Música",
-        4 to "Dança",
-        5 to "Teatro",
-        6 to "Artesanato",
-        7 to "Culinária",
-        8 to "Tecnologia",
-        9 to "Idiomas",
-        10 to "Reforço Escolar"
-    )
 
     val isFormValid = titulo.isNotBlank() &&
+            titulo.length <= 100 &&
+            descricao.isNotBlank() &&
+            descricao.length >= 10 &&
+            descricao.length <= 500 &&
             faixaEtariaMin.isNotBlank() &&
             faixaEtariaMax.isNotBlank() &&
             faixaEtariaMin.toIntOrNull() != null &&
             faixaEtariaMax.toIntOrNull() != null &&
             faixaEtariaMin.toInt() <= faixaEtariaMax.toInt() &&
+            faixaEtariaMin.toInt() >= 0 &&
+            faixaEtariaMax.toInt() <= 99 &&
             (gratuita || (preco.isNotBlank() && preco.toDoubleOrNull() != null && preco.toDouble() > 0))
 
     AlertDialog(
@@ -83,24 +78,39 @@ fun CriarAtividadeDialog(
                 // Título
                 OutlinedTextField(
                     value = titulo,
-                    onValueChange = { titulo = it },
+                    onValueChange = { if (it.length <= 100) titulo = it },
                     label = { Text("Título da Atividade *") },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     singleLine = true,
-                    placeholder = { Text("Ex: Aula de Futebol") }
+                    placeholder = { Text("Ex: Aula de Futebol") },
+                    supportingText = {
+                        Text(
+                            "${titulo.length}/100 caracteres",
+                            fontSize = 12.sp,
+                            color = if (titulo.length > 100) Color.Red else Color.Gray
+                        )
+                    }
                 )
 
                 // Descrição
                 OutlinedTextField(
                     value = descricao,
-                    onValueChange = { descricao = it },
-                    label = { Text("Descrição") },
+                    onValueChange = { if (it.length <= 500) descricao = it },
+                    label = { Text("Descrição *") },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     minLines = 3,
                     maxLines = 5,
-                    placeholder = { Text("Descreva a atividade...") }
+                    placeholder = { Text("Descreva a atividade... (mínimo 10 caracteres)") },
+                    supportingText = {
+                        Text(
+                            "${descricao.length}/500 caracteres${if (descricao.isNotEmpty() && descricao.length < 10) " (mínimo 10)" else ""}",
+                            fontSize = 12.sp,
+                            color = if (descricao.length > 500 || (descricao.isNotEmpty() && descricao.length < 10)) Color.Red else Color.Gray
+                        )
+                    },
+                    isError = descricao.isNotEmpty() && descricao.length < 10
                 )
 
                 // Categoria (Dropdown)
@@ -109,7 +119,8 @@ fun CriarAtividadeDialog(
                     onExpandedChange = { if (!isLoading) expandedCategorias = !expandedCategorias }
                 ) {
                     OutlinedTextField(
-                        value = categorias.find { it.first == categoriaId }?.second ?: "Selecione",
+                        value = categorias.find { it.id == categoriaId }?.nome ?:
+                                if (categorias.isEmpty()) "Carregando..." else "Selecione",
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Categoria *") },
@@ -122,18 +133,18 @@ fun CriarAtividadeDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .menuAnchor(),
-                        enabled = !isLoading
+                        enabled = !isLoading && categorias.isNotEmpty()
                     )
 
                     ExposedDropdownMenu(
                         expanded = expandedCategorias,
                         onDismissRequest = { expandedCategorias = false }
                     ) {
-                        categorias.forEach { (id, nome) ->
+                        categorias.forEach { categoria ->
                             DropdownMenuItem(
-                                text = { Text(nome) },
+                                text = { Text(categoria.nome) },
                                 onClick = {
-                                    categoriaId = id
+                                    categoriaId = categoria.id
                                     expandedCategorias = false
                                 }
                             )
@@ -212,7 +223,7 @@ fun CriarAtividadeDialog(
 
                 // Nota informativa
                 Text(
-                    "* Campos obrigatórios",
+                    "* Campos obrigatórios\nDescrição deve ter no mínimo 10 caracteres",
                     fontSize = 12.sp,
                     color = Color.Gray,
                     fontStyle = androidx.compose.ui.text.font.FontStyle.Italic

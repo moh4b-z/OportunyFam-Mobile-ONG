@@ -3,14 +3,14 @@ package com.oportunyfam_mobile_ong.model
 data class AtividadeRequest(
     val id_instituicao: Int,
     val id_categoria: Int,
-    val titulo: String,
-    val descricao: String? = null,
+    val titulo: String, // Máximo 100 caracteres
+    val foto: String = "", // URL da foto da atividade (enviado como vazio se não houver)
+    val descricao: String = "", // Obrigatório, mínimo 10 caracteres, máximo 500
     val faixa_etaria_min: Int,
     val faixa_etaria_max: Int,
     val gratuita: Boolean = true,
     val preco: Double = 0.0,
-    val ativo: Boolean = true,
-    val foto: String? = null  // URL da foto da atividade (opcional - para futuro)
+    val ativo: Boolean = true
 )
 
 // Response para atividade simples (após cadastro)

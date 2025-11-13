@@ -264,6 +264,16 @@ class AtividadeViewModel(private val context: Context? = null) : ViewModel() {
         _criarAtividadeState.value = CriarAtividadeState.Loading
 
         Log.d("AtividadeViewModel", "📝 Criando atividade: ${request.titulo}")
+        Log.d("AtividadeViewModel", "📋 Dados: titulo=${request.titulo}, descricao=${request.descricao}, " +
+                "categoria=${request.id_categoria}, instituicao=${request.id_instituicao}, " +
+                "idade=${request.faixa_etaria_min}-${request.faixa_etaria_max}, " +
+                "gratuita=${request.gratuita}, preco=${request.preco}")
+
+        // ⚠️ IMPORTANTE: Verificar se IDs são válidos
+        Log.w("AtividadeViewModel", "⚠️ ATENÇÃO: Verifique se estes IDs existem no banco:")
+        Log.w("AtividadeViewModel", "   - Instituição ID: ${request.id_instituicao}")
+        Log.w("AtividadeViewModel", "   - Categoria ID: ${request.id_categoria}")
+        Log.w("AtividadeViewModel", "   Se o erro 400 persistir, esses IDs podem não existir!")
 
         viewModelScope.launch {
             try {
@@ -281,9 +291,39 @@ class AtividadeViewModel(private val context: Context? = null) : ViewModel() {
                                 // Recarregar lista de atividades
                                 buscarAtividadesPorInstituicao(request.id_instituicao)
                             }
+                            response.code() == 400 -> {
+                                val errorBody = response.errorBody()?.string()
+                                Log.e("AtividadeViewModel", "❌ Erro 400: $errorBody")
+                                Log.e("AtividadeViewModel", "💡 Possíveis causas:")
+                                Log.e("AtividadeViewModel", "   1. Instituição ID ${request.id_instituicao} não existe")
+                                Log.e("AtividadeViewModel", "   2. Categoria ID ${request.id_categoria} não existe")
+                                Log.e("AtividadeViewModel", "   3. Validação de campo falhou no backend")
+
+                                // Tentar extrair mensagem de erro do JSON
+                                val errorMessage = try {
+                                    errorBody?.let {
+                                        val msgStart = it.indexOf("\"messagem\":\"") + 12
+                                        val msgEnd = it.indexOf("\"", msgStart)
+                                        if (msgStart > 11 && msgEnd > msgStart) {
+                                            val msg = it.substring(msgStart, msgEnd)
+                                            if (msg.contains("Campo obrigatorio") || msg.contains("ultrapassagem")) {
+                                                "Erro: Verifique se a instituição e categoria existem no sistema. IDs: instituição=${request.id_instituicao}, categoria=${request.id_categoria}"
+                                            } else {
+                                                msg
+                                            }
+                                        } else {
+                                            "Erro ao criar atividade. Verifique os IDs da instituição e categoria."
+                                        }
+                                    } ?: "Erro ao criar atividade. Verifique os IDs da instituição e categoria."
+                                } catch (e: Exception) {
+                                    "Erro ao criar atividade (${response.code()})"
+                                }
+
+                                _criarAtividadeState.value = CriarAtividadeState.Error(errorMessage)
+                            }
                             else -> {
                                 val errorBody = response.errorBody()?.string()
-                                Log.e("AtividadeViewModel", "❌ Erro ao criar: $errorBody")
+                                Log.e("AtividadeViewModel", "❌ Erro ${response.code()}: $errorBody")
                                 _criarAtividadeState.value = CriarAtividadeState.Error(
                                     "Erro ao criar atividade (${response.code()})"
                                 )

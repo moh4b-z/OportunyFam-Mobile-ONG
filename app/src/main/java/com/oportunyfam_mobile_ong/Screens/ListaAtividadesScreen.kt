@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -13,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -36,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.oportunyfam_mobile_ong.Components.BarraTarefas
 import com.oportunyfam_mobile_ong.Components.Cards.AtividadeCardAPI
@@ -43,6 +46,8 @@ import com.oportunyfam_mobile_ong.Components.CriarAtividadeDialog
 import com.oportunyfam_mobile_ong.MainActivity
 import com.oportunyfam_mobile_ong.viewmodel.AtividadeViewModel
 import com.oportunyfam_mobile_ong.viewmodel.AtividadesState
+import com.oportunyfam_mobile_ong.viewmodel.CategoriaViewModel
+import com.oportunyfam_mobile_ong.viewmodel.CategoriasState
 import com.oportunyfam_mobile_ong.viewmodel.CriarAtividadeState
 import kotlinx.coroutines.launch
 
@@ -58,6 +63,10 @@ fun ListaAtividadesScreen(
 ) {
     val atividadesState by viewModel.atividadesState.collectAsState()
     val criarAtividadeState by viewModel.criarAtividadeState.collectAsState()
+
+    // ✅ ViewModel de categorias
+    val categoriaViewModel: CategoriaViewModel = viewModel()
+    val categoriasState by categoriaViewModel.categoriasState.collectAsState()
 
     var showCriarDialog by remember { mutableStateOf(false) }
     var isCreating by remember { mutableStateOf(false) }
@@ -115,6 +124,7 @@ fun ListaAtividadesScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.White)
+                .padding(paddingValues) // Use paddingValues
         ) {
             Column(
                 modifier = Modifier
@@ -234,28 +244,68 @@ fun ListaAtividadesScreen(
 
         // Diálogo de criar atividade
         if (showCriarDialog && instituicaoId != null) {
-            CriarAtividadeDialog(
-                onDismiss = {
-                    if (!isCreating) {
+            // Extrair lista de categorias do estado
+            when (categoriasState) {
+                is CategoriasState.Success -> {
+                    val categoriasList = (categoriasState as CategoriasState.Success).categorias
+
+                    CriarAtividadeDialog(
+                        onDismiss = {
+                            if (!isCreating) {
+                                showCriarDialog = false
+                            }
+                        },
+                        onConfirm = { titulo, descricao, categoriaId, faixaMin, faixaMax, gratuita, preco ->
+                            val request = com.oportunyfam_mobile_ong.model.AtividadeRequest(
+                                id_instituicao = instituicaoId,
+                                id_categoria = categoriaId,
+                                titulo = titulo,
+                                descricao = descricao.ifEmpty { "" },
+                                faixa_etaria_min = faixaMin,
+                                faixa_etaria_max = faixaMax,
+                                gratuita = gratuita,
+                                preco = preco,
+                                ativo = true
+                            )
+                            viewModel.criarAtividade(request)
+                        },
+                        categorias = categoriasList, // ✅ Categorias da API
+                        isLoading = isCreating
+                    )
+                }
+                is CategoriasState.Loading -> {
+                    // Mostrar diálogo de loading enquanto busca categorias
+                    AlertDialog(
+                        onDismissRequest = { showCriarDialog = false },
+                        title = { Text("Carregando...") },
+                        text = {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(48.dp),
+                                    color = Color(0xFFFFA000)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("Buscando categorias da API...")
+                            }
+                        },
+                        confirmButton = {}
+                    )
+                }
+                is CategoriasState.Error -> {
+                    // Mostrar erro e fechar diálogo
+                    LaunchedEffect(Unit) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                "Erro ao carregar categorias: ${(categoriasState as CategoriasState.Error).message}"
+                            )
+                        }
                         showCriarDialog = false
                     }
-                },
-                onConfirm = { titulo, descricao, categoriaId, faixaMin, faixaMax, gratuita, preco ->
-                    val request = com.oportunyfam_mobile_ong.model.AtividadeRequest(
-                        id_instituicao = instituicaoId,
-                        id_categoria = categoriaId,
-                        titulo = titulo,
-                        descricao = descricao.ifEmpty { null },
-                        faixa_etaria_min = faixaMin,
-                        faixa_etaria_max = faixaMax,
-                        gratuita = gratuita,
-                        preco = preco,
-                        ativo = true
-                    )
-                    viewModel.criarAtividade(request)
-                },
-                isLoading = isCreating
-            )
+                }
+            }
         }
     }
 }

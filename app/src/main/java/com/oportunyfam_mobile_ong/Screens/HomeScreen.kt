@@ -220,7 +220,7 @@ private fun FiltrosAlunos(
     atividadeSelecionada: Int?,
     onAtividadeChange: (Int?) -> Unit
 ) {
-    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+    Column(modifier = Modifier.padding(vertical = 6.dp)) {
         Text(
             text = "Filtrar por status:",
             fontSize = 14.sp,
@@ -253,7 +253,7 @@ private fun FiltrosAlunos(
                     onClick = {
                         onStatusChange(if (statusSelecionado == status.id) null else status.id)
                     },
-                    label = { Text(status.nome, fontSize = 12.sp) }
+                    label = { Text(status.nome, fontSize = 9.sp) }
                 )
             }
         }
