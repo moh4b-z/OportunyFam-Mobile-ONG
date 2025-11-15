@@ -195,84 +195,70 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /**
-     * Inicia escuta em tempo real do Firebase para uma conversa
-     * Primeiro carrega do backend, depois mantém sincronização em tempo real
-     */
+    private var firebaseJob: kotlinx.coroutines.Job? = null
+    private var firebaseConversaObservadaId: Int? = null
+
     fun iniciarEscutaMensagens(conversaId: Int) {
-        viewModelScope.launch {
+        // evita abrir múltiplas escutas para mesma conversa
+        if (firebaseConversaObservadaId == conversaId && firebaseJob?.isActive == true) return
+
+        // cancela qualquer escuta anterior
+        pararEscutaMensagens()
+        firebaseConversaObservadaId = conversaId
+
+        firebaseJob = viewModelScope.launch {
+            _isLoading.value = true
             try {
-                _isLoading.value = true
-                _errorMessage.value = null
-
-                // ✅ SEMPRE carrega mensagens do backend (fonte da verdade)
-                Log.d("ChatViewModel", "🔄 Carregando mensagens da API (conversa $conversaId)...")
-                Log.d("ChatViewModel", "📍 Endpoint: GET /v1/oportunyfam/conversas/$conversaId/mensagens")
-
+                // 1) Carrega do backend (fonte da verdade)
                 val response = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     mensagemService.listarPorConversa(conversaId)
                 }
 
-                Log.d("ChatViewModel", "📡 Resposta API: code=${response.code()}, success=${response.isSuccessful}")
-
                 if (response.isSuccessful) {
                     val mensagensBackend = response.body()?.mensagens ?: emptyList()
-                    _mensagens.value = mensagensBackend
-                    Log.d("ChatViewModel", "✅ ${mensagensBackend.size} mensagens carregadas do backend")
-
-                    // Log detalhado das mensagens
-                    mensagensBackend.forEachIndexed { index, msg ->
-                        Log.d("ChatViewModel", "  [$index] ID=${msg.id}, de pessoa=${msg.id_pessoa}, texto='${msg.descricao}'")
-                    }
-
-                    // Sincroniza com Firebase em background (não bloqueia a UI)
+                    _mensagens.value = mensagensBackend.sortedBy { it.criado_em }
+                    // Sincroniza com firebase (sem apagar) em background
                     launch(kotlinx.coroutines.Dispatchers.IO) {
-                        try {
-                            firebaseMensagemService.sincronizarMensagens(conversaId, mensagensBackend)
-                            Log.d("ChatViewModel", "📱 Mensagens sincronizadas com Firebase")
-                        } catch (e: Exception) {
-                            Log.e("ChatViewModel", "⚠️ Erro ao sincronizar Firebase (não crítico)", e)
-                        }
+                        firebaseMensagemService.sincronizarMensagens(conversaId, mensagensBackend)
                     }
-                } else if (response.code() == 404) {
-                    // ✅ Conversa nova sem mensagens - NÃO é erro!
-                    _mensagens.value = emptyList()
-                    Log.d("ChatViewModel", "✅ Conversa nova (404). Iniciando sem mensagens.")
-                } else {
-                    _errorMessage.value = "Erro ao carregar mensagens"
-                    val errorBody = response.errorBody()?.string()
-                    Log.e("ChatViewModel", "❌ Erro API (${response.code()}): $errorBody")
                 }
 
                 _isLoading.value = false
 
-                // Agora escuta mudanças em tempo real do Firebase
-                firebaseMensagemService.observarMensagens(conversaId).collect { mensagensFirebase ->
-                    if (mensagensFirebase.isNotEmpty()) {
-                        // MERGE: Combina mensagens do backend com as novas do Firebase
-                        val mensagensExistentes = _mensagens.value
-                        val idsExistentes = mensagensExistentes.map { it.id }.toSet()
-
-                        // Adiciona apenas mensagens novas que não existem
-                        val mensagensNovas = mensagensFirebase.filter { it.id !in idsExistentes }
-
-                        if (mensagensNovas.isNotEmpty()) {
-                            _mensagens.value = mensagensExistentes + mensagensNovas
-                            Log.d("ChatViewModel", "📱 ${mensagensNovas.size} mensagem(ns) nova(s) do Firebase. Total: ${_mensagens.value.size}")
-                        }
+                // 2) Escuta eventos incrementais do Firebase
+                firebaseMensagemService.observarMensagensEventos(conversaId).collect { event ->
+                    when (event.type) {
+                        "added" -> addOrUpdateMensagem(event.mensagem)
+                        "changed" -> addOrUpdateMensagem(event.mensagem)
+                        "removed" -> removeMensagem(event.mensagem.id)
                     }
                 }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                // ✅ Coroutine cancelada por navegação - NÃO é erro
-                Log.d("ChatViewModel", "⏹️ Carregamento de mensagens cancelado (navegação)")
-                throw e // Re-throw para propagar o cancelamento corretamente
+
             } catch (e: Exception) {
                 _errorMessage.value = "Erro ao carregar mensagens: ${e.message}"
-                Log.e("ChatViewModel", "❌ Erro crítico ao carregar mensagens", e)
+            } finally {
                 _isLoading.value = false
             }
         }
     }
+
+    fun pararEscutaMensagens() {
+        firebaseJob?.cancel()
+        firebaseJob = null
+        firebaseConversaObservadaId = null
+    }
+
+    private fun addOrUpdateMensagem(m: Mensagem) {
+        // mantém unicidade por ID e ordena por criado_em
+        val map = _mensagens.value.associateBy { it.id }.toMutableMap()
+        map[m.id] = m
+        _mensagens.value = map.values.sortedBy { it.criado_em }
+    }
+
+    private fun removeMensagem(mensagemId: Int) {
+        _mensagens.value = _mensagens.value.filterNot { it.id == mensagemId }
+    }
+
 
     /**
      * Recarrega mensagens da API (útil para refresh manual)
@@ -302,11 +288,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /**
-     * Envia mensagem: primeiro salva no backend, depois no Firebase
-     * O Firebase notifica todos os listeners automaticamente
-     * Após enviar, atualiza a lista de conversas
-     */
+
     fun enviarMensagem(conversaId: Int, pessoaId: Int, texto: String) {
         viewModelScope.launch {
             try {
@@ -323,13 +305,17 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
                     if (mensagemCriada != null) {
                         // 2. Adiciona mensagem localmente para aparecer imediatamente
-                        val mensagensAtuais = _mensagens.value.toMutableList()
-                        mensagensAtuais.add(mensagemCriada)
-                        _mensagens.value = mensagensAtuais
-                        Log.d("ChatViewModel", "✅ Mensagem enviada e adicionada: ${mensagemCriada.id}")
+                        addOrUpdateMensagem(mensagemCriada)
+                        Log.d("ChatViewModel", "✅ Mensagem enviada e adicionada localmente: ${mensagemCriada.id}")
 
                         // 3. Envia para o Firebase (notifica em tempo real)
-                        firebaseMensagemService.enviarMensagem(mensagemCriada)
+                        launch(kotlinx.coroutines.Dispatchers.IO) {
+                            val result = firebaseMensagemService.enviarMensagem(mensagemCriada)
+                            if (result.isFailure) {
+                                Log.e("ChatViewModel", "⚠️ Falha ao notificar Firebase: ${result.exceptionOrNull()}")
+                                // Não mostra erro para o usuário, apenas loga
+                            }
+                        }
 
                         // 4. Atualiza a lista de conversas em background
                         launch {

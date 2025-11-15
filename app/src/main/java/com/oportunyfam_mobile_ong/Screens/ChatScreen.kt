@@ -22,7 +22,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.oportunyfam_mobile_ong.model.Mensagem
@@ -53,6 +52,13 @@ fun ChatScreen(
     LaunchedEffect(Unit) {
         viewModel.iniciarEscutaMensagens(conversaId)
     }
+    // depois do LaunchedEffect(conversaId) que chama iniciarEscutaMensagens:
+    DisposableEffect(conversaId) {
+        onDispose {
+            viewModel.pararEscutaMensagens()
+        }
+    }
+
 
     // Scroll automático para a última mensagem
     LaunchedEffect(mensagens.size) {
