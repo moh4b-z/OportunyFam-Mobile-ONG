@@ -25,7 +25,7 @@ android {
 
     defaultConfig {
         applicationId = "com.oportunyfam_mobile_ong"
-        minSdk = 24
+        minSdk = 30
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"

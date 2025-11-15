@@ -27,16 +27,19 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
+import com.oportunyfam_mobile_ong.Components.AgendaHorizontal
 import com.oportunyfam_mobile_ong.Components.BarraTarefas
 import com.oportunyfam_mobile_ong.MainActivity.NavRoutes
 import com.oportunyfam_mobile_ong.R
 import com.oportunyfam_mobile_ong.Service.RetrofitFactory
 import com.oportunyfam_mobile_ong.data.InstituicaoAuthDataStore
 import com.oportunyfam_mobile_ong.model.Aluno
+import com.oportunyfam_mobile_ong.model.AulaDetalhada
 import com.oportunyfam_mobile_ong.model.StatusInscricao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
 
 /**
  * HomeScreen - Tela principal do aplicativo
@@ -63,6 +66,10 @@ fun HomeScreen(navController: NavHostController?) {
     var statusFiltro by remember { mutableStateOf<Int?>(null) }
     var atividadeFiltro by remember { mutableStateOf<Int?>(null) }
 
+    // Agenda
+    var listaAulas by remember { mutableStateOf<List<AulaDetalhada>>(emptyList()) }
+    var dataSelecionada by remember { mutableStateOf<LocalDate>(LocalDate.now()) }
+
     // Carrega instituição logada
     LaunchedEffect(Unit) {
         val instituicao = authDataStore.loadInstituicao()
@@ -71,9 +78,30 @@ fun HomeScreen(navController: NavHostController?) {
         Log.d("HomeScreen", "🏫 Instituição ID=$instituicaoId, Pessoa ID=$pessoaId")
     }
 
+    // Carrega as aulas para a agenda
+    LaunchedEffect(instituicaoId) {
+        val id = instituicaoId ?: return@LaunchedEffect
+
+        val service = RetrofitFactory().getAtividadeService()
+        try {
+            val response = withContext(Dispatchers.IO) {
+                service.buscarAulasPorInstituicao(id).execute()
+            }
+
+            if (response.isSuccessful) {
+                listaAulas = response.body()?.aulas ?: emptyList()
+                Log.d("HomeScreen", "✅ Carregadas ${listaAulas.size} aulas")
+            } else {
+                Log.e("HomeScreen", "❌ Erro ao buscar aulas: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            Log.e("HomeScreen", "❌ Erro ao buscar aulas: ${e.message}", e)
+        }
+    }
+
     // Carrega a lista de alunos da API
     LaunchedEffect(instituicaoId, statusFiltro, atividadeFiltro) {
-        if (instituicaoId == null) return@LaunchedEffect
+        val id = instituicaoId ?: return@LaunchedEffect
 
         isLoading = true
         errorMessage = null
@@ -82,7 +110,7 @@ fun HomeScreen(navController: NavHostController?) {
         try {
             val response = withContext(Dispatchers.IO) {
                 service.buscarAlunos(
-                    instituicao_id = instituicaoId,
+                    instituicao_id = id,
                     atividade_id = atividadeFiltro,
                     status_id = statusFiltro
                 ).execute()
@@ -144,9 +172,30 @@ fun HomeScreen(navController: NavHostController?) {
                 .weight(1f)
                 .padding(horizontal = 16.dp)
         ) {
+            // Agenda Horizontal
+            item {
+                Text(
+                    text = "Agenda de Aulas",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    color = Color.Black,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                AgendaHorizontal(
+                    aulas = listaAulas,
+                    onDateSelected = { data ->
+                        dataSelecionada = data
+                        Log.d("HomeScreen", "Data selecionada: $data")
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
             // Título e Filtros
             item {
-                Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
                     text = "Gerenciar Alunos",
@@ -258,13 +307,14 @@ private fun FiltrosAlunos(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(1.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             // Botão "Todos"
             FilterChip(
                 selected = statusSelecionado == null,
                 onClick = { onStatusChange(null) },
-                label = { Text("Todos") }
+                label = { Text("Todos", fontSize = 10.sp) },
+                modifier = Modifier.weight(1f)
             )
 
             // Filtros de status (exceto "Sugerida Pela Criança" que é id 1)
@@ -279,7 +329,8 @@ private fun FiltrosAlunos(
                     onClick = {
                         onStatusChange(if (statusSelecionado == status.id) null else status.id)
                     },
-                    label = { Text(status.nome, fontSize = 9.sp) }
+                    label = { Text(status.nome, fontSize = 10.sp) },
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
