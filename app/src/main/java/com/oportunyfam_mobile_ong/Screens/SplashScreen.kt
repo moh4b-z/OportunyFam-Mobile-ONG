@@ -5,12 +5,18 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -22,6 +28,7 @@ import com.oportunyfam_mobile_ong.R
 import com.oportunyfam_mobile_ong.data.InstituicaoAuthDataStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.random.Random
 
 /**
  * SplashScreen - Tela de abertura do aplicativo
@@ -85,32 +92,94 @@ fun SplashScreenPreviewContent() {
 private fun SplashScreenContent(onAnimationEnd: () -> Unit) {
     val scale = remember { Animatable(0f) }
 
-    LaunchedEffect(Unit) {
-        // Anima o logo de 0 a 1 (escala completa)
-        scale.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis = 1500)
-        )
-        // Aguarda 1 segundo antes de navegar
-        delay(1000)
-        onAnimationEnd()
-    }
-
+    // Fundo gradiente mais quente e moderno
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xA9FFEDDB)), // Cor laranja característica
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color(0xFFF69508), // Laranja
+                        Color(0xFFFFC14D), // Amarelo
+                        Color(0xFFFFF1D2)  // Suave creme
+                    )
+                )
+            ),
         contentAlignment = Alignment.Center
     ) {
+        // Bolinhas animadas no fundo
+        ParticlesLayer(alpha = alpha.value)
+
+        // Logo animada
         Image(
-            painter = painterResource(id = R.drawable.logo_inicio),
+            painter = painterResource(id = R.drawable.logo),
             contentDescription = "Logo OportunyFam",
             modifier = Modifier
                 .size(200.dp)
                 .scale(scale.value)
+                .alpha(alpha.value)
         )
     }
 }
+
+/**
+ * Camada de partículas animadas — agora com movimento mais rápido
+ */
+@Composable
+fun ParticlesLayer(alpha: Float) {
+    val particles = remember {
+        List(15) {
+            Particle(
+                x = Random.nextFloat(),
+                y = Random.nextFloat(),
+                size = Random.nextInt(4, 10),
+                delay = Random.nextLong(0, 1000),
+                speed = Random.nextFloat() * 0.005f + 0.0025f // 👈 mais rápido
+            )
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        particles.forEach { particle ->
+            var offsetY by remember { mutableStateOf(particle.y) }
+            var rotation by remember { mutableStateOf(0f) }
+
+            LaunchedEffect(Unit) {
+                delay(particle.delay)
+                while (true) {
+                    offsetY -= particle.speed
+                    rotation += 2.5f // 👈 rotação mais perceptível
+                    if (offsetY < 0f) offsetY = 1f
+                    delay(16)
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .wrapContentSize(Alignment.Center)
+                    .offset(
+                        x = ((particle.x - 0.5f) * 300).dp,
+                        y = ((offsetY - 0.5f) * 600).dp
+                    )
+                    .size(particle.size.dp)
+                    .background(
+                        color = Color.White.copy(alpha = alpha * 0.35f),
+                        shape = CircleShape
+                    )
+                    .alpha(alpha)
+            )
+        }
+    }
+}
+
+data class Particle(
+    val x: Float,
+    var y: Float,
+    val size: Int,
+    val delay: Long,
+    val speed: Float
+)
 
 @Preview(showSystemUi = true)
 @Composable
