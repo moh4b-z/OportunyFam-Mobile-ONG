@@ -678,11 +678,17 @@ fun PerfilScreen(navController: NavHostController?) {
             }
         }
 
-        // Barra de Tarefas
-        BarraTarefas(
-            navController = navController,
-            currentRoute = NavRoutes.PERFIL
+        // Barra de Tarefas com fundo contínuo
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFFFFA000))
+        ) {
+            BarraTarefas(
+                navController = navController,
+                currentRoute = NavRoutes.PERFIL
         )
+        }
     }
 
     // Diálogo de edição de descrição

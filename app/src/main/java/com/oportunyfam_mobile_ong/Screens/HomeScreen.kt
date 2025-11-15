@@ -242,11 +242,17 @@ fun HomeScreen(navController: NavHostController?) {
             }
         }
 
-        // Barra de tarefas
-        BarraTarefas(
-            navController = navController,
-            currentRoute = NavRoutes.HOME
-        )
+        // Fundo da área da barra na mesma cor base do gradiente
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFFFFA000))
+        ) {
+            BarraTarefas(
+                navController = navController,
+                currentRoute = NavRoutes.HOME
+            )
+        }
     }
 }
 

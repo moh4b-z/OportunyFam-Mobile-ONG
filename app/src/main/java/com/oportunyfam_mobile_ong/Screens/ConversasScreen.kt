@@ -54,7 +54,15 @@ fun ConversasScreen(
                 }
             )
         },
-        bottomBar = { BarraTarefas(navController, "ConversasScreen") },
+        bottomBar = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFFFA000))
+            ) {
+                BarraTarefas(navController, "ConversasScreen")
+            }
+        },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { /* TODO: Abrir diálogo para nova conversa */ },

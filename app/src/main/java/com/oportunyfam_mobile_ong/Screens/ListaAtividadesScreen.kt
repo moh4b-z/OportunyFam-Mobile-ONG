@@ -40,7 +40,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import com.oportunyfam_mobile_ong.Components.BarraTarefas
 import com.oportunyfam_mobile_ong.Components.Cards.AtividadeCardAPI
 import com.oportunyfam_mobile_ong.Components.CriarAtividadeDialog
 import com.oportunyfam_mobile_ong.MainActivity
@@ -124,12 +123,12 @@ fun ListaAtividadesScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.White)
-                .padding(paddingValues) // Use paddingValues
+                .padding(paddingValues)
         ) {
             Column(
                 modifier = Modifier
-                    .weight(1f)
-                    .padding(16.dp)
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
             ) {
                 Text(
                     text = "Minhas Atividades",
@@ -234,12 +233,6 @@ fun ListaAtividadesScreen(
                     }
                 }
             }
-
-            // Barra de Tarefas
-            BarraTarefas(
-                navController = navController,
-                currentRoute = MainActivity.NavRoutes.ATIVIDADES
-            )
         }
 
         // Diálogo de criar atividade
@@ -309,4 +302,3 @@ fun ListaAtividadesScreen(
         }
     }
 }
-
