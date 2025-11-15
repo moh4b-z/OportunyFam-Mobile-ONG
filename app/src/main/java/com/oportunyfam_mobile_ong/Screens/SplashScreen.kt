@@ -1,6 +1,8 @@
 package com.oportunyfam_mobile_ong.Screens
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -30,15 +32,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 
-/**
- * SplashScreen - Tela de abertura do aplicativo
- *
- * Exibe o logo com animação de escala e verifica se há usuário logado:
- * - Se houver usuário logado, redireciona para a tela Home
- * - Se não houver usuário logado, redireciona para a tela de Login/Registro
- *
- * @param navController Controlador de navegação para redirecionar após a animação
- */
+
 @Composable
 fun SplashScreen(navController: NavController) {
     val context = LocalContext.current
@@ -75,22 +69,30 @@ fun SplashScreen(navController: NavController) {
     )
 }
 
-/**
- * Preview da SplashScreen sem funcionalidade de navegação
- */
-@Composable
-fun SplashScreenPreviewContent() {
-    SplashScreenContent(onAnimationEnd = {})
-}
 
-/**
- * Conteúdo principal da SplashScreen com animação
- *
- * @param onAnimationEnd Callback executado quando a animação termina
- */
 @Composable
 private fun SplashScreenContent(onAnimationEnd: () -> Unit) {
     val scale = remember { Animatable(0f) }
+    val alpha = remember { Animatable(0f) }
+
+    LaunchedEffect(Unit) {
+        // Efeito bounce suave do logo
+        scale.animateTo(
+            targetValue = 1.1f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessMedium
+            )
+        )
+        scale.animateTo(1f, animationSpec = tween(300))
+
+        // Fade do fundo
+        alpha.animateTo(1f, animationSpec = tween(1500))
+        delay(1000)
+
+        // Chama o callback após a animação
+        onAnimationEnd()
+    }
 
     // Fundo gradiente mais quente e moderno
     Box(
@@ -180,9 +182,3 @@ data class Particle(
     val delay: Long,
     val speed: Float
 )
-
-@Preview(showSystemUi = true)
-@Composable
-fun SplashScreenPreview() {
-    SplashScreenPreviewContent()
-}
