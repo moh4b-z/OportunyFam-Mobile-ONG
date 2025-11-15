@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -35,7 +36,9 @@ import com.oportunyfam_mobile_ong.Service.RetrofitFactory
 import com.oportunyfam_mobile_ong.data.InstituicaoAuthDataStore
 import com.oportunyfam_mobile_ong.model.Aluno
 import com.oportunyfam_mobile_ong.model.AulaDetalhada
+import com.oportunyfam_mobile_ong.model.ConversaRequest
 import com.oportunyfam_mobile_ong.model.StatusInscricao
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -142,7 +145,7 @@ fun HomeScreen(navController: NavHostController?) {
                 errorMessage = "Erro ao buscar alunos"
                 Log.e("HomeScreen", "❌ Erro ${response.code()}: ${response.errorBody()?.string()}")
             }
-        } catch (e: kotlinx.coroutines.CancellationException) {
+        } catch (e: CancellationException) {
             // ✅ Coroutine cancelada por navegação - NÃO é erro
             Log.d("HomeScreen", "⏹️ Carregamento de alunos cancelado (navegação)")
             // Não re-throw aqui porque estamos em um LaunchedEffect
@@ -313,7 +316,15 @@ private fun FiltrosAlunos(
             FilterChip(
                 selected = statusSelecionado == null,
                 onClick = { onStatusChange(null) },
-                label = { Text("Todos", fontSize = 10.sp) },
+                label = {
+                    Text(
+                        text = "Todos",
+                        fontSize = 10.sp,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
                 modifier = Modifier.weight(1f)
             )
 
@@ -329,7 +340,15 @@ private fun FiltrosAlunos(
                     onClick = {
                         onStatusChange(if (statusSelecionado == status.id) null else status.id)
                     },
-                    label = { Text(status.nome, fontSize = 10.sp) },
+                    label = {
+                        Text(
+                            text = status.nome,
+                            fontSize = 10.sp,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -506,7 +525,7 @@ fun AlunoCard(
             aluno = aluno,
             navController = navController,
             instituicaoId = instituicaoId,
-            pessoaId = pessoaId, // ✅ Passa pessoaId também
+            pessoaId = pessoaId,
             onDismiss = { showDialog = false }
         )
     }
@@ -640,7 +659,7 @@ fun DetalhesAlunoDialog(
 
                                     // 3️⃣ NÃO EXISTE: Criar nova conversa
                                     Log.d("DetalhesAlunoDialog", "➕ Conversa não existe. Criando nova...")
-                                    val criarRequest = com.oportunyfam_mobile_ong.model.ConversaRequest(
+                                    val criarRequest = ConversaRequest(
                                         participantes = listOf(pessoaId, criancaPessoaId)
                                     )
 
@@ -725,4 +744,3 @@ private fun DetalheItem(label: String, value: String) {
         )
     }
 }
-
