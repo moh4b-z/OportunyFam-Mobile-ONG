@@ -662,6 +662,7 @@ fun PerfilScreen(navController: NavHostController?) {
                     // Grid de Publicações da API
                     PublicacoesGrid(
                         publicacoesState = publicacoesState,
+                        instituicaoIdLogada = instituicaoId, // Passa o ID da instituição logada
                         onDeletePublicacao = { publicacaoId ->
                             instituicao?.let {
                                 publicacaoViewModel.deletarPublicacao(publicacaoId, it.instituicao_id)

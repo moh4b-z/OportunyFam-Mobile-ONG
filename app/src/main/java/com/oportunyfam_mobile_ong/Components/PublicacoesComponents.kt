@@ -2,9 +2,11 @@ package com.oportunyfam_mobile_ong.Components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,9 +16,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -26,6 +28,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -45,6 +48,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.oportunyfam_mobile_ong.R
@@ -58,6 +63,7 @@ import com.oportunyfam_mobile_ong.viewmodel.PublicacoesState
 @Composable
 fun PublicacoesGrid(
     publicacoesState: PublicacoesState,
+    instituicaoIdLogada: Int? = null, // ID da instituição logada para verificar permissões
     onDeletePublicacao: (Int) -> Unit,
     onEditPublicacao: (com.oportunyfam_mobile_ong.model.Publicacao) -> Unit
 ) {
@@ -111,6 +117,7 @@ fun PublicacoesGrid(
                     items(publicacoes) { publicacao ->
                         PublicacaoCard(
                             publicacao = publicacao,
+                            instituicaoIdLogada = instituicaoIdLogada,
                             onDelete = { onDeletePublicacao(publicacao.id) },
                             onEdit = { onEditPublicacao(publicacao) }
                         )
@@ -138,58 +145,44 @@ fun PublicacoesGrid(
 @Composable
 fun PublicacaoCard(
     publicacao: com.oportunyfam_mobile_ong.model.Publicacao,
+    instituicaoIdLogada: Int? = null,
     onDelete: () -> Unit,
     onEdit: () -> Unit
 ) {
     val context = LocalContext.current
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var showActionButtons by remember { mutableStateOf(false) }
+    var showDetailDialog by remember { mutableStateOf(false) }
+
+    // Verificar se o usuário tem permissão para editar/deletar
+    val podeEditar = instituicaoIdLogada != null && instituicaoIdLogada == publicacao.id_instituicao
 
     Card(
         modifier = Modifier
             .width(200.dp)
-            .height(220.dp),
+            .height(220.dp)
+            .clickable { showDetailDialog = true }, // Abre o dialog ao clicar
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Box {
             Column {
-                // Imagem (clicável para mostrar/ocultar botões)
+                // Imagem
                 if (!publicacao.imagem.isNullOrEmpty()) {
-                    Box(
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(publicacao.imagem)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Publicação",
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(150.dp)
-                    ) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(publicacao.imagem)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = "Publicação",
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(150.dp)
-                                .clickable {
-                                    showActionButtons = !showActionButtons
-                                },
-                            contentScale = ContentScale.Crop,
-                            placeholder = painterResource(id = R.drawable.instituicao),
-                            error = painterResource(id = R.drawable.instituicao)
-                        )
-
-                        // Overlay escuro quando botões estão visíveis
-                        if (showActionButtons) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = 0.3f))
-                            )
-                        }
-                    }
+                            .height(150.dp),
+                        contentScale = ContentScale.Crop,
+                        placeholder = painterResource(id = R.drawable.instituicao),
+                        error = painterResource(id = R.drawable.instituicao)
+                    )
                 }
 
-                // Descrição
+                // Descrição (preview)
                 if (!publicacao.descricao.isNullOrEmpty()) {
                     Column(
                         modifier = Modifier
@@ -206,55 +199,163 @@ fun PublicacaoCard(
                     }
                 }
             }
+        }
+    }
 
-            // Botões de ação no topo (visíveis apenas quando clicado)
-            if (showActionButtons) {
-                androidx.compose.foundation.layout.Row(
+    // Dialog com visualização detalhada (estilo Instagram)
+    if (showDetailDialog) {
+        PublicacaoDetalhadaDialog(
+            publicacao = publicacao,
+            podeEditar = podeEditar,
+            onDismiss = { showDetailDialog = false },
+            onEdit = {
+                showDetailDialog = false
+                onEdit()
+            },
+            onDelete = {
+                showDetailDialog = false
+                onDelete()
+            }
+        )
+    }
+}
+
+// ============================================
+// DIALOG DE VISUALIZAÇÃO DETALHADA (ESTILO INSTAGRAM)
+// ============================================
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PublicacaoDetalhadaDialog(
+    publicacao: com.oportunyfam_mobile_ong.model.Publicacao,
+    podeEditar: Boolean,
+    onDismiss: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val context = LocalContext.current
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) { onDismiss() }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { /* Impede que cliques aqui fechem o dialog */ }
+            ) {
+                // Header com botões de ação
+                Box(
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        .fillMaxWidth()
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .padding(16.dp)
                 ) {
-                    // Botão editar
+                    // Botão voltar
                     IconButton(
-                        onClick = {
-                            showActionButtons = false
-                            onEdit()
-                        },
-                        modifier = Modifier
-                            .size(32.dp)
-                            .background(Color.White.copy(alpha = 0.95f), CircleShape)
+                        onClick = onDismiss,
+                        modifier = Modifier.align(Alignment.CenterStart)
                     ) {
                         Icon(
-                            Icons.Default.Edit,
-                            contentDescription = "Editar",
-                            tint = Color(0xFFFFA000),
-                            modifier = Modifier.size(18.dp)
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Voltar",
+                            tint = Color.White
                         )
                     }
 
-                    // Botão deletar
-                    IconButton(
-                        onClick = {
-                            showActionButtons = false
-                            showDeleteDialog = true
-                        },
-                        modifier = Modifier
-                            .size(32.dp)
-                            .background(Color.White.copy(alpha = 0.95f), CircleShape)
-                    ) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = "Deletar",
-                            tint = Color.Red,
-                            modifier = Modifier.size(18.dp)
+                    // Botões de edição/deleção (apenas se podeEditar)
+                    if (podeEditar) {
+                        Row(
+                            modifier = Modifier.align(Alignment.CenterEnd),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            IconButton(onClick = onEdit) {
+                                Icon(
+                                    Icons.Default.Edit,
+                                    contentDescription = "Editar",
+                                    tint = Color.White
+                                )
+                            }
+                            IconButton(onClick = { showDeleteDialog = true }) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Deletar",
+                                    tint = Color.Red
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Imagem principal (centralizada)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (!publicacao.imagem.isNullOrEmpty()) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(publicacao.imagem)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Publicação detalhada",
+                            modifier = Modifier.fillMaxWidth(),
+                            contentScale = ContentScale.Fit,
+                            placeholder = painterResource(id = R.drawable.instituicao),
+                            error = painterResource(id = R.drawable.instituicao)
                         )
+                    }
+                }
+
+                // Descrição na parte inferior
+                if (!publicacao.descricao.isNullOrEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.Black.copy(alpha = 0.7f))
+                            .padding(16.dp)
+                    ) {
+                        Column {
+                            Text(
+                                "Descrição",
+                                fontSize = 12.sp,
+                                color = Color.Gray,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                publicacao.descricao,
+                                fontSize = 15.sp,
+                                color = Color.White,
+                                lineHeight = 20.sp
+                            )
+                        }
                     }
                 }
             }
         }
     }
 
+    // Dialog de confirmação de deleção
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -262,10 +363,10 @@ fun PublicacaoCard(
             text = { Text("Deseja realmente deletar esta publicação?") },
             confirmButton = {
                 TextButton(onClick = {
-                    onDelete()
                     showDeleteDialog = false
+                    onDelete()
                 }) {
-                    Text("Deletar", color = Color.Red)
+                    Text("Deletar", color = Color.Red, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
