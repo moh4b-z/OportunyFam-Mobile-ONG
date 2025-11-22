@@ -8,9 +8,7 @@ import android.util.Log
  * Use variáveis de ambiente ou arquivo local.properties
  */
 object AzureConfig {
-    // ⚠️ ATENÇÃO: Chave configurada diretamente no código
-    // IMPORTANTE: Remova antes de fazer commit no Git!
-    private const val AZURE_STORAGE_KEY = ""
+    private const val AZURE_STORAGE_KEY = "sp=racwl&st=2025-11-18T13:06:56Z&se=2025-12-05T21:21:56Z&sv=2024-11-04&sr=c&sig=blfBJt5Lw0S9tB1mSpo%2FRufvFq5eXaPQNFI3mZ36Z5Y%3D"
 
     /**
      * Obtém a chave de acesso do Azure Storage

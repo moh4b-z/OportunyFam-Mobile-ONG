@@ -747,7 +747,7 @@ fun PerfilScreen(navController: NavHostController?) {
             onDescricaoChange = { publicacaoDescricao = it },
             onSelecionarImagem = { publicacaoImagePickerLauncher.launch("image/*") },
             onSalvar = {
-                if (publicacaoDescricao.trim().length >= 30 && publicacaoImageFile != null && instituicao != null) {
+                if (publicacaoDescricao.trim().length >= 5 && publicacaoImageFile != null && instituicao != null) {
                     isUploadingPublicacao = true
                     scope.launch {
                         try {
@@ -766,7 +766,9 @@ fun PerfilScreen(navController: NavHostController?) {
                                 publicacaoImageFile!!,
                                 com.oportunyfam_mobile_ong.Config.AzureConfig.STORAGE_ACCOUNT,
                                 accountKey,
-                                com.oportunyfam_mobile_ong.Config.AzureConfig.CONTAINER_PUBLICACOES
+                                // Usar o mesmo container do perfil para uploads de publicação
+                                // (algumas chaves SAS podem ter permissão apenas para o container de perfil)
+                                com.oportunyfam_mobile_ong.Config.AzureConfig.CONTAINER_PERFIL
                             )
 
                             if (imageUrl != null) {
@@ -817,7 +819,7 @@ fun PerfilScreen(navController: NavHostController?) {
             isLoading = isEditingPublicacao,
             onDescricaoChange = { editarPublicacaoDescricao = it },
             onSalvar = {
-                if (editarPublicacaoDescricao.trim().length >= 30 && instituicao != null && publicacaoParaEditar != null) {
+                if (editarPublicacaoDescricao.trim().length >= 5 && instituicao != null && publicacaoParaEditar != null) {
                     isEditingPublicacao = true
                     Log.d("PerfilScreen", "💾 Salvando edição da publicação ID: ${publicacaoParaEditar!!.id}")
 

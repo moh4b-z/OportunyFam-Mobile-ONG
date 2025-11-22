@@ -101,9 +101,9 @@ class PublicacaoViewModel : ViewModel() {
         val descricaoLimpa = descricao.trim()
 
         // Validação de tamanho mínimo
-        if (descricaoLimpa.length < 30) {
+        if (descricaoLimpa.length < 5) {
             _criarPublicacaoState.value = CriarPublicacaoState.Error(
-                "A descrição deve ter no mínimo 30 caracteres detalhados (sem contar espaços)"
+                "A descrição deve ter no mínimo 5 caracteres detalhados (sem contar espaços)"
             )
             return
         }
@@ -244,9 +244,9 @@ class PublicacaoViewModel : ViewModel() {
         val descricaoLimpa = descricao.trim()
 
         // Validação de tamanho mínimo
-        if (descricaoLimpa.length < 30) {
+        if (descricaoLimpa.length < 5) {
             _editarPublicacaoState.value = EditarPublicacaoState.Error(
-                "A descrição deve ter no mínimo 30 caracteres detalhados"
+                "A descrição deve ter no mínimo 5 caracteres detalhados"
             )
             return
         }

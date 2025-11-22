@@ -396,17 +396,17 @@ fun CriarPublicacaoDialog(
                 OutlinedTextField(
                     value = descricao,
                     onValueChange = onDescricaoChange,
-                    label = { Text("Descrição * (mín. 30 caracteres)") },
+                    label = { Text("Descrição * (mín. 5 caracteres)") },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     maxLines = 6,
                     minLines = 4,
                     placeholder = { Text("Descreva sua publicação em detalhes...") },
-                    isError = descricao.isNotEmpty() && descricao.trim().length < 30,
+                    isError = descricao.isNotEmpty() && descricao.trim().length < 5,
                     supportingText = {
                         Text(
-                            text = "${descricao.trim().length}/30",
-                            color = if (descricao.trim().length >= 30) Color.Gray else Color.Red,
+                            text = "${descricao.trim().length}/5",
+                            color = if (descricao.trim().length >= 5) Color.Gray else Color.Red,
                             fontSize = 12.sp
                         )
                     }
@@ -441,7 +441,7 @@ fun CriarPublicacaoDialog(
             } else {
                 TextButton(
                     onClick = onSalvar,
-                    enabled = descricao.trim().length >= 30 && imagemSelecionada
+                    enabled = descricao.trim().length >= 5 && imagemSelecionada
                 ) {
                     Text("Publicar", color = Color(0xFFFFA000), fontWeight = FontWeight.Bold)
                 }
