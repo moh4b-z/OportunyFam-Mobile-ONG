@@ -20,7 +20,7 @@ class RetrofitFactory {
 
     companion object {
         // URL base da API
-        private const val BASE_URL = "https://oportunyfam-back-end.onrender.com/v1/oportunyfam/"
+        private const val BASE_URL = "https://oportunyfam-bcf0ghd9fkevaeez.canadacentral-01.azurewebsites.net/v1/oportunyfam/"
 
         // Níveis de log
         private val LOG_LEVEL = HttpLoggingInterceptor.Level.BODY

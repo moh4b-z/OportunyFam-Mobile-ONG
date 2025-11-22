@@ -51,6 +51,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun CalendarioAulasScreen(
     viewModel: AtividadeViewModel,
+    modifier: Modifier,
     atividadeId: Int,
     onBack: () -> Unit
 ) {
@@ -142,6 +143,10 @@ fun CalendarioAulasScreen(
     }
 
     Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .padding(bottom = 65.dp),
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Calendário de Aulas", fontWeight = FontWeight.Bold) },
@@ -169,8 +174,8 @@ fun CalendarioAulasScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
                 .background(Color.White)
+                .padding(paddingValues)
         ) {
             // Informações da atividade
             when (atividadeDetalheState) {

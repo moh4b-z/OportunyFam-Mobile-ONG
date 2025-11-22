@@ -62,7 +62,8 @@ fun DetalhesAtividadeScreen(
     onBack: () -> Unit,
     onVerAlunos: () -> Unit,
     onVerCalendario: () -> Unit,
-    onConfiguracoes: () -> Unit
+    onConfiguracoes: () -> Unit,
+    modifier: Modifier,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -283,8 +284,9 @@ fun DetalhesAtividadeScreen(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(paddingValues)
                         .background(Color.White)
+                        .padding(paddingValues)
+                        .padding(bottom = 65.dp)
                 ) {
                     item {
                         // Card de resumo com dados reais e capacidade de editar foto

@@ -43,6 +43,7 @@ import kotlinx.coroutines.launch
 fun GerenciarAlunosScreen(
     atividadeId: Int,
     onBack: () -> Unit,
+    modifier: Modifier,
     viewModel: InscricaoViewModel = viewModel()
 ) {
     val inscricoesState by viewModel.inscricoesState.collectAsState()
@@ -213,7 +214,11 @@ fun GerenciarAlunosScreen(
                     ) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(32.dp)
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.White)
+                                .padding(paddingValues)
+                                .padding(bottom = 65.dp)
                         ) {
                             Text(
                                 "Erro ao carregar alunos",

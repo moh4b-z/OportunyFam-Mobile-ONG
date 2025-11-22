@@ -2,12 +2,14 @@ package com.oportunyfam_mobile_ong.Screens
 
 import android.util.Log
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.oportunyfam_mobile_ong.Components.BarraTarefas
@@ -79,64 +81,82 @@ fun AtividadesScreen(navController: NavHostController?) {
             )
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues)) {
-            when (telaAtual) {
-                TelaAtividade.LISTA -> {
-                    ListaAtividadesScreen(
-                        navController = navController,
+        when (telaAtual) {
+            TelaAtividade.LISTA -> {
+                ListaAtividadesScreen(
+                    navController = navController,
+                    viewModel = viewModel,
+                    instituicaoId = instituicaoId,
+                    onAtividadeClick = { atividadeId ->
+                        atividadeSelecionadaId = atividadeId
+                        viewModel.buscarAtividadePorId(atividadeId)
+                        telaAtual = TelaAtividade.DETALHES
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .padding(bottom = 65.dp)
+                )
+            }
+            TelaAtividade.DETALHES -> {
+                atividadeSelecionadaId?.let { id ->
+                    DetalhesAtividadeScreen(
                         viewModel = viewModel,
-                        instituicaoId = instituicaoId,
-                        onAtividadeClick = { atividadeId ->
-                            atividadeSelecionadaId = atividadeId
-                            viewModel.buscarAtividadePorId(atividadeId)
-                            telaAtual = TelaAtividade.DETALHES
-                        }
+                        atividadeId = id,
+                        onBack = {
+                            viewModel.limparDetalhe()
+                            // Recarregar lista de atividades ao voltar
+                            instituicaoId?.let { instId ->
+                                viewModel.buscarAtividadesPorInstituicao(instId)
+                            }
+                            telaAtual = TelaAtividade.LISTA
+                        },
+                        onVerAlunos = { telaAtual = TelaAtividade.ALUNOS },
+                        onVerCalendario = { telaAtual = TelaAtividade.CALENDARIO },
+                        onConfiguracoes = { telaAtual = TelaAtividade.CONFIGURACOES },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues)
+                            .padding(bottom = 65.dp)
                     )
                 }
-                TelaAtividade.DETALHES -> {
-                    atividadeSelecionadaId?.let { id ->
-                        DetalhesAtividadeScreen(
-                            viewModel = viewModel,
-                            atividadeId = id,
-                            onBack = {
-                                viewModel.limparDetalhe()
-                                // Recarregar lista de atividades ao voltar
-                                instituicaoId?.let { instId ->
-                                    viewModel.buscarAtividadesPorInstituicao(instId)
-                                }
-                                telaAtual = TelaAtividade.LISTA
-                            },
-                            onVerAlunos = { telaAtual = TelaAtividade.ALUNOS },
-                            onVerCalendario = { telaAtual = TelaAtividade.CALENDARIO },
-                            onConfiguracoes = { telaAtual = TelaAtividade.CONFIGURACOES }
-                        )
-                    }
+            }
+            TelaAtividade.ALUNOS -> {
+                atividadeSelecionadaId?.let { id ->
+                    GerenciarAlunosScreen(
+                        atividadeId = id,
+                        onBack = { telaAtual = TelaAtividade.DETALHES },
+                        viewModel = inscricaoViewModel,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues)
+                            .padding(bottom = 65.dp)
+                    )
                 }
-                TelaAtividade.ALUNOS -> {
-                    atividadeSelecionadaId?.let { id ->
-                        GerenciarAlunosScreen(
-                            atividadeId = id,
-                            onBack = { telaAtual = TelaAtividade.DETALHES },
-                            viewModel = inscricaoViewModel
-                        )
-                    }
+            }
+            TelaAtividade.CALENDARIO -> {
+                atividadeSelecionadaId?.let { id ->
+                    CalendarioAulasScreen(
+                        viewModel = viewModel,
+                        atividadeId = id,
+                        onBack = { telaAtual = TelaAtividade.DETALHES },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues)
+                            .padding(bottom = 65.dp)
+                    )
                 }
-                TelaAtividade.CALENDARIO -> {
-                    atividadeSelecionadaId?.let { id ->
-                        CalendarioAulasScreen(
-                            viewModel = viewModel,
-                            atividadeId = id,
-                            onBack = { telaAtual = TelaAtividade.DETALHES }
-                        )
-                    }
-                }
-                TelaAtividade.CONFIGURACOES -> {
-                    atividadeSelecionadaId?.let { id ->
-                        ConfiguracoesAtividadeScreen(
-                            atividadeId = id,
-                            onBack = { telaAtual = TelaAtividade.DETALHES }
-                        )
-                    }
+            }
+            TelaAtividade.CONFIGURACOES -> {
+                atividadeSelecionadaId?.let { id ->
+                    ConfiguracoesAtividadeScreen(
+                        atividadeId = id,
+                        onBack = { telaAtual = TelaAtividade.DETALHES },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues)
+                            .padding(bottom = 65.dp)
+                    )
                 }
             }
         }

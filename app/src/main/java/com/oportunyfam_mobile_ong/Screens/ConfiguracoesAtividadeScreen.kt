@@ -26,7 +26,11 @@ import androidx.compose.ui.unit.sp
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ConfiguracoesAtividadeScreen(atividadeId: Int, onBack: () -> Unit) {
+fun ConfiguracoesAtividadeScreen(
+    atividadeId: Int,
+    modifier: Modifier,
+    onBack: () -> Unit
+) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -46,8 +50,9 @@ fun ConfiguracoesAtividadeScreen(atividadeId: Int, onBack: () -> Unit) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
                 .background(Color.White)
+                .padding(paddingValues)
+                .padding(bottom = 65.dp)
         ) {
             item {
                 Text(

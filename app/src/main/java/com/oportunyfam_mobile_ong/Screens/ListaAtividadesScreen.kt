@@ -56,6 +56,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ListaAtividadesScreen(
     navController: NavHostController?,
+    modifier: Modifier,
     viewModel: AtividadeViewModel,
     instituicaoId: Int?,
     onAtividadeClick: (Int) -> Unit
@@ -101,6 +102,10 @@ fun ListaAtividadesScreen(
     }
 
     Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .padding(bottom = 65.dp),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             // Botão FAB para criar atividade
@@ -124,6 +129,7 @@ fun ListaAtividadesScreen(
                 .fillMaxSize()
                 .background(Color.White)
                 .padding(paddingValues)
+                .padding(bottom = 65.dp)
         ) {
             Column(
                 modifier = Modifier
