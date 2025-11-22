@@ -76,6 +76,7 @@ data class AtividadeResponse(
 data class AulaDetalhe(
     val status_aula: String? = null, // "Futura", "Encerrada", "Hoje"
     val aula_id: Int,
+    val id_atividade: Int,
     val hora_fim: String,
     val data: String? = null, // Usado em listas de atividades
     val data_aula: String? = null, // Usado em detalhes de aula

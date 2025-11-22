@@ -38,6 +38,7 @@ import com.oportunyfam_mobile_ong.Components.CriarAulaDialog
 import com.oportunyfam_mobile_ong.data.InstituicaoAuthDataStore
 import com.oportunyfam_mobile_ong.model.AulaLoteRequest
 import com.oportunyfam_mobile_ong.model.AulaRequest
+import com.oportunyfam_mobile_ong.model.AulaDetalhada
 import com.oportunyfam_mobile_ong.viewmodel.*
 import kotlinx.coroutines.launch
 
@@ -216,7 +217,7 @@ fun CalendarioAulasScreen(
                             Log.d("CalendarioAulas", "⚠️ Usando aulas da atividade como fallback (${atividade.aulas.size} aulas)")
                             // EFETIVAMENTE usar as aulas da atividade
                             aulas = atividade.aulas.map { aulaDetalhe ->
-                                com.oportunyfam_mobile_ong.model.AulaDetalhada(
+                                AulaDetalhada(
                                     aula_id = aulaDetalhe.aula_id,
                                     id_atividade = atividadeId,
                                     data_aula = aulaDetalhe.data_aula ?: aulaDetalhe.data ?: "",

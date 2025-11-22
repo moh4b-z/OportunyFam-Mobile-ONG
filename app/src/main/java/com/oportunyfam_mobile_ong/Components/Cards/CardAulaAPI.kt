@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.oportunyfam_mobile_ong.model.AulaDetalhe
+import androidx.compose.ui.tooling.preview.Preview
 
 
 /**
@@ -119,4 +120,48 @@ fun CardAulaAPI(aula: AulaDetalhe) {
             }
         }
     }
+}
+
+@Preview(showBackground = true, name = "Aula Futura")
+@Composable
+fun PreviewCardAulaAPI_Futura() {
+    CardAulaAPI(
+        aula = AulaDetalhe(
+            aula_id = 1,
+            id_atividade = 1,
+            data_aula = "22/11/2025",
+            hora_inicio = "08:00",
+            hora_fim = "09:00",
+            vagas_total = 20,
+            vagas_disponiveis = 10,
+            status_aula = "Futura",
+            iram_participar = emptyList(),
+            foram = emptyList(),
+            ausentes = emptyList(),
+            nome_atividade = "Matemática",
+            instituicao_nome = "Escola Exemplo"
+        )
+    )
+}
+
+@Preview(showBackground = true, name = "Aula Passada")
+@Composable
+fun PreviewCardAulaAPI_Passada() {
+    CardAulaAPI(
+        aula = AulaDetalhe(
+            aula_id = 2,
+            id_atividade = 1,
+            data_aula = "20/11/2025",
+            hora_inicio = "10:00",
+            hora_fim = "11:00",
+            vagas_total = 20,
+            vagas_disponiveis = 0,
+            status_aula = "Passada",
+            iram_participar = emptyList(),
+            foram = emptyList(),
+            ausentes = emptyList(),
+            nome_atividade = "Português",
+            instituicao_nome = "Escola Exemplo"
+        )
+    )
 }

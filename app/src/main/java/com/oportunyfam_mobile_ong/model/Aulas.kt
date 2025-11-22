@@ -1,5 +1,7 @@
 package com.oportunyfam_mobile_ong.model
 
+import kotlin.Int
+
 // ============ MODELOS PARA AULAS ============
 
 // Request para criar uma aula individual
@@ -90,6 +92,7 @@ data class AulaDetalhada(
         return AulaDetalhe(
             status_aula = status_aula,
             aula_id = aula_id,
+            id_atividade = id_atividade,
             hora_fim = hora_fim,
             data = data_aula,
             data_aula = data_aula,
