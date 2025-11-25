@@ -95,6 +95,10 @@ fun PerfilScreen(navController: NavHostController?) {
     var isLoadingUpdate by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     var novaDescricao by remember { mutableStateOf("") }
+    var novoNome by remember { mutableStateOf("") }
+    var novoEmail by remember { mutableStateOf("") }
+    var novoTelefone by remember { mutableStateOf("") }
+    var novoCnpj by remember { mutableStateOf("") }
     var showSnackbar by remember { mutableStateOf(false) }
     var snackbarMessage by remember { mutableStateOf("") }
     var tempImageFile by remember { mutableStateOf<File?>(null) }
@@ -309,13 +313,19 @@ fun PerfilScreen(navController: NavHostController?) {
         }
     }
 
-    val onEditDescription: () -> Unit = {
-        novaDescricao = instituicao?.descricao ?: ""
+    val onEditProfile: () -> Unit = {
+        instituicao?.let {
+            novoNome = it.nome
+            novoEmail = it.email
+            novoTelefone = it.telefone ?: ""
+            novoCnpj = it.cnpj
+            novaDescricao = it.descricao ?: ""
+        }
         showEditDialog = true
     }
 
-    val onSaveDescription: () -> Unit = {
-        if (novaDescricao.isNotBlank() && instituicao != null) {
+    val onSaveProfile: () -> Unit = {
+        if (novoNome.isNotBlank() && novoEmail.isNotBlank() && novoCnpj.isNotBlank() && instituicao != null) {
             isLoadingUpdate = true
             scope.launch {
                 try {
@@ -323,24 +333,30 @@ fun PerfilScreen(navController: NavHostController?) {
                     val currentInstituicao = instituicao!!
 
                     val updateRequest = InstituicaoAtualizarRequest(
-                        nome = currentInstituicao.nome,
+                        nome = novoNome,
                         foto_perfil = currentInstituicao.foto_perfil,
-                        cnpj = currentInstituicao.cnpj,
-                        telefone = currentInstituicao.telefone,
-                        email = currentInstituicao.email,
-                        descricao = novaDescricao
+                        cnpj = novoCnpj,
+                        telefone = novoTelefone.ifBlank { null },
+                        email = novoEmail,
+                        descricao = novaDescricao.ifBlank { null }
                     )
 
                     val response = instituicaoService.atualizar(currentInstituicao.instituicao_id, updateRequest)
 
                     if (response.isSuccessful) {
-                        val updatedInstituicao = currentInstituicao.copy(descricao = novaDescricao)
+                        val updatedInstituicao = currentInstituicao.copy(
+                            nome = novoNome,
+                            email = novoEmail,
+                            telefone = novoTelefone.ifBlank { null },
+                            cnpj = novoCnpj,
+                            descricao = novaDescricao.ifBlank { null }
+                        )
                         instituicaoAuthDataStore.saveInstituicao(updatedInstituicao)
                         delay(200)
                         // Incrementar trigger para forçar reload
                         reloadTrigger++
                         showEditDialog = false
-                        snackbarMessage = "Descrição atualizada com sucesso!"
+                        snackbarMessage = "Perfil atualizado com sucesso!"
                         showSnackbar = true
                     } else {
                         snackbarMessage = "Erro ao atualizar: ${response.code()}"
@@ -531,13 +547,30 @@ fun PerfilScreen(navController: NavHostController?) {
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Nome da Instituição
-                    Text(
-                        instituicaoNome,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black
-                    )
+                    // Nome da Instituição com botão de editar
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            instituicaoNome,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
+                        )
+                        IconButton(
+                            onClick = onEditProfile,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.Edit,
+                                contentDescription = "Editar perfil",
+                                tint = Color(0xFFFFA000),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(4.dp))
 
@@ -547,6 +580,18 @@ fun PerfilScreen(navController: NavHostController?) {
                         fontSize = 14.sp,
                         color = Color.Gray
                     )
+
+                    // Telefone da Instituição (se existir)
+                    instituicao?.telefone?.let { telefone ->
+                        if (telefone.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                telefone,
+                                fontSize = 13.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -590,33 +635,13 @@ fun PerfilScreen(navController: NavHostController?) {
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // Descrição da Instituição com botão de editar
-                    Box(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            instituicao?.descricao ?: "Nenhuma descrição disponível. Clique no ícone para editar.",
-                            fontSize = 14.sp,
-                            color = Color.DarkGray,
-                            lineHeight = 20.sp,
-                            modifier = Modifier.padding(end = 32.dp)
-                        )
-
-                        // Botão de editar
-                        IconButton(
-                            onClick = onEditDescription,
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .size(28.dp)
-                        ) {
-                            Icon(
-                                Icons.Filled.Edit,
-                                contentDescription = "Editar descrição",
-                                tint = Color(0xFFFFA000),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
+                    // Descrição da Instituição
+                    Text(
+                        instituicao?.descricao ?: "Nenhuma descrição disponível.",
+                        fontSize = 14.sp,
+                        color = Color.DarkGray,
+                        lineHeight = 20.sp
+                    )
 
                     Spacer(modifier = Modifier.height(24.dp))
 
@@ -692,7 +717,7 @@ fun PerfilScreen(navController: NavHostController?) {
         }
     }
 
-    // Diálogo de edição de descrição
+    // Diálogo de edição de perfil completo
     if (showEditDialog) {
         AlertDialog(
             onDismissRequest = {
@@ -700,16 +725,69 @@ fun PerfilScreen(navController: NavHostController?) {
                     showEditDialog = false
                 }
             },
-            title = { Text("Editar Descrição") },
+            title = { Text("Editar Perfil") },
             text = {
-                Column {
-                    Text("Digite a nova descrição da sua instituição:")
-                    Spacer(modifier = Modifier.height(16.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                ) {
+                    // Nome
+                    OutlinedTextField(
+                        value = novoNome,
+                        onValueChange = { novoNome = it },
+                        label = { Text("Nome da Instituição") },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isLoadingUpdate,
+                        singleLine = true
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Email
+                    OutlinedTextField(
+                        value = novoEmail,
+                        onValueChange = { novoEmail = it },
+                        label = { Text("E-mail") },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isLoadingUpdate,
+                        singleLine = true
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Telefone
+                    OutlinedTextField(
+                        value = novoTelefone,
+                        onValueChange = { novoTelefone = it },
+                        label = { Text("Telefone (opcional)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isLoadingUpdate,
+                        singleLine = true
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // CNPJ
+                    OutlinedTextField(
+                        value = novoCnpj,
+                        onValueChange = { novoCnpj = it },
+                        label = { Text("CNPJ") },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isLoadingUpdate,
+                        singleLine = true
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Descrição
                     OutlinedTextField(
                         value = novaDescricao,
                         onValueChange = { novaDescricao = it },
+                        label = { Text("Descrição (opcional)") },
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text("Descreva sua instituição...") },
+                        minLines = 3,
                         maxLines = 5,
                         enabled = !isLoadingUpdate
                     )
@@ -720,8 +798,8 @@ fun PerfilScreen(navController: NavHostController?) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp))
                 } else {
                     TextButton(
-                        onClick = onSaveDescription,
-                        enabled = novaDescricao.isNotBlank() && !isLoadingUpdate
+                        onClick = onSaveProfile,
+                        enabled = novoNome.isNotBlank() && novoEmail.isNotBlank() && novoCnpj.isNotBlank() && !isLoadingUpdate
                     ) {
                         Text("Salvar")
                     }
