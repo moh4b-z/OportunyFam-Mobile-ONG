@@ -82,9 +82,28 @@ fun AgendaHorizontal(
         derivedStateOf {
             aulas
                 .groupBy {
-                    // Converte a string "YYYY-MM-DD" para LocalDate
+                    // Converte a string para LocalDate (suporta múltiplos formatos)
                     try {
-                        LocalDate.parse(it.data_aula, DateTimeFormatter.ISO_LOCAL_DATE)
+                        when {
+                            // Formato: 2025-11-26T14:30:00.000Z
+                            it.data_aula.contains("T") -> {
+                                LocalDate.parse(it.data_aula.substring(0, 10), DateTimeFormatter.ISO_LOCAL_DATE)
+                            }
+                            // Formato: 26/11/2025 (dd/MM/yyyy)
+                            it.data_aula.contains("/") -> {
+                                val partes = it.data_aula.split("/")
+                                if (partes.size == 3) {
+                                    val dia = partes[0].toInt()
+                                    val mes = partes[1].toInt()
+                                    val ano = partes[2].toInt()
+                                    LocalDate.of(ano, mes, dia)
+                                } else {
+                                    null
+                                }
+                            }
+                            // Formato: 2025-11-26 (yyyy-MM-dd)
+                            else -> LocalDate.parse(it.data_aula, DateTimeFormatter.ISO_LOCAL_DATE)
+                        }
                     } catch (e: Exception) {
                         null // Ignora datas inválidas
                     }

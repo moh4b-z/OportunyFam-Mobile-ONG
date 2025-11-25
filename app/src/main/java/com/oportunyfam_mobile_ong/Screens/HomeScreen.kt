@@ -316,16 +316,31 @@ fun HomeScreen(navController: NavHostController?) {
 
                 val aulasDoDia = listaAulas.filter { aula ->
                     try {
-                        // Extrair apenas a data se vier com timestamp
-                        val aulaData = if (aula.data_aula.contains("T")) {
-                            aula.data_aula.substring(0, 10)
-                        } else {
-                            aula.data_aula
+                        // Normalizar ambas as datas para o mesmo formato yyyy-MM-dd
+                        val aulaData = when {
+                            // Formato: 2025-11-26T14:30:00.000Z
+                            aula.data_aula.contains("T") -> aula.data_aula.substring(0, 10)
+
+                            // Formato: 26/11/2025 (dd/MM/yyyy) → converter para yyyy-MM-dd
+                            aula.data_aula.contains("/") -> {
+                                val partes = aula.data_aula.split("/")
+                                if (partes.size == 3) {
+                                    val dia = partes[0].padStart(2, '0')
+                                    val mes = partes[1].padStart(2, '0')
+                                    val ano = partes[2]
+                                    "$ano-$mes-$dia"
+                                } else {
+                                    aula.data_aula
+                                }
+                            }
+
+                            // Formato: 2025-11-26 (já está correto)
+                            else -> aula.data_aula
                         }
 
                         val match = aulaData == dataFormatada
 
-                        Log.d("HomeScreen", "  🔎 Comparando: '$aulaData' == '$dataFormatada' → ${if (match) "✅ MATCH" else "❌ NO MATCH"}")
+                        Log.d("HomeScreen", "  🔎 Comparando: '${aula.data_aula}' → '$aulaData' == '$dataFormatada' → ${if (match) "✅ MATCH" else "❌ NO MATCH"}")
 
                         if (match) {
                             Log.d("HomeScreen", "  ✅ ✅ ✅ Aula ENCONTRADA: ${aula.nome_atividade} às ${aula.hora_inicio}")
