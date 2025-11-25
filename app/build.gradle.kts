@@ -144,6 +144,15 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
+    // Firebase Storage (Adicionar para upload de áudio)
+    implementation("com.google.firebase:firebase-storage-ktx")
+    // ----------------------------
+    // 🎶 Mídia/Áudio
+    // ----------------------------
+    // O Android nativo já possui MediaRecorder, mas esta biblioteca é útil para permissões e utilidades.
+    // Dependências adicionais para o sistema de áudio não são estritamente necessárias aqui
+    // (pois MediaRecorder e MediaPlayer são nativos)
+
 }
 
 // ----------------------------
