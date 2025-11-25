@@ -688,7 +688,7 @@ fun PerfilScreen(navController: NavHostController?) {
             BarraTarefas(
                 navController = navController,
                 currentRoute = NavRoutes.PERFIL
-        )
+            )
         }
     }
 

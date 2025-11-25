@@ -62,7 +62,6 @@ fun DetalhesAtividadeScreen(
     onBack: () -> Unit,
     onVerAlunos: () -> Unit,
     onVerCalendario: () -> Unit,
-    onConfiguracoes: () -> Unit,
     modifier: Modifier,
 ) {
     val context = LocalContext.current
@@ -312,12 +311,6 @@ fun DetalhesAtividadeScreen(
                                 titulo = "📅 Calendário de Aulas",
                                 descricao = "${atividade.aulas.size} aulas cadastradas",
                                 onClick = onVerCalendario
-                            )
-
-                            OpcaoGerenciamento(
-                                titulo = "⚙️ Configurações",
-                                descricao = "Editar informações da atividade",
-                                onClick = onConfiguracoes
                             )
                         }
                     }

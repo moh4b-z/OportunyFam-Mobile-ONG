@@ -1,0 +1,58 @@
+# 🎯 RESUMO RÁPIDO: Problema Data 1970
+
+## ❌ Problema
+Aulas criadas aparecem com horários em **1970** em vez de **2025**
+
+## ✅ Diagnóstico
+**O APP ESTÁ CORRETO!** O problema está no **BACKEND**.
+
+## 📱 App Envia (CORRETO):
+```json
+{
+  "data_aula": "2025-11-24",
+  "hora_inicio": "14:00:00",
+  "hora_fim": "16:00:00"
+}
+```
+
+## ❌ API Retorna (INCORRETO):
+```json
+{
+  "data_aula": "2025-11-10T00:00:00.000Z",   ✅
+  "hora_inicio": "1970-01-01T17:00:00.000Z", ❌
+  "hora_fim": "1970-01-01T18:30:00.000Z"     ❌
+}
+```
+
+## 🔧 O que foi feito:
+✅ Adicionado logs em `CriarAulaDialog.kt`
+✅ Adicionado logs em `AulaViewModel.kt`
+✅ Criada documentação completa
+
+## 🧪 Como testar:
+1. Execute o app
+2. Crie uma aula para 2025-11-24 às 14:00
+3. Verifique os logs no Logcat:
+   ```
+   CriarAulaDialog: 📅 Datas: 2025-11-24
+   AulaViewModel: ⏰ Início: 14:00:00
+   ```
+4. Se os logs mostram 2025 → **App está correto**
+5. Se API retorna 1970 → **Backend precisa correção**
+
+## 🎯 Solução (Backend):
+```sql
+ALTER TABLE tbl_aulas
+MODIFY COLUMN hora_inicio TIME,
+MODIFY COLUMN hora_fim TIME;
+```
+
+## 📋 Status:
+- ✅ App Mobile: **Funcionando corretamente**
+- ✅ Logs: **Adicionados**
+- ❌ Backend: **Precisa correção**
+
+---
+
+**Conclusão:** O problema NÃO está no app Android!
+

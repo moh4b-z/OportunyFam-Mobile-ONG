@@ -10,6 +10,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -71,7 +74,8 @@ fun HomeScreen(navController: NavHostController?) {
 
     // Agenda
     var listaAulas by remember { mutableStateOf<List<AulaDetalhada>>(emptyList()) }
-    var dataSelecionada by remember { mutableStateOf<LocalDate>(LocalDate.now()) }
+    var dataSelecionada by remember { mutableStateOf<LocalDate?>(null) } // ✅ Null = não clicou ainda
+    var diaClicado by remember { mutableStateOf(false) } // ✅ Controla se já clicou
 
     // Carrega instituição logada
     LaunchedEffect(Unit) {
@@ -87,15 +91,65 @@ fun HomeScreen(navController: NavHostController?) {
 
         val service = RetrofitFactory().getAtividadeService()
         try {
-            val response = withContext(Dispatchers.IO) {
-                service.buscarAulasPorInstituicao(id).execute()
+            Log.d("HomeScreen", "🔄 Buscando atividades da instituição ID: $id")
+
+            // 1. Buscar atividades da instituição
+            val atividadesResponse = withContext(Dispatchers.IO) {
+                service.buscarAtividadesPorInstituicao(id).execute()
             }
 
-            if (response.isSuccessful) {
-                listaAulas = response.body()?.aulas ?: emptyList()
-                Log.d("HomeScreen", "✅ Carregadas ${listaAulas.size} aulas")
+            if (atividadesResponse.isSuccessful) {
+                val atividades = atividadesResponse.body()?.atividades ?: emptyList()
+                Log.d("HomeScreen", "✅ ${atividades.size} atividades encontradas")
+
+                // 2. Extrair aulas de cada atividade
+                val todasAulas = mutableListOf<AulaDetalhada>()
+
+                atividades.forEach { atividade ->
+                    Log.d("HomeScreen", "📚 Buscando aulas da atividade: ${atividade.titulo}")
+
+                    val detalhesResponse = withContext(Dispatchers.IO) {
+                        service.buscarAtividadePorId(atividade.atividade_id).execute()
+                    }
+
+                    if (detalhesResponse.isSuccessful) {
+                        val atividadeCompleta = detalhesResponse.body()?.atividade
+                        val aulas = atividadeCompleta?.aulas ?: emptyList()
+
+                        Log.d("HomeScreen", "  ✅ ${aulas.size} aulas encontradas na atividade ${atividade.titulo}")
+
+                        aulas.forEach { aulaDetalhe ->
+                            todasAulas.add(
+                                AulaDetalhada(
+                                    aula_id = aulaDetalhe.aula_id,
+                                    id_atividade = atividade.atividade_id,
+                                    data_aula = aulaDetalhe.data_aula ?: aulaDetalhe.data ?: "",
+                                    hora_inicio = aulaDetalhe.hora_inicio,
+                                    hora_fim = aulaDetalhe.hora_fim,
+                                    vagas_total = aulaDetalhe.vagas_total,
+                                    vagas_disponiveis = aulaDetalhe.vagas_disponiveis,
+                                    status_aula = aulaDetalhe.status_aula,
+                                    nome_atividade = atividade.titulo,
+                                    instituicao_nome = atividade.instituicao_nome ?: "",
+                                    iram_participar = aulaDetalhe.iram_participar,
+                                    foram = aulaDetalhe.foram,
+                                    ausentes = aulaDetalhe.ausentes
+                                )
+                            )
+                        }
+                    } else {
+                        Log.w("HomeScreen", "  ⚠️ Erro ao buscar detalhes da atividade ${atividade.atividade_id}: ${detalhesResponse.code()}")
+                    }
+                }
+
+                listaAulas = todasAulas
+                Log.d("HomeScreen", "")
+                Log.d("HomeScreen", "════════════════════════════════════════")
+                Log.d("HomeScreen", "✅ TOTAL: ${todasAulas.size} aulas carregadas")
+                Log.d("HomeScreen", "════════════════════════════════════════")
+                Log.d("HomeScreen", "")
             } else {
-                Log.e("HomeScreen", "❌ Erro ao buscar aulas: ${response.code()}")
+                Log.e("HomeScreen", "❌ Erro ao buscar atividades: ${atividadesResponse.code()}")
             }
         } catch (e: Exception) {
             Log.e("HomeScreen", "❌ Erro ao buscar aulas: ${e.message}", e)
@@ -175,26 +229,328 @@ fun HomeScreen(navController: NavHostController?) {
                 .weight(1f)
                 .padding(horizontal = 16.dp)
         ) {
-            // Agenda Horizontal
+            // Card clicável para abrir agenda
             item {
-                Text(
-                    text = "Agenda de Aulas",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
-                    color = Color.Black,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-
-                AgendaHorizontal(
-                    aulas = listaAulas,
-                    onDateSelected = { data ->
-                        dataSelecionada = data
-                        Log.d("HomeScreen", "Data selecionada: $data")
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                        .clickable { diaClicado = !diaClicado },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.CalendarToday,
+                                contentDescription = "Agenda",
+                                tint = Color(0xFFFFA000),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Agenda de Aulas",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp,
+                                    color = Color.Black
+                                )
+                                Text(
+                                    text = "${listaAulas.size} aulas cadastradas",
+                                    fontSize = 14.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                        }
+                        Icon(
+                            if (diaClicado) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = if (diaClicado) "Fechar" else "Abrir",
+                            tint = Color(0xFFFFA000),
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
-                )
+                }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Calendário e aulas (APENAS SE CLICOU)
+            if (diaClicado) {
+                // Calendário
+                item {
+                    AgendaHorizontal(
+                        aulas = listaAulas,
+                        onDateSelected = { data ->
+                            dataSelecionada = data
+                            Log.d("HomeScreen", "📅 Data selecionada: $data")
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                // Aulas do dia selecionado
+                if (dataSelecionada != null) {
+                    item {
+                // Filtrar aulas pela data selecionada
+                val dataFormatada = dataSelecionada?.toString() ?: "" // yyyy-MM-dd
+
+                // Logs detalhados
+                Log.d("HomeScreen", "")
+                Log.d("HomeScreen", "════════════════════════════════════════")
+                Log.d("HomeScreen", "🔍 FILTRANDO AULAS DO DIA")
+                Log.d("HomeScreen", "════════════════════════════════════════")
+                Log.d("HomeScreen", "📅 Data selecionada: $dataFormatada")
+                Log.d("HomeScreen", "📚 Total de aulas disponíveis: ${listaAulas.size}")
+
+                // Log de todas as aulas disponíveis
+                listaAulas.forEach { aula ->
+                    Log.d("HomeScreen", "  📖 Aula: ${aula.nome_atividade} - Data: '${aula.data_aula}'")
+                }
+
+                val aulasDoDia = listaAulas.filter { aula ->
+                    try {
+                        // Extrair apenas a data se vier com timestamp
+                        val aulaData = if (aula.data_aula.contains("T")) {
+                            aula.data_aula.substring(0, 10)
+                        } else {
+                            aula.data_aula
+                        }
+
+                        val match = aulaData == dataFormatada
+
+                        Log.d("HomeScreen", "  🔎 Comparando: '$aulaData' == '$dataFormatada' → ${if (match) "✅ MATCH" else "❌ NO MATCH"}")
+
+                        if (match) {
+                            Log.d("HomeScreen", "  ✅ ✅ ✅ Aula ENCONTRADA: ${aula.nome_atividade} às ${aula.hora_inicio}")
+                        }
+
+                        match
+                    } catch (e: Exception) {
+                        Log.e("HomeScreen", "❌ Erro ao filtrar aula: ${e.message}", e)
+                        false
+                    }
+                }
+
+                Log.d("HomeScreen", "")
+                Log.d("HomeScreen", "🎯 RESULTADO: ${aulasDoDia.size} aula(s) encontrada(s)")
+                Log.d("HomeScreen", "════════════════════════════════════════")
+                Log.d("HomeScreen", "")
+
+                // Card com borda destacada para mostrar o resultado do clique
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        // Mostrar data selecionada com destaque
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(4.dp)
+                                    .background(Color(0xFFFFA000), CircleShape)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = dataSelecionada?.let { "📅 ${formatarDataExibicao(it)}" } ?: "",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = Color(0xFFFFA000)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        HorizontalDivider(color = Color(0xFFFFA000).copy(alpha = 0.3f), thickness = 1.dp)
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        if (aulasDoDia.isNotEmpty()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Aulas do Dia",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp,
+                                    color = Color(0xFFFFA000)
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color(0xFFFFA000).copy(alpha = 0.2f)
+                                ) {
+                                    Text(
+                                        text = "${aulasDoDia.size} aula${if (aulasDoDia.size > 1) "s" else ""}",
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFFFA000)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            aulasDoDia.forEach { aula ->
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        // Ícone de aula
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .background(
+                                                    Color(0xFFFFA000).copy(alpha = 0.1f),
+                                                    shape = RoundedCornerShape(8.dp)
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                Icons.Default.CalendarToday,
+                                                contentDescription = null,
+                                                tint = Color(0xFFFFA000),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.width(12.dp))
+
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            // Nome da atividade em destaque
+                                            Text(
+                                                text = aula.nome_atividade ?: "Aula",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 15.sp,
+                                                color = Color.Black,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+
+                                            Spacer(modifier = Modifier.height(2.dp))
+
+                                            // Horário
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = "⏰ ",
+                                                    fontSize = 12.sp
+                                                )
+                                                Text(
+                                                    text = "${formatarHora(aula.hora_inicio)} - ${formatarHora(aula.hora_fim)}",
+                                                    fontSize = 13.sp,
+                                                    color = Color.Gray,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
+
+                                            Spacer(modifier = Modifier.height(2.dp))
+
+                                            // Vagas
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = "👥 ",
+                                                    fontSize = 12.sp
+                                                )
+                                                Text(
+                                                    text = "${aula.vagas_disponiveis}/${aula.vagas_total} vagas",
+                                                    fontSize = 12.sp,
+                                                    color = if (aula.vagas_disponiveis > 0) Color(0xFF4CAF50) else Color.Red,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+
+                                        // Status badge
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = when (aula.status_aula) {
+                                                "Hoje" -> Color(0xFF4CAF50).copy(alpha = 0.1f)
+                                                "Futura" -> Color(0xFF2196F3).copy(alpha = 0.1f)
+                                                else -> Color.Gray.copy(alpha = 0.1f)
+                                            }
+                                        ) {
+                                            Text(
+                                                text = aula.status_aula ?: "",
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = when (aula.status_aula) {
+                                                    "Hoje" -> Color(0xFF4CAF50)
+                                                    "Futura" -> Color(0xFF2196F3)
+                                                    else -> Color.Gray
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+                        } else {
+                            // Mensagem quando não há aulas no dia selecionado
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("📅", fontSize = 36.sp)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Nenhuma aula neste dia",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = Color.Black
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Selecione outro dia no calendário",
+                                    fontSize = 13.sp,
+                                    color = Color.Gray,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                }
+                }
+                }
             }
 
             // Título e Filtros
@@ -750,3 +1106,61 @@ private fun DetalheItem(label: String, value: String) {
         )
     }
 }
+
+/**
+ * Formata hora de HH:mm:ss ou 1970-01-01THH:mm:ss.SSSZ para HH:mm
+ */
+private fun formatarHora(hora: String): String {
+    return try {
+        // Se vier com timestamp completo (1970-01-01T09:00:00.000Z)
+        if (hora.contains("T")) {
+            val horaParte = hora.split("T")[1]
+            horaParte.substring(0, 5) // HH:mm
+        } else {
+            // Se vier como HH:mm:ss
+            hora.substring(0, 5) // HH:mm
+        }
+    } catch (e: Exception) {
+        hora // Retorna original se der erro
+    }
+}
+
+/**
+ * Formata data para exibição em português
+ * Ex: 2025-11-24 → Segunda, 24 de Novembro
+ */
+private fun formatarDataExibicao(data: LocalDate): String {
+    return try {
+        val diaSemana = when (data.dayOfWeek.value) {
+            1 -> "Segunda"
+            2 -> "Terça"
+            3 -> "Quarta"
+            4 -> "Quinta"
+            5 -> "Sexta"
+            6 -> "Sábado"
+            7 -> "Domingo"
+            else -> ""
+        }
+
+        val mes = when (data.monthValue) {
+            1 -> "Janeiro"
+            2 -> "Fevereiro"
+            3 -> "Março"
+            4 -> "Abril"
+            5 -> "Maio"
+            6 -> "Junho"
+            7 -> "Julho"
+            8 -> "Agosto"
+            9 -> "Setembro"
+            10 -> "Outubro"
+            11 -> "Novembro"
+            12 -> "Dezembro"
+            else -> ""
+        }
+
+        "$diaSemana, ${data.dayOfMonth} de $mes"
+    } catch (e: Exception) {
+        data.toString()
+    }
+}
+

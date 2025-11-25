@@ -27,8 +27,10 @@ import androidx.navigation.NavHostController
 import com.oportunyfam_mobile_ong.Components.BarraTarefas
 import com.oportunyfam_mobile_ong.MainActivity.NavRoutes
 import com.oportunyfam_mobile_ong.R
+import com.oportunyfam_mobile_ong.model.Aluno
 import com.oportunyfam_mobile_ong.viewmodel.ChatViewModel
 import com.oportunyfam_mobile_ong.viewmodel.ConversaUI
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,6 +42,11 @@ fun ConversasScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val pessoaId by viewModel.pessoaId.collectAsState()
+    val alunos by viewModel.alunos.collectAsState()
+    val isLoadingAlunos by viewModel.isLoadingAlunos.collectAsState()
+
+    var showAlunosDialog by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     // ✅ Carrega conversas sempre que a tela aparece
     LaunchedEffect(Unit) {
@@ -65,7 +72,10 @@ fun ConversasScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { /* TODO: Abrir diálogo para nova conversa */ },
+                onClick = {
+                    viewModel.carregarAlunos()
+                    showAlunosDialog = true
+                },
                 containerColor = Color(0xFFFF6F00),
                 contentColor = Color.White
             ) {
@@ -152,6 +162,30 @@ fun ConversasScreen(
                 }
             }
         }
+    }
+
+    // Diálogo para selecionar aluno
+    if (showAlunosDialog) {
+        AlunosDialog(
+            alunos = alunos,
+            isLoading = isLoadingAlunos,
+            onDismiss = { showAlunosDialog = false },
+            onAlunoClick = { aluno ->
+                showAlunosDialog = false
+                coroutineScope.launch {
+                    // Passa o crianca_id - ViewModel busca pessoa_id automaticamente
+                    val conversaId = viewModel.criarOuBuscarConversa(aluno.crianca_id)
+                    if (conversaId != null) {
+                        val nomeEncoded = Uri.encode(aluno.crianca_nome)
+                        val pId = pessoaId ?: 0
+                        navController?.navigate("${NavRoutes.CHAT}/$conversaId/$nomeEncoded/$pId")
+                    } else {
+                        // Mostra erro se não conseguiu criar/buscar conversa
+                        viewModel.carregarConversas(forcarRecarregar = true)
+                    }
+                }
+            }
+        )
     }
 }
 
@@ -295,6 +329,177 @@ fun ConversaItemPremium(conversa: ConversaUI, onClick: () -> Unit) {
                     }
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AlunosDialog(
+    alunos: List<Aluno>,
+    isLoading: Boolean,
+    onDismiss: () -> Unit,
+    onAlunoClick: (Aluno) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Fechar")
+            }
+        },
+        title = {
+            Text(
+                "Selecione um Aluno",
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp
+            )
+        },
+        text = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(400.dp)
+            ) {
+                when {
+                    isLoading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(color = Color(0xFFFF6F00))
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Carregando alunos...", color = Color.Gray)
+                            }
+                        }
+                    }
+                    alunos.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.padding(16.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.perfil),
+                                    contentDescription = "Sem alunos",
+                                    modifier = Modifier.size(64.dp),
+                                    tint = Color.Gray
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    "Nenhum aluno encontrado",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Gray
+                                )
+                                Text(
+                                    "Sua instituição ainda não possui alunos matriculados",
+                                    fontSize = 14.sp,
+                                    color = Color.Gray,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(alunos) { aluno ->
+                                AlunoItem(
+                                    aluno = aluno,
+                                    onClick = { onAlunoClick(aluno) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        containerColor = Color.White,
+        shape = RoundedCornerShape(20.dp)
+    )
+}
+
+@Composable
+fun AlunoItem(
+    aluno: Aluno,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Avatar do aluno
+            Box(
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFFF6F00))
+                    .border(2.dp, Color(0xFFFFA726), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = aluno.crianca_nome.take(1).uppercase(),
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = aluno.crianca_nome,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = Color.Black
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = aluno.atividade_titulo,
+                    color = Color.Gray,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (aluno.status_inscricao.isNotEmpty()) {
+                    Text(
+                        text = aluno.status_inscricao,
+                        color = when (aluno.status_inscricao) {
+                            "Aprovada" -> Color(0xFF4CAF50)
+                            "Pendente" -> Color(0xFFFFA726)
+                            else -> Color.Gray
+                        },
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            Icon(
+                painter = painterResource(id = R.drawable.perfil),
+                contentDescription = "Conversar",
+                tint = Color(0xFFFF6F00),
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }

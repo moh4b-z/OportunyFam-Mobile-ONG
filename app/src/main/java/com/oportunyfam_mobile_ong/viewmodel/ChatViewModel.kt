@@ -7,9 +7,12 @@ import androidx.lifecycle.viewModelScope
 import com.oportunyfam_mobile_ong.Service.FirebaseMensagemService
 import com.oportunyfam_mobile_ong.Service.MensagemService
 import com.oportunyfam_mobile_ong.Service.ConversaService
+import com.oportunyfam_mobile_ong.Service.InstituicaoService
 import com.oportunyfam_mobile_ong.Service.RetrofitFactory
 import com.oportunyfam_mobile_ong.model.Mensagem
 import com.oportunyfam_mobile_ong.model.MensagemRequest
+import com.oportunyfam_mobile_ong.model.Aluno
+import com.oportunyfam_mobile_ong.model.ConversaRequest
 import com.oportunyfam_mobile_ong.data.InstituicaoAuthDataStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,6 +33,8 @@ data class ConversaUI(
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val conversaService: ConversaService = RetrofitFactory().getConversaService()
     private val mensagemService: MensagemService = RetrofitFactory().getMensagemService()
+    private val instituicaoService: InstituicaoService = RetrofitFactory().getInstituicaoService()
+    private val criancaService = RetrofitFactory().getCriancaService()
     private val firebaseMensagemService: FirebaseMensagemService = FirebaseMensagemService()
     private val authDataStore = InstituicaoAuthDataStore(application)
 
@@ -49,6 +54,17 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val _pessoaId = MutableStateFlow<Int?>(null)
     val pessoaId: StateFlow<Int?> = _pessoaId.asStateFlow()
 
+    // ID da instituição logada
+    private val _instituicaoId = MutableStateFlow<Int?>(null)
+    val instituicaoId: StateFlow<Int?> = _instituicaoId.asStateFlow()
+
+    // Lista de alunos da instituição
+    private val _alunos = MutableStateFlow<List<Aluno>>(emptyList())
+    val alunos: StateFlow<List<Aluno>> = _alunos.asStateFlow()
+
+    private val _isLoadingAlunos = MutableStateFlow(false)
+    val isLoadingAlunos: StateFlow<Boolean> = _isLoadingAlunos.asStateFlow()
+
     // Flag para controlar se já carregou conversas
     private var conversasCarregadas = false
 
@@ -57,7 +73,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val instituicao = authDataStore.loadInstituicao()
             _pessoaId.value = instituicao?.pessoa_id
-            Log.d("ChatViewModel", "Pessoa logada: ID=${instituicao?.pessoa_id}, Nome=${instituicao?.nome}")
+            _instituicaoId.value = instituicao?.instituicao_id
+            Log.d("ChatViewModel", "Pessoa logada: ID=${instituicao?.pessoa_id}, Nome=${instituicao?.nome}, Instituição ID=${instituicao?.instituicao_id}")
 
             // Carrega conversas do cache offline primeiro (se existir)
             instituicao?.pessoa_id?.let { id ->
@@ -339,6 +356,125 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     fun limparErro() {
         _errorMessage.value = null
+    }
+
+    /**
+     * Carrega todos os alunos da instituição usando o endpoint /instituicoes/alunos/
+     */
+    fun carregarAlunos() {
+        viewModelScope.launch {
+            _isLoadingAlunos.value = true
+            _errorMessage.value = null
+
+            try {
+                val instituicaoId = _instituicaoId.value
+                if (instituicaoId == null) {
+                    _errorMessage.value = "ID da instituição não encontrado"
+                    Log.e("ChatViewModel", "❌ Instituição ID não carregado")
+                    _isLoadingAlunos.value = false
+                    return@launch
+                }
+
+                Log.d("ChatViewModel", "🔄 Carregando alunos da instituição ID=$instituicaoId")
+
+                val response = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    instituicaoService.buscarAlunos(
+                        instituicao_id = instituicaoId,
+                        atividade_id = null,
+                        status_id = null
+                    ).execute()
+                }
+
+                if (response.isSuccessful) {
+                    val alunosResponse = response.body()?.alunos ?: emptyList()
+
+                    // Agrupa alunos por crianca_id para evitar duplicatas
+                    val alunosUnicos = alunosResponse
+                        .groupBy { it.crianca_id }
+                        .map { (_, alunos) -> alunos.first() }
+
+                    _alunos.value = alunosUnicos
+                    Log.d("ChatViewModel", "✅ ${alunosUnicos.size} alunos únicos carregados")
+                } else {
+                    _errorMessage.value = "Erro ao carregar alunos: ${response.message()}"
+                    Log.e("ChatViewModel", "❌ Erro API: ${response.errorBody()?.string()}")
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Erro ao conectar: ${e.message}"
+                Log.e("ChatViewModel", "❌ Erro ao carregar alunos", e)
+            } finally {
+                _isLoadingAlunos.value = false
+            }
+        }
+    }
+
+    /**
+     * Cria ou encontra uma conversa existente com um aluno
+     * Retorna o ID da conversa (existente ou nova)
+     * @param criancaIdOrPessoaId pode ser tanto o crianca_id quanto o pessoa_id
+     */
+    suspend fun criarOuBuscarConversa(criancaIdOrPessoaId: Int): Int? {
+        return try {
+            val pessoaId = _pessoaId.value
+            if (pessoaId == null) {
+                Log.e("ChatViewModel", "❌ Pessoa ID institucional não encontrado")
+                return null
+            }
+
+            // Tenta buscar a pessoa_id correta da criança
+            var alunoPessoaId = criancaIdOrPessoaId
+
+            // Se não temos certeza se é pessoa_id ou crianca_id, busca os detalhes da criança
+            Log.d("ChatViewModel", "🔄 Buscando detalhes da criança ID=$criancaIdOrPessoaId")
+            val criancaResponse = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                criancaService.buscarPorId(criancaIdOrPessoaId).execute()
+            }
+
+            if (criancaResponse.isSuccessful) {
+                val crianca = criancaResponse.body()?.crianca
+                if (crianca != null) {
+                    alunoPessoaId = crianca.pessoa_id
+                    Log.d("ChatViewModel", "✅ Criança encontrada: pessoa_id=${crianca.pessoa_id}")
+                }
+            } else {
+                // Se falhar, assume que o ID fornecido já é o pessoa_id
+                Log.w("ChatViewModel", "⚠️ Não foi possível buscar detalhes da criança, usando ID fornecido")
+            }
+
+            // Verifica se já existe uma conversa com esse aluno
+            val conversaExistente = _conversas.value.find { it.pessoaId == alunoPessoaId }
+            if (conversaExistente != null) {
+                Log.d("ChatViewModel", "✅ Conversa existente encontrada: ID=${conversaExistente.id}")
+                return conversaExistente.id
+            }
+
+            // Se não existe, cria uma nova conversa
+            Log.d("ChatViewModel", "🔄 Criando nova conversa com aluno pessoa_id=$alunoPessoaId")
+            val request = ConversaRequest(participantes = listOf(pessoaId, alunoPessoaId))
+
+            val response = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                conversaService.criar(request)
+            }
+
+            if (response.isSuccessful) {
+                val novaConversa = response.body()?.conversa
+                if (novaConversa != null) {
+                    Log.d("ChatViewModel", "✅ Nova conversa criada: ID=${novaConversa.id}")
+                    // Recarrega a lista de conversas para incluir a nova
+                    carregarConversas(forcarRecarregar = true)
+                    return novaConversa.id
+                }
+            } else {
+                Log.e("ChatViewModel", "❌ Erro ao criar conversa: ${response.errorBody()?.string()}")
+                _errorMessage.value = "Erro ao criar conversa com o aluno"
+            }
+
+            null
+        } catch (e: Exception) {
+            Log.e("ChatViewModel", "❌ Erro ao criar/buscar conversa", e)
+            _errorMessage.value = "Erro ao conectar: ${e.message}"
+            null
+        }
     }
 
     private fun formatarHora(dataHora: String?): String {

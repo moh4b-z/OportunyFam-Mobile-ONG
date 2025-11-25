@@ -28,25 +28,20 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.oportunyfam_mobile_ong.Components.Cards.CardAulaAPI
 import com.oportunyfam_mobile_ong.Components.CriarAulaDialog
-import com.oportunyfam_mobile_ong.data.InstituicaoAuthDataStore
 import com.oportunyfam_mobile_ong.model.AulaLoteRequest
 import com.oportunyfam_mobile_ong.model.AulaRequest
-import com.oportunyfam_mobile_ong.model.AulaDetalhada
 import com.oportunyfam_mobile_ong.viewmodel.*
 import kotlinx.coroutines.launch
 
 /**
- * Tela de calendário de aulas com gerenciamento completo
- * - Visualização de aulas por atividade
- * - Criação de aulas individuais ou em lote via calendário nativo
- * - Integração com API
+ * Tela SIMPLIFICADA de calendário de aulas
+ * APENAS para adicionar e remover aulas
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,31 +51,45 @@ fun CalendarioAulasScreen(
     atividadeId: Int,
     onBack: () -> Unit
 ) {
-    val context = LocalContext.current
     val aulaViewModel: AulaViewModel = viewModel()
 
     // Estados
     val atividadeDetalheState by viewModel.atividadeDetalheState.collectAsState()
-    val aulasState by aulaViewModel.aulasState.collectAsState()
     val criarAulaState by aulaViewModel.criarAulaState.collectAsState()
 
     var showCriarDialog by remember { mutableStateOf(false) }
-    var instituicaoId by remember { mutableStateOf<Int?>(null) }
+    var aulas by remember { mutableStateOf(emptyList<com.oportunyfam_mobile_ong.model.AulaDetalhada>()) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    // Carregar instituição logada
-    LaunchedEffect(Unit) {
-        val instituicaoAuthDataStore = InstituicaoAuthDataStore(context)
-        val instituicao = instituicaoAuthDataStore.loadInstituicao()
-        instituicaoId = instituicao?.instituicao_id
+    // Carregar dados da atividade (que inclui as aulas)
+    LaunchedEffect(atividadeId) {
+        viewModel.buscarAtividadePorId(atividadeId)
     }
 
-    // Carregar aulas da atividade
-    LaunchedEffect(atividadeId, instituicaoId) {
-        instituicaoId?.let { instId ->
-            aulaViewModel.buscarAulasPorAtividade(atividadeId, instId)
+    // Atualizar lista de aulas quando a atividade carregar
+    LaunchedEffect(atividadeDetalheState) {
+        if (atividadeDetalheState is AtividadeDetalheState.Success) {
+            val atividade = (atividadeDetalheState as AtividadeDetalheState.Success).atividade
+            aulas = atividade.aulas.map { aulaDetalhe ->
+                com.oportunyfam_mobile_ong.model.AulaDetalhada(
+                    aula_id = aulaDetalhe.aula_id,
+                    id_atividade = atividadeId,
+                    data_aula = aulaDetalhe.data_aula ?: aulaDetalhe.data ?: "",
+                    hora_inicio = aulaDetalhe.hora_inicio,
+                    hora_fim = aulaDetalhe.hora_fim,
+                    vagas_total = aulaDetalhe.vagas_total,
+                    vagas_disponiveis = aulaDetalhe.vagas_disponiveis,
+                    status_aula = aulaDetalhe.status_aula,
+                    iram_participar = aulaDetalhe.iram_participar,
+                    foram = aulaDetalhe.foram,
+                    ausentes = aulaDetalhe.ausentes,
+                    nome_atividade = atividade.titulo,
+                    instituicao_nome = atividade.instituicao_nome
+                )
+            }
+            Log.d("CalendarioAulas", "✅ ${aulas.size} aulas carregadas")
         }
     }
 
@@ -88,54 +97,31 @@ fun CalendarioAulasScreen(
     LaunchedEffect(criarAulaState) {
         when (criarAulaState) {
             is CriarAulaState.Success -> {
-                Log.d("CalendarioAulas", "✅ Aula criada! Iniciando recarregamento...")
                 scope.launch {
-                    snackbarHostState.showSnackbar("✅ Aula criada com sucesso!")
+                    snackbarHostState.showSnackbar("✅ Aula criada!")
                 }
                 showCriarDialog = false
 
-                // Aguardar um pouco para garantir que a API processou
+                // Recarregar
                 kotlinx.coroutines.delay(500)
-
-                // Recarregar aulas e atividade
-                instituicaoId?.let { instId ->
-                    Log.d("CalendarioAulas", "🔄 Recarregando aulas da atividade $atividadeId...")
-                    aulaViewModel.recarregarAulas(atividadeId, instId)
-                }
                 viewModel.buscarAtividadePorId(atividadeId)
-
-                // Limpar estado após recarregar
-                kotlinx.coroutines.delay(100)
                 aulaViewModel.limparEstadoCriacao()
             }
             is CriarAulaState.SuccessLote -> {
                 val total = (criarAulaState as CriarAulaState.SuccessLote).total
-                Log.d("CalendarioAulas", "✅ $total aulas criadas! Iniciando recarregamento...")
                 scope.launch {
-                    snackbarHostState.showSnackbar("✅ $total aulas criadas com sucesso!")
+                    snackbarHostState.showSnackbar("✅ $total aulas criadas!")
                 }
                 showCriarDialog = false
 
-                // Aguardar um pouco para garantir que a API processou
+                // Recarregar
                 kotlinx.coroutines.delay(500)
-
-                // Recarregar aulas e atividade
-                instituicaoId?.let { instId ->
-                    Log.d("CalendarioAulas", "🔄 Recarregando aulas da atividade $atividadeId...")
-                    aulaViewModel.recarregarAulas(atividadeId, instId)
-                }
                 viewModel.buscarAtividadePorId(atividadeId)
-
-                // Limpar estado após recarregar
-                kotlinx.coroutines.delay(100)
                 aulaViewModel.limparEstadoCriacao()
             }
             is CriarAulaState.Error -> {
-                Log.e("CalendarioAulas", "❌ Erro ao criar aula: ${(criarAulaState as CriarAulaState.Error).message}")
                 scope.launch {
-                    snackbarHostState.showSnackbar(
-                        (criarAulaState as CriarAulaState.Error).message
-                    )
+                    snackbarHostState.showSnackbar("❌ ${(criarAulaState as CriarAulaState.Error).message}")
                 }
                 aulaViewModel.limparEstadoCriacao()
             }
@@ -143,14 +129,29 @@ fun CalendarioAulasScreen(
         }
     }
 
+    // Função para deletar aula
+    val deletarAula: (Int) -> Unit = { aulaId ->
+        scope.launch {
+            try {
+                Log.d("CalendarioAulas", "🗑️ Deletando aula ID: $aulaId")
+                aulaViewModel.deletarAula(aulaId)
+
+                snackbarHostState.showSnackbar("🗑️ Aula excluída!")
+
+                // Recarregar
+                kotlinx.coroutines.delay(500)
+                viewModel.buscarAtividadePorId(atividadeId)
+            } catch (e: Exception) {
+                Log.e("CalendarioAulas", "❌ Erro: ${e.message}")
+                snackbarHostState.showSnackbar("Erro ao excluir")
+            }
+        }
+    }
+
     Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-            .padding(bottom = 65.dp),
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Calendário de Aulas", fontWeight = FontWeight.Bold) },
+                title = { Text("Gerenciar Aulas", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
@@ -178,72 +179,37 @@ fun CalendarioAulasScreen(
                 .background(Color.White)
                 .padding(paddingValues)
         ) {
-            // Informações da atividade
             when (atividadeDetalheState) {
-                is AtividadeDetalheState.Success -> {
-                    val atividade = (atividadeDetalheState as AtividadeDetalheState.Success).atividade
-
-                    Text(
-                        text = atividade.titulo,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        modifier = Modifier.padding(16.dp, 16.dp, 16.dp, 8.dp)
-                    )
-                }
-                else -> {}
-            }
-
-            // Lista de aulas
-            when (aulasState) {
-                is AulasState.Loading -> {
+                is AtividadeDetalheState.Loading -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(color = Color(0xFFFFA000))
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text("Carregando aulas...", color = Color.Gray)
-                        }
+                        CircularProgressIndicator(color = Color(0xFFFFA000))
                     }
                 }
-                is AulasState.Success -> {
-                    var aulas = (aulasState as AulasState.Success).aulas
+                is AtividadeDetalheState.Success -> {
+                    val atividade = (atividadeDetalheState as AtividadeDetalheState.Success).atividade
 
-                    // FALLBACK: Se não carregou via API, usar aulas da atividade se disponível
-                    if (aulas.isEmpty() && atividadeDetalheState is AtividadeDetalheState.Success) {
-                        val atividade = (atividadeDetalheState as AtividadeDetalheState.Success).atividade
-                        if (atividade.aulas.isNotEmpty()) {
-                            Log.d("CalendarioAulas", "⚠️ Usando aulas da atividade como fallback (${atividade.aulas.size} aulas)")
-                            // EFETIVAMENTE usar as aulas da atividade
-                            aulas = atividade.aulas.map { aulaDetalhe ->
-                                AulaDetalhada(
-                                    aula_id = aulaDetalhe.aula_id,
-                                    id_atividade = atividadeId,
-                                    data_aula = aulaDetalhe.data_aula ?: aulaDetalhe.data ?: "",
-                                    hora_inicio = aulaDetalhe.hora_inicio,
-                                    hora_fim = aulaDetalhe.hora_fim,
-                                    vagas_total = aulaDetalhe.vagas_total,
-                                    vagas_disponiveis = aulaDetalhe.vagas_disponiveis,
-                                    status_aula = aulaDetalhe.status_aula,
-                                    iram_participar = aulaDetalhe.iram_participar,
-                                    foram = aulaDetalhe.foram,
-                                    ausentes = aulaDetalhe.ausentes,
-                                    nome_atividade = atividade.titulo,
-                                    instituicao_nome = atividade.instituicao_nome
-                                )
-                            }
-                        }
-                    }
+                    // Título
+                    Text(
+                        text = atividade.titulo,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        modifier = Modifier.padding(16.dp)
+                    )
 
+                    // Lista de aulas
                     if (aulas.isEmpty()) {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Nenhuma aula cadastrada", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                Text("📅", fontSize = 48.sp)
                                 Spacer(modifier = Modifier.height(8.dp))
+                                Text("Nenhuma aula cadastrada", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(4.dp))
                                 Text("Clique no + para adicionar", fontSize = 14.sp, color = Color.Gray)
                             }
                         }
@@ -258,30 +224,24 @@ fun CalendarioAulasScreen(
 
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
                             items(aulas) { aula ->
-                                CardAulaAPI(aula = aula.toAulaDetalhe())
+                                CardAulaAPI(
+                                    aula = aula.toAulaDetalhe(),
+                                    onDelete = deletarAula
+                                )
                             }
                         }
                     }
                 }
-                is AulasState.Error -> {
+                is AtividadeDetalheState.Error -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                "Erro ao carregar aulas",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Red
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                (aulasState as AulasState.Error).message,
-                                fontSize = 14.sp,
-                                color = Color.Gray
-                            )
-                        }
+                        Text(
+                            "Erro ao carregar",
+                            color = Color.Red,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
                 else -> {}
@@ -323,3 +283,24 @@ fun CalendarioAulasScreen(
         }
     }
 }
+
+// Extensão para converter AulaDetalhada para AulaDetalhe
+private fun com.oportunyfam_mobile_ong.model.AulaDetalhada.toAulaDetalhe(): com.oportunyfam_mobile_ong.model.AulaDetalhe {
+    return com.oportunyfam_mobile_ong.model.AulaDetalhe(
+        aula_id = this.aula_id,
+        id_atividade = this.id_atividade,
+        data_aula = this.data_aula,
+        data = this.data_aula,
+        hora_inicio = this.hora_inicio,
+        hora_fim = this.hora_fim,
+        vagas_total = this.vagas_total,
+        vagas_disponiveis = this.vagas_disponiveis,
+        status_aula = this.status_aula,
+        iram_participar = this.iram_participar,
+        foram = this.foram,
+        ausentes = this.ausentes,
+        nome_atividade = this.nome_atividade ?: "",
+        instituicao_nome = this.instituicao_nome ?: ""
+    )
+}
+

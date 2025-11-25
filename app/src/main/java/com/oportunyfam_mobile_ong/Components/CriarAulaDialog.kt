@@ -1,6 +1,7 @@
 package com.oportunyfam_mobile_ong.Components
 
 import android.app.TimePickerDialog
+import android.util.Log
 import android.widget.CalendarView
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -255,6 +256,14 @@ fun CriarAulaDialog(
                     Button(
                         onClick = {
                             val vagas = vagasTotal.toIntOrNull() ?: 10
+
+                            // ✅ Log para verificar dados coletados do UI
+                            Log.d("CriarAulaDialog", "📝 Dados coletados:")
+                            Log.d("CriarAulaDialog", "  📅 Datas selecionadas: ${datasSelecionadas.sorted().joinToString(", ")}")
+                            Log.d("CriarAulaDialog", "  ⏰ Hora início: $horaInicio")
+                            Log.d("CriarAulaDialog", "  ⏰ Hora fim: $horaFim")
+                            Log.d("CriarAulaDialog", "  👥 Vagas: $vagas")
+
                             onConfirm(
                                 datasSelecionadas.sorted(),
                                 horaInicio,
@@ -273,4 +282,3 @@ fun CriarAulaDialog(
         }
     }
 }
-

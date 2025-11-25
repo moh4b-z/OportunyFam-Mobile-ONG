@@ -32,7 +32,7 @@ class AulaViewModel : ViewModel() {
 
     /**
      * Buscar aulas de uma atividade específica
-     * (Como não há endpoint específico, busca pela instituição e filtra)
+     * Busca diretamente a atividade (que já inclui as aulas)
      */
     fun buscarAulasPorAtividade(atividadeId: Int, instituicaoId: Int) {
         _aulasState.value = AulasState.Loading
@@ -41,31 +41,47 @@ class AulaViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                atividadeService.buscarAulasPorInstituicao(instituicaoId).enqueue(object : Callback<AulasListResponse> {
+                // Buscar a atividade específica (que já inclui as aulas)
+                atividadeService.buscarAtividadePorId(atividadeId).enqueue(object : Callback<AtividadeUnicaResponse> {
                     override fun onResponse(
-                        call: Call<AulasListResponse>,
-                        response: Response<AulasListResponse>
+                        call: Call<AtividadeUnicaResponse>,
+                        response: Response<AtividadeUnicaResponse>
                     ) {
                         when {
                             response.isSuccessful && response.body() != null -> {
-                                val todasAulas = response.body()!!.aulas ?: emptyList()
-                                Log.d("AulaViewModel", "📊 Total de aulas da instituição: ${todasAulas.size}")
+                                val atividade = response.body()!!.atividade
+                                val aulas = atividade.aulas
 
-                                // Filtrar apenas as aulas da atividade específica
-                                val aulasFiltradas = todasAulas.filter { it.id_atividade == atividadeId }
+                                Log.d("AulaViewModel", "✅ ${aulas.size} aulas carregadas para atividade $atividadeId")
 
-                                Log.d("AulaViewModel", "✅ ${aulasFiltradas.size} aulas carregadas para atividade $atividadeId")
+                                // Converter AulaDetalhe para AulaDetalhada
+                                val aulasDetalhadas = aulas.map { aulaDetalhe ->
+                                    AulaDetalhada(
+                                        aula_id = aulaDetalhe.aula_id,
+                                        id_atividade = atividadeId,
+                                        data_aula = aulaDetalhe.data_aula ?: aulaDetalhe.data ?: "",
+                                        hora_inicio = aulaDetalhe.hora_inicio,
+                                        hora_fim = aulaDetalhe.hora_fim,
+                                        vagas_total = aulaDetalhe.vagas_total,
+                                        vagas_disponiveis = aulaDetalhe.vagas_disponiveis,
+                                        status_aula = aulaDetalhe.status_aula,
+                                        iram_participar = aulaDetalhe.iram_participar,
+                                        foram = aulaDetalhe.foram,
+                                        ausentes = aulaDetalhe.ausentes,
+                                        nome_atividade = atividade.titulo,
+                                        instituicao_nome = atividade.instituicao_nome
+                                    )
+                                }
 
                                 // Log detalhado de cada aula
-                                aulasFiltradas.forEach { aula ->
+                                aulasDetalhadas.forEach { aula ->
                                     Log.d("AulaViewModel", "  📅 Aula ID ${aula.aula_id}: ${aula.data_aula} ${aula.hora_inicio}-${aula.hora_fim}")
                                 }
 
-                                _aulasState.value = AulasState.Success(aulasFiltradas)
+                                _aulasState.value = AulasState.Success(aulasDetalhadas)
                             }
                             response.code() == 404 -> {
-                                // 404 significa que não há aulas cadastradas ainda
-                                Log.d("AulaViewModel", "ℹ️ Nenhuma aula encontrada (404) - retornando lista vazia")
+                                Log.d("AulaViewModel", "ℹ️ Atividade não encontrada (404)")
                                 _aulasState.value = AulasState.Success(emptyList())
                             }
                             else -> {
@@ -76,7 +92,7 @@ class AulaViewModel : ViewModel() {
                         }
                     }
 
-                    override fun onFailure(call: Call<AulasListResponse>, t: Throwable) {
+                    override fun onFailure(call: Call<AtividadeUnicaResponse>, t: Throwable) {
                         Log.e("AulaViewModel", "❌ Falha na conexão: ${t.message}", t)
                         _aulasState.value = AulasState.Error("Erro de conexão: ${t.message}")
                     }
@@ -130,7 +146,12 @@ class AulaViewModel : ViewModel() {
     fun criarAulasLote(aulaLoteRequest: AulaLoteRequest) {
         _criarAulaState.value = CriarAulaState.Loading
 
-        Log.d("AulaViewModel", "📝 Criando ${aulaLoteRequest.datas.size} aulas em lote")
+        // ✅ Log detalhado do que está sendo enviado
+        Log.d("AulaViewModel", "📝 Criando ${aulaLoteRequest.datas.size} aulas em lote:")
+        Log.d("AulaViewModel", "  📅 Datas: ${aulaLoteRequest.datas.joinToString(", ")}")
+        Log.d("AulaViewModel", "  ⏰ Início: ${aulaLoteRequest.hora_inicio}")
+        Log.d("AulaViewModel", "  ⏰ Fim: ${aulaLoteRequest.hora_fim}")
+        Log.d("AulaViewModel", "  👥 Vagas: ${aulaLoteRequest.vagas_total}")
 
         viewModelScope.launch {
             try {
@@ -273,4 +294,3 @@ sealed class CriarAulaState {
     data class SuccessLote(val aulas: List<AulaSimples>, val total: Int) : CriarAulaState()
     data class Error(val message: String) : CriarAulaState()
 }
-

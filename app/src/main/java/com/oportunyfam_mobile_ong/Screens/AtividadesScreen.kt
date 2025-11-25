@@ -26,8 +26,7 @@ enum class TelaAtividade {
     LISTA,
     DETALHES,
     ALUNOS,
-    CALENDARIO,
-    CONFIGURACOES
+    CALENDARIO
 }
 
 // ==================== SCREEN PRINCIPAL ====================
@@ -113,7 +112,6 @@ fun AtividadesScreen(navController: NavHostController?) {
                         },
                         onVerAlunos = { telaAtual = TelaAtividade.ALUNOS },
                         onVerCalendario = { telaAtual = TelaAtividade.CALENDARIO },
-                        onConfiguracoes = { telaAtual = TelaAtividade.CONFIGURACOES },
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(paddingValues)
@@ -130,7 +128,6 @@ fun AtividadesScreen(navController: NavHostController?) {
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(paddingValues)
-                            .padding(bottom = 65.dp)
                     )
                 }
             }
@@ -144,12 +141,14 @@ fun AtividadesScreen(navController: NavHostController?) {
                             .fillMaxSize()
                             .padding(paddingValues)
                             .padding(bottom = 65.dp)
+                            .padding(bottom = 65.dp)
                     )
                 }
             }
-            TelaAtividade.CONFIGURACOES -> {
+            TelaAtividade.CALENDARIO -> {
                 atividadeSelecionadaId?.let { id ->
-                    ConfiguracoesAtividadeScreen(
+                    CalendarioAulasScreen(
+                        viewModel = viewModel,
                         atividadeId = id,
                         onBack = { telaAtual = TelaAtividade.DETALHES },
                         modifier = Modifier
