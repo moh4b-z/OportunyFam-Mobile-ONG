@@ -165,11 +165,13 @@ fun CalendarioAulasScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showCriarDialog = true },
-                containerColor = Color(0xFFFFA000)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Nova Aula", tint = Color.White)
+            Box(modifier = Modifier.padding(bottom = 90.dp)) {
+                FloatingActionButton(
+                    onClick = { showCriarDialog = true },
+                    containerColor = Color(0xFFFFA000)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Nova Aula", tint = Color.White)
+                }
             }
         }
     ) { paddingValues ->
