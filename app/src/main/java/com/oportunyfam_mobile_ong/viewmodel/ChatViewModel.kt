@@ -544,10 +544,19 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
      * Reproduz ou pausa um áudio
      */
     fun playAudio(audioUrl: String) {
-        // Se já está tocando este áudio, pausar
-        if (_currentPlayingAudioUrl.value == audioUrl && audioPlayer.isPlaying()) {
-            pauseAudio()
-            return
+        // Se já está com este áudio carregado
+        if (_currentPlayingAudioUrl.value == audioUrl) {
+            // Se está tocando, pausar
+            if (audioPlayer.isPlaying()) {
+                pauseAudio()
+                return
+            } else {
+                // Se estava pausado, retomar
+                audioPlayer.playAudio(audioUrl)
+                startProgressUpdateJob(audioUrl)
+                Log.d("ChatViewModel", "▶️ Retomando áudio: $audioUrl")
+                return
+            }
         }
 
         // Para qualquer áudio anterior
@@ -561,9 +570,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             audioUrl = audioUrl,
             onCompletion = {
                 // Quando terminar, reseta estado
+                progressUpdateJob?.cancel()
                 _currentPlayingAudioUrl.value = null
                 _audioProgress.value = 0 to 0
-                progressUpdateJob?.cancel()
+
+                Log.d("ChatViewModel", "✅ Áudio terminado: $audioUrl")
 
                 // Toca próximo áudio se houver
                 playNextAudio(audioUrl)
@@ -573,7 +584,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             }
         )
 
-        // Inicia job para atualizar progresso
+        startProgressUpdateJob(audioUrl)
+        Log.d("ChatViewModel", "▶️ Reproduzindo áudio: $audioUrl")
+    }
+
+    /**
+     * Inicia job para atualizar progresso do áudio
+     */
+    private fun startProgressUpdateJob(audioUrl: String) {
         progressUpdateJob?.cancel()
         progressUpdateJob = viewModelScope.launch {
             while (_currentPlayingAudioUrl.value == audioUrl && audioPlayer.isPlaying()) {
@@ -585,8 +603,6 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 kotlinx.coroutines.delay(100) // Atualiza a cada 100ms
             }
         }
-
-        Log.d("ChatViewModel", "▶️ Reproduzindo áudio: $audioUrl")
     }
 
     /**
@@ -606,6 +622,20 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         _currentPlayingAudioUrl.value = null
         _audioProgress.value = 0 to 0
         progressUpdateJob?.cancel()
+    }
+
+    /**
+     * Move a posição de reprodução para um ponto específico
+     */
+    fun seekToPosition(audioUrl: String, positionMs: Int) {
+        // Só permite buscar se for o áudio atual
+        if (_currentPlayingAudioUrl.value == audioUrl) {
+            audioPlayer.seekTo(positionMs)
+            // Atualiza o progresso imediatamente
+            val total = audioPlayer.getDuration()
+            _audioProgress.value = positionMs to total
+            Log.d("ChatViewModel", "⏩ Posição do áudio alterada para: ${positionMs}ms")
+        }
     }
 
     /**

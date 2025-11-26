@@ -21,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -175,7 +176,8 @@ fun ChatScreen(
                                         isUser = mensagem.id_pessoa == pessoaIdAtual,
                                         currentPlayingUrl = currentPlayingAudioUrl,
                                         audioProgress = audioProgress,
-                                        onPlayAudio = { url -> viewModel.playAudio(url) }
+                                        onPlayAudio = { url -> viewModel.playAudio(url) },
+                                        onSeekTo = { url, position -> viewModel.seekToPosition(url, position) }
                                     )
                                 }
                             }
@@ -276,7 +278,8 @@ fun ChatMessage(
     isUser: Boolean,
     currentPlayingUrl: String? = null,
     audioProgress: Pair<Int, Int> = 0 to 0,
-    onPlayAudio: (String) -> Unit = {}
+    onPlayAudio: (String) -> Unit = {},
+    onSeekTo: (String, Int) -> Unit = { _, _ -> }
 ) {
     Row(
         modifier = Modifier
@@ -293,7 +296,7 @@ fun ChatMessage(
                 bottomEnd = if (isUser) 4.dp else 16.dp
             ),
             colors = CardDefaults.cardColors(
-                containerColor = if (isUser) Color(0xFFDCF8C6) else Color.White
+                containerColor = if (isUser) Color(0xFFFFE0B2) else Color.White
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
@@ -308,7 +311,10 @@ fun ChatMessage(
                         isPlaying = currentPlayingUrl == mensagem.audio_url,
                         progress = if (currentPlayingUrl == mensagem.audio_url) audioProgress else (0 to 0),
                         onPlayAudio = onPlayAudio,
-                        isUser = isUser
+                        onSeekTo = onSeekTo,
+                        isUser = isUser,
+                        messageTime = formatarHora(mensagem.criado_em),
+                        isViewed = mensagem.visto
                     )
                 } else {
                     // Mensagem de texto normal
@@ -317,25 +323,25 @@ fun ChatMessage(
                         fontSize = 15.sp,
                         color = Color.Black
                     )
-                }
 
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    horizontalArrangement = Arrangement.End,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = formatarHora(mensagem.criado_em),
-                        fontSize = 11.sp,
-                        color = Color.Gray
-                    )
-                    if (isUser) {
-                        Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.End,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Text(
-                            text = if (mensagem.visto) "✓✓" else "✓",
+                            text = formatarHora(mensagem.criado_em),
                             fontSize = 11.sp,
-                            color = if (mensagem.visto) Color(0xFF4CAF50) else Color.Gray
+                            color = Color.Gray
                         )
+                        if (isUser) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (mensagem.visto) "✓✓" else "✓",
+                                fontSize = 11.sp,
+                                color = if (mensagem.visto) Color(0xFF4CAF50) else Color.Gray
+                            )
+                        }
                     }
                 }
             }
@@ -550,14 +556,30 @@ private fun formatarDataSeparador(data: String): String {
 
 private fun formatarHora(dataHora: String): String {
     return try {
-        val partes = dataHora.split("T")
-        if (partes.size > 1) {
-            partes[1].substring(0, 5)
+        // Formato esperado: "2025-11-26T02:47:40.000Z"
+        val sdfInput = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        sdfInput.timeZone = java.util.TimeZone.getTimeZone("UTC")
+
+        val date = sdfInput.parse(dataHora)
+        if (date != null) {
+            val sdfOutput = SimpleDateFormat("HH:mm", Locale.getDefault())
+            sdfOutput.timeZone = java.util.TimeZone.getDefault() // Fuso horário local
+            sdfOutput.format(date)
         } else {
             "Agora"
         }
     } catch (e: Exception) {
-        "Agora"
+        // Fallback: tenta extrair diretamente
+        try {
+            val partes = dataHora.split("T")
+            if (partes.size > 1) {
+                partes[1].substring(0, 5)
+            } else {
+                "Agora"
+            }
+        } catch (ex: Exception) {
+            "Agora"
+        }
     }
 }
 
@@ -567,6 +589,7 @@ private fun formatDuration(seconds: Int): String {
     return String.format(Locale.US, "%d:%02d", minutes, secs)
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AudioMessageContent(
     audioUrl: String,
@@ -574,16 +597,12 @@ fun AudioMessageContent(
     isPlaying: Boolean,
     progress: Pair<Int, Int>, // (current, total) em milissegundos
     onPlayAudio: (String) -> Unit,
-    isUser: Boolean
+    onSeekTo: (String, Int) -> Unit = { _, _ -> },
+    isUser: Boolean,
+    messageTime: String = "",
+    isViewed: Boolean = false
 ) {
     val (currentMs, totalMs) = progress
-
-    // Calcula progresso (0.0 a 1.0)
-    val progressPercentage = if (totalMs > 0) {
-        (currentMs.toFloat() / totalMs.toFloat()).coerceIn(0f, 1f)
-    } else {
-        0f
-    }
 
     // Tempo atual em segundos
     val currentSeconds = if (isPlaying && totalMs > 0) {
@@ -595,84 +614,185 @@ fun AudioMessageContent(
     // Tempo total em segundos
     val totalSeconds = if (totalMs > 0) (totalMs / 1000) else duration
 
-    Column(
-        modifier = Modifier.fillMaxWidth()
+    // Tempo a mostrar: se está tocando mostra progresso, se pausado mostra duração total
+    val displayTime = if (isPlaying) {
+        formatDuration(currentSeconds)
+    } else {
+        formatDuration(totalSeconds)
+    }
+
+    // Estado local para o slider
+    var sliderPosition by remember { mutableStateOf(currentMs.toFloat()) }
+    var isUserDragging by remember { mutableStateOf(false) }
+
+    // Atualiza posição do slider quando não está arrastando
+    LaunchedEffect(currentMs) {
+        if (!isUserDragging) {
+            sliderPosition = currentMs.toFloat()
+        }
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Start
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Start
+        // Botão play/pause
+        IconButton(
+            onClick = { onPlayAudio(audioUrl) },
+            modifier = Modifier.size(40.dp)
         ) {
-            // Botão play/pause
-            IconButton(
-                onClick = { onPlayAudio(audioUrl) },
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (isPlaying) "Pausar" else "Reproduzir",
-                    tint = if (isUser) Color(0xFF075E54) else Color(0xFFFF6F00),
-                    modifier = Modifier.size(28.dp)
-                )
-            }
+            Icon(
+                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                contentDescription = if (isPlaying) "Pausar" else "Reproduzir",
+                tint = if (isUser) Color(0xFFFF6F00) else Color(0xFF616161),
+                modifier = Modifier.size(28.dp)
+            )
+        }
 
-            Spacer(modifier = Modifier.width(4.dp))
+        Spacer(modifier = Modifier.width(4.dp))
 
-            // Barra de progresso e tempo
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                // Barra de progresso
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(3.dp)
-                        .clip(RoundedCornerShape(1.5.dp))
-                        .background(Color.Gray.copy(alpha = 0.3f))
-                ) {
+        // Barra de progresso e tempo
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            // Slider com bolinha para controlar posição
+            Slider(
+                value = sliderPosition,
+                onValueChange = { newValue ->
+                    isUserDragging = true
+                    sliderPosition = newValue
+                },
+                onValueChangeFinished = {
+                    isUserDragging = false
+                    // Ao soltar, busca para a nova posição
+                    onSeekTo(audioUrl, sliderPosition.toInt())
+                },
+                valueRange = 0f..(if (totalMs > 0) totalMs.toFloat() else (duration * 1000).toFloat()),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(16.dp),
+                colors = SliderDefaults.colors(
+                    thumbColor = if (isUser) Color(0xFFFF6F00) else Color(0xFF616161),
+                    activeTrackColor = if (isUser) Color(0xFFFF6F00) else Color(0xFF616161),
+                    inactiveTrackColor = Color.Gray.copy(alpha = 0.3f),
+                    activeTickColor = Color.Transparent,
+                    inactiveTickColor = Color.Transparent
+                ),
+                thumb = {
                     Box(
                         modifier = Modifier
-                            .fillMaxHeight()
-                            .fillMaxWidth(progressPercentage)
+                            .size(10.dp)
+                            .offset(y = (5).dp)
                             .background(
-                                if (isUser) Color(0xFF075E54) else Color(0xFFFF6F00)
+                                color = if (isUser) Color(0xFFFF6F00) else Color(0xFF616161),
+                                shape = CircleShape
                             )
                     )
+                },
+                track = { sliderState ->
+                    // Track personalizado com linhas centralizadas
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Linha de progresso (ativa)
+                            Box(
+                                modifier = Modifier
+                                    .weight(
+                                        weight = if (sliderState.valueRange.endInclusive > 0) {
+                                            ((sliderState.value - sliderState.valueRange.start) /
+                                            (sliderState.valueRange.endInclusive - sliderState.valueRange.start)).coerceIn(0.001f, 1f)
+                                        } else {
+                                            0.001f
+                                        }
+                                    )
+                                    .height(3.dp)
+                                    .clip(RoundedCornerShape(1.5.dp))
+                                    .background(
+                                        if (isUser) Color(0xFFFF6F00) else Color(0xFF616161)
+                                    )
+                            )
+                            // Linha de fundo (inativa)
+                            Box(
+                                modifier = Modifier
+                                    .weight(
+                                        weight = if (sliderState.valueRange.endInclusive > 0) {
+                                            1f - ((sliderState.value - sliderState.valueRange.start) /
+                                            (sliderState.valueRange.endInclusive - sliderState.valueRange.start)).coerceIn(0f, 0.999f)
+                                        } else {
+                                            1f
+                                        }
+                                    )
+                                    .height(3.dp)
+                                    .clip(RoundedCornerShape(1.5.dp))
+                                    .background(Color.Gray.copy(alpha = 0.3f))
+                            )
+                        }
+                    }
                 }
+            )
 
-                Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(2.dp))
 
-                // Tempo (atual / total)
+            // Contador, ícone, horário e status na mesma linha
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Lado esquerdo: Contador e ícone
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Tempo atual
+                    // Contador de tempo
                     Text(
-                        text = if (isPlaying) formatDuration(currentSeconds) else "0:00",
+                        text = if (isUserDragging) {
+                            // Mostra tempo do slider enquanto arrasta
+                            formatDuration((sliderPosition / 1000).toInt())
+                        } else {
+                            displayTime
+                        },
                         fontSize = 11.sp,
                         color = Color.Gray
                     )
 
-                    // Tempo total
-                    Text(
-                        text = formatDuration(totalSeconds),
-                        fontSize = 11.sp,
-                        color = Color.Gray
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    // Ícone de áudio
+                    Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = "Áudio",
+                        tint = if (isUser) Color(0xFFFF6F00) else Color(0xFF616161),
+                        modifier = Modifier.size(14.dp)
                     )
                 }
+
+                // Lado direito: Horário e status de visualização
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = messageTime,
+                        fontSize = 11.sp,
+                        color = Color.Gray
+                    )
+                    if (isUser) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (isViewed) "✓✓" else "✓",
+                            fontSize = 11.sp,
+                            color = if (isViewed) Color(0xFF4CAF50) else Color.Gray
+                        )
+                    }
+                }
             }
-
-            Spacer(modifier = Modifier.width(4.dp))
-
-            // Ícone de áudio
-            Icon(
-                imageVector = Icons.Default.Mic,
-                contentDescription = "Áudio",
-                tint = if (isUser) Color(0xFF075E54) else Color(0xFFFF6F00),
-                modifier = Modifier.size(18.dp)
-            )
         }
     }
 }

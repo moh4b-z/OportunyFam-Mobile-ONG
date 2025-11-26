@@ -23,21 +23,23 @@ class AudioPlayer(private val context: Context) {
     ) {
         this.onProgressUpdate = onProgress
         try {
-            // Se já está tocando o mesmo áudio, pausar
-            if (currentAudioUrl == audioUrl && mediaPlayer?.isPlaying == true) {
-                pauseAudio()
-                return
-            }
-
             // Se está tocando outro áudio, parar
             if (currentAudioUrl != audioUrl) {
                 stopAudio()
             }
 
-            // Se estava pausado, retomar
+            // Se é o mesmo áudio e já existe mediaPlayer
             if (currentAudioUrl == audioUrl && mediaPlayer != null) {
-                mediaPlayer?.start()
-                return
+                // Se está tocando, pausar
+                if (mediaPlayer?.isPlaying == true) {
+                    pauseAudio()
+                    return
+                } else {
+                    // Se estava pausado, retomar
+                    mediaPlayer?.start()
+                    Log.d(TAG, "Retomando áudio: $audioUrl")
+                    return
+                }
             }
 
             // Iniciar novo áudio
@@ -47,7 +49,15 @@ class AudioPlayer(private val context: Context) {
                 start()
 
                 setOnCompletionListener {
-                    stopAudio()
+                    Log.d(TAG, "Áudio completado: $audioUrl")
+                    // Libera recursos do MediaPlayer completado
+                    try {
+                        release()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Erro ao liberar MediaPlayer", e)
+                    }
+                    mediaPlayer = null
+                    currentAudioUrl = null
                     onCompletion()
                 }
 
@@ -131,6 +141,18 @@ class AudioPlayer(private val context: Context) {
      */
     fun getDuration(): Int {
         return mediaPlayer?.duration ?: 0
+    }
+
+    /**
+     * Move a posição de reprodução para um ponto específico
+     */
+    fun seekTo(positionMs: Int) {
+        try {
+            mediaPlayer?.seekTo(positionMs.coerceIn(0, getDuration()))
+            Log.d(TAG, "Posição alterada para: ${positionMs}ms")
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao buscar posição", e)
+        }
     }
 }
 
