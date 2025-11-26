@@ -3,6 +3,7 @@ package com.oportunyfam_mobile_ong.Screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -55,6 +56,8 @@ fun ChatScreen(
     val isRecordingAudio by viewModel.isRecordingAudio.collectAsState()
     val recordingDuration by viewModel.recordingDuration.collectAsState()
     val isUploadingAudio by viewModel.isUploadingAudio.collectAsState()
+    val currentPlayingAudioUrl by viewModel.currentPlayingAudioUrl.collectAsState()
+    val audioProgress by viewModel.audioProgress.collectAsState()
     var currentMessage by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -170,8 +173,9 @@ fun ChatScreen(
                                     ChatMessage(
                                         mensagem = mensagem,
                                         isUser = mensagem.id_pessoa == pessoaIdAtual,
-                                        onPlayAudio = { url -> viewModel.playAudio(url) },
-                                        onStopAudio = { viewModel.stopAudio() }
+                                        currentPlayingUrl = currentPlayingAudioUrl,
+                                        audioProgress = audioProgress,
+                                        onPlayAudio = { url -> viewModel.playAudio(url) }
                                     )
                                 }
                             }
@@ -270,8 +274,9 @@ fun ChatTopBar(nomeContato: String, onBackClick: () -> Unit) {
 fun ChatMessage(
     mensagem: Mensagem,
     isUser: Boolean,
-    onPlayAudio: (String) -> Unit = {},
-    onStopAudio: () -> Unit = {}
+    currentPlayingUrl: String? = null,
+    audioProgress: Pair<Int, Int> = 0 to 0,
+    onPlayAudio: (String) -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -300,6 +305,8 @@ fun ChatMessage(
                     AudioMessageContent(
                         audioUrl = mensagem.audio_url,
                         duration = mensagem.audio_duracao ?: 0,
+                        isPlaying = currentPlayingUrl == mensagem.audio_url,
+                        progress = if (currentPlayingUrl == mensagem.audio_url) audioProgress else (0 to 0),
                         onPlayAudio = onPlayAudio,
                         isUser = isUser
                     )
@@ -564,51 +571,109 @@ private fun formatDuration(seconds: Int): String {
 fun AudioMessageContent(
     audioUrl: String,
     duration: Int,
+    isPlaying: Boolean,
+    progress: Pair<Int, Int>, // (current, total) em milissegundos
     onPlayAudio: (String) -> Unit,
     isUser: Boolean
 ) {
-    var isPlaying by remember { mutableStateOf(false) }
+    val (currentMs, totalMs) = progress
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Start
+    // Calcula progresso (0.0 a 1.0)
+    val progressPercentage = if (totalMs > 0) {
+        (currentMs.toFloat() / totalMs.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+
+    // Tempo atual em segundos
+    val currentSeconds = if (isPlaying && totalMs > 0) {
+        (currentMs / 1000)
+    } else {
+        0
+    }
+
+    // Tempo total em segundos
+    val totalSeconds = if (totalMs > 0) (totalMs / 1000) else duration
+
+    Column(
+        modifier = Modifier.fillMaxWidth()
     ) {
-        // Botão play/pause
-        IconButton(
-            onClick = {
-                isPlaying = !isPlaying
-                onPlayAudio(audioUrl)
-            },
-            modifier = Modifier.size(40.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
         ) {
+            // Botão play/pause
+            IconButton(
+                onClick = { onPlayAudio(audioUrl) },
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (isPlaying) "Pausar" else "Reproduzir",
+                    tint = if (isUser) Color(0xFF075E54) else Color(0xFFFF6F00),
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(4.dp))
+
+            // Barra de progresso e tempo
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                // Barra de progresso
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(1.5.dp))
+                        .background(Color.Gray.copy(alpha = 0.3f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(progressPercentage)
+                            .background(
+                                if (isUser) Color(0xFF075E54) else Color(0xFFFF6F00)
+                            )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // Tempo (atual / total)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Tempo atual
+                    Text(
+                        text = if (isPlaying) formatDuration(currentSeconds) else "0:00",
+                        fontSize = 11.sp,
+                        color = Color.Gray
+                    )
+
+                    // Tempo total
+                    Text(
+                        text = formatDuration(totalSeconds),
+                        fontSize = 11.sp,
+                        color = Color.Gray
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(4.dp))
+
+            // Ícone de áudio
             Icon(
-                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = if (isPlaying) "Pausar" else "Reproduzir",
+                imageVector = Icons.Default.Mic,
+                contentDescription = "Áudio",
                 tint = if (isUser) Color(0xFF075E54) else Color(0xFFFF6F00),
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(18.dp)
             )
         }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        // Ícone de áudio
-        Icon(
-            imageVector = Icons.Default.Mic,
-            contentDescription = "Áudio",
-            tint = if (isUser) Color(0xFF075E54) else Color(0xFFFF6F00),
-            modifier = Modifier.size(20.dp)
-        )
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        // Duração
-        Text(
-            text = formatDuration(duration),
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            color = Color.Black
-        )
     }
 }
 

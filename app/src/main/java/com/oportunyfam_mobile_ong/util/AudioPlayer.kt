@@ -7,6 +7,7 @@ import android.util.Log
 class AudioPlayer(private val context: Context) {
     private var mediaPlayer: MediaPlayer? = null
     private var currentAudioUrl: String? = null
+    private var onProgressUpdate: ((current: Int, total: Int) -> Unit)? = null
 
     companion object {
         private const val TAG = "AudioPlayer"
@@ -15,7 +16,12 @@ class AudioPlayer(private val context: Context) {
     /**
      * Reproduz um áudio de uma URL ou arquivo local
      */
-    fun playAudio(audioUrl: String, onCompletion: () -> Unit = {}) {
+    fun playAudio(
+        audioUrl: String,
+        onCompletion: () -> Unit = {},
+        onProgress: ((current: Int, total: Int) -> Unit)? = null
+    ) {
+        this.onProgressUpdate = onProgress
         try {
             // Se já está tocando o mesmo áudio, pausar
             if (currentAudioUrl == audioUrl && mediaPlayer?.isPlaying == true) {
@@ -97,6 +103,20 @@ class AudioPlayer(private val context: Context) {
      */
     fun isPlaying(): Boolean {
         return mediaPlayer?.isPlaying == true
+    }
+
+    /**
+     * Verifica se está reproduzindo uma URL específica
+     */
+    fun isPlayingUrl(url: String): Boolean {
+        return currentAudioUrl == url && isPlaying()
+    }
+
+    /**
+     * Obtém a URL do áudio atual
+     */
+    fun getCurrentAudioUrl(): String? {
+        return currentAudioUrl
     }
 
     /**

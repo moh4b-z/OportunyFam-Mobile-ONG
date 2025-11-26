@@ -69,6 +69,15 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val _isUploadingAudio = MutableStateFlow(false)
     val isUploadingAudio: StateFlow<Boolean> = _isUploadingAudio.asStateFlow()
 
+    // Audio player states
+    private val _currentPlayingAudioUrl = MutableStateFlow<String?>(null)
+    val currentPlayingAudioUrl: StateFlow<String?> = _currentPlayingAudioUrl.asStateFlow()
+
+    private val _audioProgress = MutableStateFlow<Pair<Int, Int>>(0 to 0) // (current, total) em ms
+    val audioProgress: StateFlow<Pair<Int, Int>> = _audioProgress.asStateFlow()
+
+    private var progressUpdateJob: kotlinx.coroutines.Job? = null
+
     // ID da pessoa logada (pessoa_id da instituição)
     private val _pessoaId = MutableStateFlow<Int?>(null)
     val pessoaId: StateFlow<Int?> = _pessoaId.asStateFlow()
@@ -535,7 +544,58 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
      * Reproduz ou pausa um áudio
      */
     fun playAudio(audioUrl: String) {
-        audioPlayer.playAudio(audioUrl)
+        // Se já está tocando este áudio, pausar
+        if (_currentPlayingAudioUrl.value == audioUrl && audioPlayer.isPlaying()) {
+            pauseAudio()
+            return
+        }
+
+        // Para qualquer áudio anterior
+        stopAudio()
+
+        // Inicia novo áudio
+        _currentPlayingAudioUrl.value = audioUrl
+        _audioProgress.value = 0 to 0
+
+        audioPlayer.playAudio(
+            audioUrl = audioUrl,
+            onCompletion = {
+                // Quando terminar, reseta estado
+                _currentPlayingAudioUrl.value = null
+                _audioProgress.value = 0 to 0
+                progressUpdateJob?.cancel()
+
+                // Toca próximo áudio se houver
+                playNextAudio(audioUrl)
+            },
+            onProgress = { current, total ->
+                _audioProgress.value = current to total
+            }
+        )
+
+        // Inicia job para atualizar progresso
+        progressUpdateJob?.cancel()
+        progressUpdateJob = viewModelScope.launch {
+            while (_currentPlayingAudioUrl.value == audioUrl && audioPlayer.isPlaying()) {
+                val current = audioPlayer.getCurrentPosition()
+                val total = audioPlayer.getDuration()
+                if (total > 0) {
+                    _audioProgress.value = current to total
+                }
+                kotlinx.coroutines.delay(100) // Atualiza a cada 100ms
+            }
+        }
+
+        Log.d("ChatViewModel", "▶️ Reproduzindo áudio: $audioUrl")
+    }
+
+    /**
+     * Pausa o áudio atual
+     */
+    fun pauseAudio() {
+        audioPlayer.pauseAudio()
+        progressUpdateJob?.cancel()
+        Log.d("ChatViewModel", "⏸️ Áudio pausado")
     }
 
     /**
@@ -543,11 +603,33 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun stopAudio() {
         audioPlayer.stopAudio()
+        _currentPlayingAudioUrl.value = null
+        _audioProgress.value = 0 to 0
+        progressUpdateJob?.cancel()
+    }
+
+    /**
+     * Toca o próximo áudio na lista (se houver)
+     */
+    private fun playNextAudio(currentAudioUrl: String) {
+        val audioMessages = _mensagens.value.filter {
+            it.tipo == com.oportunyfam_mobile_ong.model.TipoMensagem.AUDIO &&
+            it.audio_url != null
+        }.sortedBy { it.criado_em }
+
+        val currentIndex = audioMessages.indexOfFirst { it.audio_url == currentAudioUrl }
+        if (currentIndex >= 0 && currentIndex < audioMessages.size - 1) {
+            val nextAudio = audioMessages[currentIndex + 1]
+            nextAudio.audio_url?.let { url ->
+                Log.d("ChatViewModel", "⏭️ Reproduzindo próximo áudio")
+                playAudio(url)
+            }
+        }
     }
 
     override fun onCleared() {
         super.onCleared()
-        audioPlayer.stopAudio()
+        stopAudio()
         if (audioRecorder.isRecording()) {
             audioRecorder.cancelRecording()
         }
