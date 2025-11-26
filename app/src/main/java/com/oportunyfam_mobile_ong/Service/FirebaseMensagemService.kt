@@ -63,7 +63,14 @@ class FirebaseMensagemService {
         criado_em = criado_em,
         atualizado_em = atualizado_em,
         id_conversa = id_conversa,
-        id_pessoa = id_pessoa
+        id_pessoa = id_pessoa,
+        tipo = try {
+            com.oportunyfam_mobile_ong.model.TipoMensagem.valueOf(tipo)
+        } catch (e: Exception) {
+            com.oportunyfam_mobile_ong.model.TipoMensagem.TEXTO
+        },
+        audio_url = audio_url,
+        audio_duracao = audio_duracao
     )
 
 
@@ -85,7 +92,10 @@ class FirebaseMensagemService {
                 criado_em = mensagem.criado_em,
                 atualizado_em = mensagem.atualizado_em,
                 id_conversa = mensagem.id_conversa,
-                id_pessoa = mensagem.id_pessoa
+                id_pessoa = mensagem.id_pessoa,
+                tipo = mensagem.tipo.name,
+                audio_url = mensagem.audio_url,
+                audio_duracao = mensagem.audio_duracao
             )
 
             mensagemRef.setValue(mensagemFirebase).await()
@@ -138,7 +148,10 @@ class FirebaseMensagemService {
                     criado_em = m.criado_em,
                     atualizado_em = m.atualizado_em,
                     id_conversa = m.id_conversa,
-                    id_pessoa = m.id_pessoa
+                    id_pessoa = m.id_pessoa,
+                    tipo = m.tipo.name,
+                    audio_url = m.audio_url,
+                    audio_duracao = m.audio_duracao
                 )
             }
 
@@ -163,5 +176,8 @@ data class MensagemFirebase(
     val criado_em: String = "",
     val atualizado_em: String? = null,
     val id_conversa: Int = 0,
-    val id_pessoa: Int = 0
+    val id_pessoa: Int = 0,
+    val tipo: String = "TEXTO",
+    val audio_url: String? = null,
+    val audio_duracao: Int? = null
 )

@@ -151,6 +151,78 @@ object AzureBlobRetrofit {
 
     // A função generateSharedKeyAuth e outras que a usavam foram removidas, pois não são necessárias com SAS Token.
 
+    /**
+     * Upload de áudio para Azure Blob Storage usando Autenticação de Token SAS.
+     * Usa a mesma chave/token que as imagens.
+     *
+     * @param audioFile Arquivo de áudio a ser enviado
+     * @param storageAccount Nome da conta de storage do Azure
+     * @param sasToken O Token SAS para o container
+     * @param containerName Nome do container no Azure
+     * @return URL COMPLETA do áudio (sem o SAS Token) ou null em caso de erro
+     */
+    suspend fun uploadAudioToAzure(
+        audioFile: File,
+        storageAccount: String,
+        sasToken: String,
+        containerName: String
+    ): String? = withContext(Dispatchers.IO) {
+        // Gera um nome único para o blob usando UUID
+        val extension = audioFile.extension.ifEmpty { "m4a" }
+        val blobName = "audio_${UUID.randomUUID()}.$extension"
+
+        // 1. Cria a URL do recurso (URL que será armazenada no seu banco de dados)
+        val resourceUrl = "https://${storageAccount}.blob.core.windows.net/${containerName}/${blobName}"
+
+        // 2. Cria a URL de UPLOAD (URL do recurso + Token SAS como parâmetro de consulta)
+        val uploadUrlWithSas = "$resourceUrl?$sasToken"
+
+        println("🎤 Iniciando upload de áudio para Azure Storage (usando SAS Token)...")
+        println("🔗 Storage Account: $storageAccount")
+        println("📦 Container: $containerName")
+        println("📄 Blob Name: $blobName")
+        println("🌐 URL de Upload (com SAS): $uploadUrlWithSas")
+
+        try {
+            val fileBytes = FileInputStream(audioFile).readBytes()
+            // Define o content type baseado na extensão
+            val contentType = when (extension.lowercase()) {
+                "m4a" -> "audio/mp4"
+                "mp3" -> "audio/mpeg"
+                "wav" -> "audio/wav"
+                "aac" -> "audio/aac"
+                else -> "audio/mp4"
+            }
+            val requestBody = fileBytes.toRequestBody(contentType.toMediaTypeOrNull())
+
+            println("📊 Tamanho do arquivo de áudio: ${fileBytes.size} bytes")
+
+            val response = apiService.uploadFileSas(
+                uploadUrlWithSas = uploadUrlWithSas,
+                fileBytes = requestBody
+            )
+
+            if (response.isSuccessful) {
+                println("✅ Upload de áudio bem-sucedido para: $resourceUrl")
+                resourceUrl // Retorna a URL SEM o Token SAS
+            } else {
+                val errorBody = response.errorBody()?.string()
+                println("❌ Erro no upload do áudio: ${response.code()} - $errorBody")
+                println("⚠️ Headers da resposta: ${response.headers()}")
+
+                if (response.code() == 403) {
+                    println("🚨 ERRO 403: Acesso Negado. Verifique se o Token SAS ainda é válido.")
+                }
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            println("❌ Erro ao fazer upload do áudio: ${e.message}")
+            println("🔍 Tipo de erro: ${e.javaClass.simpleName}")
+            null
+        }
+    }
+
     // ========================================================
     // Funções auxiliares (manter)
     // ========================================================

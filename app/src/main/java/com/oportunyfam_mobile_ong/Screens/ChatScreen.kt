@@ -10,6 +10,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,13 +30,17 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.oportunyfam_mobile_ong.model.Mensagem
+import com.oportunyfam_mobile_ong.model.TipoMensagem
 import com.oportunyfam_mobile_ong.viewmodel.ChatViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.isGranted
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun ChatScreen(
     navController: NavHostController,
@@ -43,9 +52,17 @@ fun ChatScreen(
     val mensagens by viewModel.mensagens.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val isRecordingAudio by viewModel.isRecordingAudio.collectAsState()
+    val recordingDuration by viewModel.recordingDuration.collectAsState()
+    val isUploadingAudio by viewModel.isUploadingAudio.collectAsState()
     var currentMessage by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+
+    // Permission state for audio recording
+    val recordAudioPermissionState = rememberPermissionState(
+        android.Manifest.permission.RECORD_AUDIO
+    )
 
     // ✅ SEMPRE recarrega mensagens quando a tela aparece
     // Isso garante que o histórico seja carregado mesmo após sair e voltar
@@ -152,7 +169,9 @@ fun ChatScreen(
                                 items(mensagensDoDia, key = { it.id }) { mensagem ->
                                     ChatMessage(
                                         mensagem = mensagem,
-                                        isUser = mensagem.id_pessoa == pessoaIdAtual
+                                        isUser = mensagem.id_pessoa == pessoaIdAtual,
+                                        onPlayAudio = { url -> viewModel.playAudio(url) },
+                                        onStopAudio = { viewModel.stopAudio() }
                                     )
                                 }
                             }
@@ -171,7 +190,19 @@ fun ChatScreen(
                         currentMessage = ""
                     }
                 },
-                enabled = !isLoading
+                enabled = !isLoading,
+                isRecordingAudio = isRecordingAudio,
+                recordingDuration = recordingDuration,
+                isUploadingAudio = isUploadingAudio,
+                onStartRecording = {
+                    if (recordAudioPermissionState.status.isGranted) {
+                        viewModel.startAudioRecording()
+                    } else {
+                        recordAudioPermissionState.launchPermissionRequest()
+                    }
+                },
+                onStopRecording = { viewModel.stopAudioRecordingAndSend(conversaId, pessoaIdAtual) },
+                onCancelRecording = { viewModel.cancelAudioRecording() }
             )
         }
     }
@@ -236,7 +267,12 @@ fun ChatTopBar(nomeContato: String, onBackClick: () -> Unit) {
 }
 
 @Composable
-fun ChatMessage(mensagem: Mensagem, isUser: Boolean) {
+fun ChatMessage(
+    mensagem: Mensagem,
+    isUser: Boolean,
+    onPlayAudio: (String) -> Unit = {},
+    onStopAudio: () -> Unit = {}
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -259,11 +295,23 @@ fun ChatMessage(mensagem: Mensagem, isUser: Boolean) {
             Column(
                 modifier = Modifier.padding(12.dp)
             ) {
-                Text(
-                    text = mensagem.descricao,
-                    fontSize = 15.sp,
-                    color = Color.Black
-                )
+                // Se for mensagem de áudio, mostra player
+                if (mensagem.tipo == TipoMensagem.AUDIO && mensagem.audio_url != null) {
+                    AudioMessageContent(
+                        audioUrl = mensagem.audio_url,
+                        duration = mensagem.audio_duracao ?: 0,
+                        onPlayAudio = onPlayAudio,
+                        isUser = isUser
+                    )
+                } else {
+                    // Mensagem de texto normal
+                    Text(
+                        text = mensagem.descricao,
+                        fontSize = 15.sp,
+                        color = Color.Black
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(
                     horizontalArrangement = Arrangement.End,
@@ -293,45 +341,146 @@ fun ChatInputField(
     currentMessage: String,
     onMessageChange: (String) -> Unit,
     onSendClick: () -> Unit,
-    enabled: Boolean
+    enabled: Boolean,
+    isRecordingAudio: Boolean = false,
+    recordingDuration: Int = 0,
+    isUploadingAudio: Boolean = false,
+    onStartRecording: () -> Unit = {},
+    onStopRecording: () -> Unit = {},
+    onCancelRecording: () -> Unit = {}
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = Color.White,
         shadowElevation = 8.dp
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.Bottom
-        ) {
-            OutlinedTextField(
-                value = currentMessage,
-                onValueChange = onMessageChange,
-                modifier = Modifier.weight(1f),
-                placeholder = { Text("Digite uma mensagem...", fontSize = 14.sp) },
-                shape = RoundedCornerShape(24.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFFFF6F00),
-                    unfocusedBorderColor = Color(0xFFE0E0E0)
-                ),
-                maxLines = 4,
-                enabled = enabled
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            FloatingActionButton(
-                onClick = onSendClick,
-                modifier = Modifier.size(48.dp),
-                containerColor = Color(0xFFFF6F00),
-                contentColor = Color.White,
-                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
+        // Se estiver gravando áudio, mostra UI de gravação
+        if (isRecordingAudio) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "Enviar",
-                    modifier = Modifier.size(24.dp)
+                // Botão cancelar
+                IconButton(onClick = onCancelRecording) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Cancelar",
+                        tint = Color.Red
+                    )
+                }
+
+                // Indicador de gravação
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = "Gravando",
+                        tint = Color.Red,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = formatDuration(recordingDuration),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Red
+                    )
+                }
+
+                // Botão parar/enviar
+                FloatingActionButton(
+                    onClick = onStopRecording,
+                    modifier = Modifier.size(48.dp),
+                    containerColor = Color(0xFFFF6F00),
+                    contentColor = Color.White
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Stop,
+                        contentDescription = "Enviar áudio",
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+        } else if (isUploadingAudio) {
+            // Mostra loading durante upload
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = Color(0xFFFF6F00)
                 )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "Enviando áudio...",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+            }
+        } else {
+            // UI normal de mensagem
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                // Botão de microfone (aparece quando não há texto)
+                if (currentMessage.isBlank()) {
+                    IconButton(
+                        onClick = onStartRecording,
+                        enabled = enabled
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "Gravar áudio",
+                            tint = Color(0xFFFF6F00),
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+
+                OutlinedTextField(
+                    value = currentMessage,
+                    onValueChange = onMessageChange,
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Digite uma mensagem...", fontSize = 14.sp) },
+                    shape = RoundedCornerShape(24.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFFFF6F00),
+                        unfocusedBorderColor = Color(0xFFE0E0E0)
+                    ),
+                    maxLines = 4,
+                    enabled = enabled
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Botão enviar (aparece quando há texto)
+                if (currentMessage.isNotBlank()) {
+                    FloatingActionButton(
+                        onClick = onSendClick,
+                        modifier = Modifier.size(48.dp),
+                        containerColor = Color(0xFFFF6F00),
+                        contentColor = Color.White,
+                        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Enviar",
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
             }
         }
     }
@@ -402,6 +551,64 @@ private fun formatarHora(dataHora: String): String {
         }
     } catch (e: Exception) {
         "Agora"
+    }
+}
+
+private fun formatDuration(seconds: Int): String {
+    val minutes = seconds / 60
+    val secs = seconds % 60
+    return String.format(Locale.US, "%d:%02d", minutes, secs)
+}
+
+@Composable
+fun AudioMessageContent(
+    audioUrl: String,
+    duration: Int,
+    onPlayAudio: (String) -> Unit,
+    isUser: Boolean
+) {
+    var isPlaying by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Start
+    ) {
+        // Botão play/pause
+        IconButton(
+            onClick = {
+                isPlaying = !isPlaying
+                onPlayAudio(audioUrl)
+            },
+            modifier = Modifier.size(40.dp)
+        ) {
+            Icon(
+                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                contentDescription = if (isPlaying) "Pausar" else "Reproduzir",
+                tint = if (isUser) Color(0xFF075E54) else Color(0xFFFF6F00),
+                modifier = Modifier.size(28.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Ícone de áudio
+        Icon(
+            imageVector = Icons.Default.Mic,
+            contentDescription = "Áudio",
+            tint = if (isUser) Color(0xFF075E54) else Color(0xFFFF6F00),
+            modifier = Modifier.size(20.dp)
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Duração
+        Text(
+            text = formatDuration(duration),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color.Black
+        )
     }
 }
 

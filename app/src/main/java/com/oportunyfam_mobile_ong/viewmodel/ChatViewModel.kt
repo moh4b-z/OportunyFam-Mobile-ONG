@@ -9,15 +9,20 @@ import com.oportunyfam_mobile_ong.Service.MensagemService
 import com.oportunyfam_mobile_ong.Service.ConversaService
 import com.oportunyfam_mobile_ong.Service.InstituicaoService
 import com.oportunyfam_mobile_ong.Service.RetrofitFactory
+import com.oportunyfam_mobile_ong.Service.AzureBlobRetrofit
+import com.oportunyfam_mobile_ong.Config.AzureConfig
 import com.oportunyfam_mobile_ong.model.Mensagem
 import com.oportunyfam_mobile_ong.model.MensagemRequest
 import com.oportunyfam_mobile_ong.model.Aluno
 import com.oportunyfam_mobile_ong.model.ConversaRequest
 import com.oportunyfam_mobile_ong.data.InstituicaoAuthDataStore
+import com.oportunyfam_mobile_ong.util.AudioRecorder
+import com.oportunyfam_mobile_ong.util.AudioPlayer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.io.File
 
 data class ConversaUI(
     val id: Int,
@@ -38,6 +43,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val firebaseMensagemService: FirebaseMensagemService = FirebaseMensagemService()
     private val authDataStore = InstituicaoAuthDataStore(application)
 
+    // Audio recording and playing
+    private val audioRecorder = AudioRecorder(application)
+    private val audioPlayer = AudioPlayer(application)
+
     private val _conversas = MutableStateFlow<List<ConversaUI>>(emptyList())
     val conversas: StateFlow<List<ConversaUI>> = _conversas.asStateFlow()
 
@@ -49,6 +58,16 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    // Audio recording states
+    private val _isRecordingAudio = MutableStateFlow(false)
+    val isRecordingAudio: StateFlow<Boolean> = _isRecordingAudio.asStateFlow()
+
+    private val _recordingDuration = MutableStateFlow(0)
+    val recordingDuration: StateFlow<Int> = _recordingDuration.asStateFlow()
+
+    private val _isUploadingAudio = MutableStateFlow(false)
+    val isUploadingAudio: StateFlow<Boolean> = _isUploadingAudio.asStateFlow()
 
     // ID da pessoa logada (pessoa_id da instituição)
     private val _pessoaId = MutableStateFlow<Int?>(null)
@@ -267,6 +286,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun addOrUpdateMensagem(m: Mensagem) {
         // mantém unicidade por ID e ordena por criado_em
+        Log.d("ChatViewModel", "📨 Mensagem recebida: ID=${m.id}, tipo=${m.tipo}, audio_url=${m.audio_url}, descricao=${m.descricao}")
         val map = _mensagens.value.associateBy { it.id }.toMutableMap()
         map[m.id] = m
         _mensagens.value = map.values.sortedBy { it.criado_em }
@@ -356,6 +376,181 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     fun limparErro() {
         _errorMessage.value = null
+    }
+
+    /**
+     * Inicia a gravação de áudio
+     */
+    fun startAudioRecording() {
+        viewModelScope.launch {
+            try {
+                val file = audioRecorder.startRecording()
+                if (file != null) {
+                    _isRecordingAudio.value = true
+                    _recordingDuration.value = 0
+
+                    // Atualiza duração a cada segundo
+                    launch {
+                        while (_isRecordingAudio.value) {
+                            kotlinx.coroutines.delay(1000)
+                            _recordingDuration.value = audioRecorder.getCurrentDuration()
+                        }
+                    }
+
+                    Log.d("ChatViewModel", "🎤 Gravação de áudio iniciada")
+                } else {
+                    _errorMessage.value = "Erro ao iniciar gravação de áudio"
+                    Log.e("ChatViewModel", "❌ Falha ao iniciar gravação")
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Erro ao gravar: ${e.message}"
+                Log.e("ChatViewModel", "Erro ao iniciar gravação", e)
+            }
+        }
+    }
+
+    /**
+     * Para a gravação e envia o áudio
+     */
+    fun stopAudioRecordingAndSend(conversaId: Int, pessoaId: Int) {
+        viewModelScope.launch {
+            try {
+                _isRecordingAudio.value = false
+                val (audioFile, duration) = audioRecorder.stopRecording()
+
+                if (audioFile != null && audioFile.exists()) {
+                    Log.d("ChatViewModel", "🎤 Áudio gravado: ${audioFile.absolutePath}, duração: $duration segundos")
+
+                    // Verifica se a duração é maior que 1 segundo
+                    if (duration < 1) {
+                        _errorMessage.value = "Áudio muito curto"
+                        audioFile.delete()
+                        return@launch
+                    }
+
+                    enviarMensagemAudio(conversaId, pessoaId, audioFile, duration)
+                } else {
+                    _errorMessage.value = "Erro ao salvar áudio"
+                    Log.e("ChatViewModel", "❌ Arquivo de áudio não encontrado")
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Erro ao parar gravação: ${e.message}"
+                Log.e("ChatViewModel", "Erro ao parar gravação", e)
+            }
+        }
+    }
+
+    /**
+     * Cancela a gravação de áudio
+     */
+    fun cancelAudioRecording() {
+        _isRecordingAudio.value = false
+        _recordingDuration.value = 0
+        audioRecorder.cancelRecording()
+        Log.d("ChatViewModel", "🎤 Gravação de áudio cancelada")
+    }
+
+    /**
+     * Envia mensagem de áudio
+     */
+    private fun enviarMensagemAudio(conversaId: Int, pessoaId: Int, audioFile: File, duration: Int) {
+        viewModelScope.launch {
+            _isUploadingAudio.value = true
+
+            try {
+                // 1. Upload do áudio para Azure
+                Log.d("ChatViewModel", "☁️ Fazendo upload do áudio para Azure...")
+                val audioUrl = AzureBlobRetrofit.uploadAudioToAzure(
+                    audioFile = audioFile,
+                    storageAccount = AzureConfig.STORAGE_ACCOUNT,
+                    sasToken = AzureConfig.SAS_TOKEN,
+                    containerName = AzureConfig.CONTAINER_NAME
+                )
+
+                if (audioUrl == null) {
+                    _errorMessage.value = "Erro ao fazer upload do áudio"
+                    Log.e("ChatViewModel", "❌ Falha no upload para Azure")
+                    _isUploadingAudio.value = false
+                    audioFile.delete()
+                    return@launch
+                }
+
+                Log.d("ChatViewModel", "✅ Upload concluído: $audioUrl")
+
+                // 2. Criar mensagem no backend
+                val request = MensagemRequest(
+                    id_conversa = conversaId,
+                    id_pessoa = pessoaId,
+                    descricao = "Áudio ($duration s)",
+                    tipo = "AUDIO",
+                    audio_url = audioUrl,
+                    audio_duracao = duration
+                )
+
+                val response = mensagemService.criar(request)
+
+                if (response.isSuccessful) {
+                    val mensagemCriada = response.body()?.mensagem
+
+                    if (mensagemCriada != null) {
+                        // 3. Adiciona mensagem localmente
+                        addOrUpdateMensagem(mensagemCriada)
+                        Log.d("ChatViewModel", "✅ Mensagem de áudio enviada: ${mensagemCriada.id}")
+
+                        // 4. Envia para o Firebase
+                        launch(kotlinx.coroutines.Dispatchers.IO) {
+                            val result = firebaseMensagemService.enviarMensagem(mensagemCriada)
+                            if (result.isFailure) {
+                                Log.e("ChatViewModel", "⚠️ Falha ao notificar Firebase: ${result.exceptionOrNull()}")
+                            }
+                        }
+
+                        // 5. Atualiza lista de conversas
+                        launch {
+                            carregarConversas(forcarRecarregar = true)
+                        }
+                    }
+                } else {
+                    _errorMessage.value = "Erro ao enviar mensagem de áudio"
+                    Log.e("ChatViewModel", "Erro: ${response.errorBody()?.string()}")
+                }
+
+                // Limpa o arquivo temporário
+                audioFile.delete()
+
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                Log.d("ChatViewModel", "⏹️ Envio de áudio cancelado")
+                throw e
+            } catch (e: Exception) {
+                _errorMessage.value = "Erro ao enviar áudio: ${e.message}"
+                Log.e("ChatViewModel", "Erro ao enviar áudio", e)
+                audioFile.delete()
+            } finally {
+                _isUploadingAudio.value = false
+            }
+        }
+    }
+
+    /**
+     * Reproduz ou pausa um áudio
+     */
+    fun playAudio(audioUrl: String) {
+        audioPlayer.playAudio(audioUrl)
+    }
+
+    /**
+     * Para a reprodução de áudio
+     */
+    fun stopAudio() {
+        audioPlayer.stopAudio()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        audioPlayer.stopAudio()
+        if (audioRecorder.isRecording()) {
+            audioRecorder.cancelRecording()
+        }
     }
 
     /**

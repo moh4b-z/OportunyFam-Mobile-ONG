@@ -32,6 +32,7 @@ class RetrofitFactory {
     private val gson = GsonBuilder()
         .setLenient()
         .registerTypeAdapter(LoginResponse::class.java, LoginResponseDeserializer())
+        .registerTypeAdapter(com.oportunyfam_mobile_ong.model.TipoMensagem::class.java, com.oportunyfam_mobile_ong.model.TipoMensagemDeserializer())
         .create()
 
     /**

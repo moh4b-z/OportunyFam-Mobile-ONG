@@ -82,4 +82,9 @@ object AzureConfig {
     const val STORAGE_ACCOUNT = "oportunyfamstorage"
     const val CONTAINER_PERFIL = "imagens-perfil"
     const val CONTAINER_PUBLICACOES = "imagens-publicacoes"
+
+    // Para mensagens (imagens e áudios)
+    const val CONTAINER_NAME = "imagens-perfil"  // Usa o mesmo container das imagens
+    val SAS_TOKEN: String
+        get() = getStorageKey() ?: ""
 }
