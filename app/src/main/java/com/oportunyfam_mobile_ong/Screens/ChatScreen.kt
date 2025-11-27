@@ -41,6 +41,11 @@ import java.util.Locale
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.isGranted
+import com.oportunyfam_mobile_ong.Components.AudioMessageContent
+import com.oportunyfam_mobile_ong.Components.DateSeparator
+import com.oportunyfam_mobile_ong.Components.extrairData
+import com.oportunyfam_mobile_ong.Components.formatDuration
+import com.oportunyfam_mobile_ong.Components.formatarHora
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
@@ -58,6 +63,7 @@ fun ChatScreen(
     val recordingDuration by viewModel.recordingDuration.collectAsState()
     val isUploadingAudio by viewModel.isUploadingAudio.collectAsState()
     val currentPlayingAudioUrl by viewModel.currentPlayingAudioUrl.collectAsState()
+    val isAudioPlaying by viewModel.isAudioPlaying.collectAsState()
     val audioProgress by viewModel.audioProgress.collectAsState()
     var currentMessage by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
@@ -175,6 +181,7 @@ fun ChatScreen(
                                         mensagem = mensagem,
                                         isUser = mensagem.id_pessoa == pessoaIdAtual,
                                         currentPlayingUrl = currentPlayingAudioUrl,
+                                        isAudioPlaying = isAudioPlaying,
                                         audioProgress = audioProgress,
                                         onPlayAudio = { url -> viewModel.playAudio(url) },
                                         onSeekTo = { url, position -> viewModel.seekToPosition(url, position) }
@@ -277,6 +284,7 @@ fun ChatMessage(
     mensagem: Mensagem,
     isUser: Boolean,
     currentPlayingUrl: String? = null,
+    isAudioPlaying: Boolean = false,
     audioProgress: Pair<Int, Int> = 0 to 0,
     onPlayAudio: (String) -> Unit = {},
     onSeekTo: (String, Int) -> Unit = { _, _ -> }
@@ -308,7 +316,7 @@ fun ChatMessage(
                     AudioMessageContent(
                         audioUrl = mensagem.audio_url,
                         duration = mensagem.audio_duracao ?: 0,
-                        isPlaying = currentPlayingUrl == mensagem.audio_url,
+                        isPlaying = currentPlayingUrl == mensagem.audio_url && isAudioPlaying,
                         progress = if (currentPlayingUrl == mensagem.audio_url) audioProgress else (0 to 0),
                         onPlayAudio = onPlayAudio,
                         onSeekTo = onSeekTo,
@@ -499,303 +507,6 @@ fun ChatInputField(
     }
 }
 
-@Composable
-fun DateSeparator(data: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Surface(
-            color = Color(0xFFE0E0E0),
-            shape = RoundedCornerShape(12.dp),
-            shadowElevation = 1.dp
-        ) {
-            Text(
-                text = formatarDataSeparador(data),
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF616161)
-            )
-        }
-    }
-}
-
-private fun extrairData(dataHora: String): String {
-    return try {
-        // Formato: "2025-11-08T21:45:33.000Z"
-        dataHora.substring(0, 10) // Retorna "2025-11-08"
-    } catch (e: Exception) {
-        "Hoje"
-    }
-}
-
-private fun formatarDataSeparador(data: String): String {
-    return try {
-        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val date = sdf.parse(data) ?: return data
-
-        val hoje = Date()
-        val ontem = Date(hoje.time - 24 * 60 * 60 * 1000)
-
-        val dataFormatada = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(date)
-        val hojeFormatada = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(hoje)
-        val ontemFormatada = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(ontem)
-
-        when (dataFormatada) {
-            hojeFormatada -> "Hoje"
-            ontemFormatada -> "Ontem"
-            else -> SimpleDateFormat("dd 'de' MMMM", Locale("pt", "BR")).format(date)
-        }
-    } catch (e: Exception) {
-        data
-    }
-}
-
-private fun formatarHora(dataHora: String): String {
-    return try {
-        // Formato esperado: "2025-11-26T02:47:40.000Z"
-        val sdfInput = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
-        sdfInput.timeZone = java.util.TimeZone.getTimeZone("UTC")
-
-        val date = sdfInput.parse(dataHora)
-        if (date != null) {
-            val sdfOutput = SimpleDateFormat("HH:mm", Locale.getDefault())
-            sdfOutput.timeZone = java.util.TimeZone.getDefault() // Fuso horário local
-            sdfOutput.format(date)
-        } else {
-            "Agora"
-        }
-    } catch (e: Exception) {
-        // Fallback: tenta extrair diretamente
-        try {
-            val partes = dataHora.split("T")
-            if (partes.size > 1) {
-                partes[1].substring(0, 5)
-            } else {
-                "Agora"
-            }
-        } catch (ex: Exception) {
-            "Agora"
-        }
-    }
-}
-
-private fun formatDuration(seconds: Int): String {
-    val minutes = seconds / 60
-    val secs = seconds % 60
-    return String.format(Locale.US, "%d:%02d", minutes, secs)
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AudioMessageContent(
-    audioUrl: String,
-    duration: Int,
-    isPlaying: Boolean,
-    progress: Pair<Int, Int>, // (current, total) em milissegundos
-    onPlayAudio: (String) -> Unit,
-    onSeekTo: (String, Int) -> Unit = { _, _ -> },
-    isUser: Boolean,
-    messageTime: String = "",
-    isViewed: Boolean = false
-) {
-    val (currentMs, totalMs) = progress
-
-    // Tempo atual em segundos
-    val currentSeconds = if (isPlaying && totalMs > 0) {
-        (currentMs / 1000)
-    } else {
-        0
-    }
-
-    // Tempo total em segundos
-    val totalSeconds = if (totalMs > 0) (totalMs / 1000) else duration
-
-    // Tempo a mostrar: se está tocando mostra progresso, se pausado mostra duração total
-    val displayTime = if (isPlaying) {
-        formatDuration(currentSeconds)
-    } else {
-        formatDuration(totalSeconds)
-    }
-
-    // Estado local para o slider
-    var sliderPosition by remember { mutableStateOf(currentMs.toFloat()) }
-    var isUserDragging by remember { mutableStateOf(false) }
-
-    // Atualiza posição do slider quando não está arrastando
-    LaunchedEffect(currentMs) {
-        if (!isUserDragging) {
-            sliderPosition = currentMs.toFloat()
-        }
-    }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Start
-    ) {
-        // Botão play/pause
-        IconButton(
-            onClick = { onPlayAudio(audioUrl) },
-            modifier = Modifier.size(40.dp)
-        ) {
-            Icon(
-                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = if (isPlaying) "Pausar" else "Reproduzir",
-                tint = if (isUser) Color(0xFFFF6F00) else Color(0xFF616161),
-                modifier = Modifier.size(28.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(4.dp))
-
-        // Barra de progresso e tempo
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            // Slider com bolinha para controlar posição
-            Slider(
-                value = sliderPosition,
-                onValueChange = { newValue ->
-                    isUserDragging = true
-                    sliderPosition = newValue
-                },
-                onValueChangeFinished = {
-                    isUserDragging = false
-                    // Ao soltar, busca para a nova posição
-                    onSeekTo(audioUrl, sliderPosition.toInt())
-                },
-                valueRange = 0f..(if (totalMs > 0) totalMs.toFloat() else (duration * 1000).toFloat()),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(16.dp),
-                colors = SliderDefaults.colors(
-                    thumbColor = if (isUser) Color(0xFFFF6F00) else Color(0xFF616161),
-                    activeTrackColor = if (isUser) Color(0xFFFF6F00) else Color(0xFF616161),
-                    inactiveTrackColor = Color.Gray.copy(alpha = 0.3f),
-                    activeTickColor = Color.Transparent,
-                    inactiveTickColor = Color.Transparent
-                ),
-                thumb = {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .offset(y = (5).dp)
-                            .background(
-                                color = if (isUser) Color(0xFFFF6F00) else Color(0xFF616161),
-                                shape = CircleShape
-                            )
-                    )
-                },
-                track = { sliderState ->
-                    // Track personalizado com linhas centralizadas
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Linha de progresso (ativa)
-                            Box(
-                                modifier = Modifier
-                                    .weight(
-                                        weight = if (sliderState.valueRange.endInclusive > 0) {
-                                            ((sliderState.value - sliderState.valueRange.start) /
-                                            (sliderState.valueRange.endInclusive - sliderState.valueRange.start)).coerceIn(0.001f, 1f)
-                                        } else {
-                                            0.001f
-                                        }
-                                    )
-                                    .height(3.dp)
-                                    .clip(RoundedCornerShape(1.5.dp))
-                                    .background(
-                                        if (isUser) Color(0xFFFF6F00) else Color(0xFF616161)
-                                    )
-                            )
-                            // Linha de fundo (inativa)
-                            Box(
-                                modifier = Modifier
-                                    .weight(
-                                        weight = if (sliderState.valueRange.endInclusive > 0) {
-                                            1f - ((sliderState.value - sliderState.valueRange.start) /
-                                            (sliderState.valueRange.endInclusive - sliderState.valueRange.start)).coerceIn(0f, 0.999f)
-                                        } else {
-                                            1f
-                                        }
-                                    )
-                                    .height(3.dp)
-                                    .clip(RoundedCornerShape(1.5.dp))
-                                    .background(Color.Gray.copy(alpha = 0.3f))
-                            )
-                        }
-                    }
-                }
-            )
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            // Contador, ícone, horário e status na mesma linha
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Lado esquerdo: Contador e ícone
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Contador de tempo
-                    Text(
-                        text = if (isUserDragging) {
-                            // Mostra tempo do slider enquanto arrasta
-                            formatDuration((sliderPosition / 1000).toInt())
-                        } else {
-                            displayTime
-                        },
-                        fontSize = 11.sp,
-                        color = Color.Gray
-                    )
-
-                    Spacer(modifier = Modifier.width(6.dp))
-
-                    // Ícone de áudio
-                    Icon(
-                        imageVector = Icons.Default.Mic,
-                        contentDescription = "Áudio",
-                        tint = if (isUser) Color(0xFFFF6F00) else Color(0xFF616161),
-                        modifier = Modifier.size(14.dp)
-                    )
-                }
-
-                // Lado direito: Horário e status de visualização
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = messageTime,
-                        fontSize = 11.sp,
-                        color = Color.Gray
-                    )
-                    if (isUser) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = if (isViewed) "✓✓" else "✓",
-                            fontSize = 11.sp,
-                            color = if (isViewed) Color(0xFF4CAF50) else Color.Gray
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
 
 @Preview(showSystemUi = true)
 @Composable

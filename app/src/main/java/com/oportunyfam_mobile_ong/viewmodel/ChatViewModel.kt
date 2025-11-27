@@ -73,6 +73,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val _currentPlayingAudioUrl = MutableStateFlow<String?>(null)
     val currentPlayingAudioUrl: StateFlow<String?> = _currentPlayingAudioUrl.asStateFlow()
 
+    private val _isAudioPlaying = MutableStateFlow(false)
+    val isAudioPlaying: StateFlow<Boolean> = _isAudioPlaying.asStateFlow()
+
     private val _audioProgress = MutableStateFlow<Pair<Int, Int>>(0 to 0) // (current, total) em ms
     val audioProgress: StateFlow<Pair<Int, Int>> = _audioProgress.asStateFlow()
 
@@ -553,6 +556,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 // Se estava pausado, retomar
                 audioPlayer.playAudio(audioUrl)
+                _isAudioPlaying.value = true
                 startProgressUpdateJob(audioUrl)
                 Log.d("ChatViewModel", "▶️ Retomando áudio: $audioUrl")
                 return
@@ -565,6 +569,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         // Inicia novo áudio
         _currentPlayingAudioUrl.value = audioUrl
         _audioProgress.value = 0 to 0
+        _isAudioPlaying.value = true
 
         audioPlayer.playAudio(
             audioUrl = audioUrl,
@@ -573,6 +578,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 progressUpdateJob?.cancel()
                 _currentPlayingAudioUrl.value = null
                 _audioProgress.value = 0 to 0
+                _isAudioPlaying.value = false
 
                 Log.d("ChatViewModel", "✅ Áudio terminado: $audioUrl")
 
@@ -610,6 +616,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun pauseAudio() {
         audioPlayer.pauseAudio()
+        _isAudioPlaying.value = false
         progressUpdateJob?.cancel()
         Log.d("ChatViewModel", "⏸️ Áudio pausado")
     }
@@ -621,6 +628,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         audioPlayer.stopAudio()
         _currentPlayingAudioUrl.value = null
         _audioProgress.value = 0 to 0
+        _isAudioPlaying.value = false
         progressUpdateJob?.cancel()
     }
 
